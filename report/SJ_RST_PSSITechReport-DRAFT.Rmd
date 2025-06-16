@@ -1,0 +1,212 @@
+---
+title: "Downstream outmigration of natural juvenile San Juan Chinook relative to hatchery releases during 2006-2007 and 2023-2025"
+output: bookdown::pdf_document2
+header-includes:
+  \usepackage{float}
+  \floatplacement{figure}{H}
+date: "2024-08-21"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=F, warning=F, message=F)
+
+source(here::here("reports", "rst", "source-RST.R"))
+```
+
+
+
+# ACKNOWLEDGEMENTS
+
+This project would not have been possible without Pacheedaht First Nation's Stewardship Group, including Jeff Jones, Mariyah Dunn-Jones, Richard Jones, Jacob Jones, Tony Jones, Tom Levac and Frankie Dick. Helen Jones provided countless hours advising, coordinating, and supporting, as well as many in-kind contributions of time and gear to ensure the work was successful. As technical support for Pacheedaht, Dave Burt (D. Burt and Assoc.) also provided much advice, knowledge, and complementary data. *Pacheedaht's relationship with and stewardship of the land in and around the San Juan watershed has existed for millenia and continues to this day. Their dedication and care for the land, waters and animals inhabiting their territory made this work more successful and meaningful, and DFO staff are grateful for their generosity in sharing knowledge and context for this collaborative study.* 
+
+Rod, Linda and Thomas Bealing were also instrumental in providing access, machinery, time, and passion to the project. Thank you to the Bealing Family for welcoming us onto your land and supporting us for several years while we tested the boundaries of what excavators and RSTs can achieve.
+
+Thank you as well to Lisa Margetish and Shane Bruinsma from 4 Mile Hatchery, and Heather Wright (DFO Community Advisor) and for their tireless dedication to improving the San Juan Chinook enhancement process, including marking and releasing hatchery Chinook. 
+
+Last, but not least, the many people from within DFO who directly and/or indirectly helped. Jonathan Archambault, Adrian Johnston, Pat Vek, Jessy Bokvist, Wilf Luedke and Pieter Van Will all provided support whether through field time, project planning and design and/or funding. Thank you too to the otolith microchemistry experts Micah Quindazzi and Nicole LaForge for supporting otoltih analysis work and collaboration on the larger Follow The Fish project. We also thank the Pacific Salmon Strategy Initiative (PSSI) for funding this work.
+
+$\\ \\$
+
+
+
+
+
+
+# INTRODUCTION
+
+$\\ \\$
+
+
+
+
+
+
+
+
+# METHODS 
+
+## Study area 
+
++ Overview of area (SJ, PFMA, Pacheedaht, etc.) 
++ Temporal/spatial extent of study (lat/long RST if OK with Rod/PFN?)
+
+The San Juan River is the major salmon producing system that empties into Port San Juan (Port Renfrew, BC) on the southwest coast of Vancouver Island (MAP) 
+It supports genetically distinct populations of Chinook and Coho (CITE), as well as a small abundance of SWVI Chum. The tributaries of the San Juan are particularly productive for Coho and Steelhead. 
+This area falls within the traditional territory of PFN, who are committing tremendous effort towards re-establishing the natural Chinook run through restoration and monitoring projects as well as co-management of the 4 Mile Hatchery. The hatchery has enhanced Chinook since 1975, coho since x, etc. 
+ 
+
+$\\$
+
+## Rotary Screw Trap site selection and operations 
+
++ RST specific operations:
+  + Set/check times (fishing overnight)
+  + days/week fished 
++ Biosampling routine:
+  + Fork length, weight, condition factor
+  + Lethal sample rate
+- DNA clip – ethanol  
+- Mark recapture (in some years)
+  + Marking frequency, assumptions
+  + Marking method, length of time in BB
+  + Release location and timing 
+  + Equations/method for estimating abundance 
+
+DFO and PFN operated an RST during the spring outmigration of 2023 (pilot year), 2024 and 2025. We also include here unpublished RST results (CITE??) from 2006 and 2007 to provide a discontinuous time series of data in order to increase our sample size and inference (weird wording).
+
+
+
+$\\$
+
+## Lab processing 
+
+- Dissections (link to protocol?)
+- DNA 
+- Otoliths 
+- Diet analysis 
+
+$\\$
+
+## Data analyses 
+
+### Size-specific survival
+
+FL-oto regression
+
+### Diet analysis 
+
+### Chinook and Coho abundance estimates 
+
+
+
+$\\ \\$
+
+$\\ \\$
+
+
+
+
+
+
+
+
+# RESULTS
+
+## RST operations
+
+In 2023 the RST was operational 2 nights/week from March 24 - June 16, with a gap from May 12 - June 7. In 2024 we increased the  operations to 4 nights/week (Mon - Thurs), beginning with an early install of an Inclined Plane Trap (IPT) from March 13 - 21, and then the RST from March 26 - May 30. Trap set times varied, with set times typically between 2-5 pm and checked between 8-9 am. We conducted four daytime fishing sets in March 2023, but found daytime migration to be minimal (less than 30 total fish captured). In 2025 the trap was fished almost consistently 24-hours per day, with a break in fishing while crews processed fish caught the previous night. 
+
+RST RPMs started high in 2023 (between 5-6) but were quickly reduced to limit mortalities (see below) and kept around 3-5, but occasionally slowed to about 1 1/4 (average 4.3 over the season). In 2024 we kept RPMs consistently lower to avoid mortalities while still capturing smolts; RPMs averaged **avg** in 2024. Modifications to the trap between 2024 and 2025, including changes to mesh sizes to avoid fry mortalities, allowed us to increase RPMs in 2025, averaging **avg**. 
+
+$\\$
+
+## Overall catch composition and timing 
+
+Coho were the dominant catch in all years, primarily peaking in early-mid April with a smaller bump in early May. Chinook were mostly present earlier in the season, primarily in late March - April. Chum outmigration is typically much earlier than Chinook and Coho, and we likely only caught the tail-end in early-mid March (Fig \@ref(fig:rstCatchFig)). Other by-catch included juvenile Rainbow and Cutthroat trout, amphibians (Western toadlets, roughskin newts), and other non-salmonid fish (sculpin, stickleback, lamprey). 
+
+In 2023 the trap caused high mortality rates at times due to a combination of flow and the trap mesh design. The auger cone and live box mesh panels were originally lined with 1/4" mesh that entrapped fry, but these were switched to either 1/8" mesh or covered with pond liner (SEE FIGURE) which significantly reduced fry mortality in late 2023 and 2024. Additional improvements to the RST design reduced mortality rates further in 2025. Including days with 0% mortality, average mortality rates were `r round(mortRateSummary[mortRateSummary$year=="2023",]$mean_mort_rate*100, 1)`% in 2023, `r round(mortRateSummary[mortRateSummary$year=="2024",]$mean_mort_rate*100, 1)`% in 2024, and TBD in 2025.
+
+```{r rstCatchFig, fig.cap='Uncorrected daily total RST catch from 2023-2025 including mortalities, but excluding recaptures. Early 2024 catch (prior to March 26) represents IPT catch.', fig.pos='H'}
+plot.rstCatchFig
+```
+
+Outmigration timing was relatively similar in both years for Chinook despite the reduced program frequency and duration in 2023, although this likely explains the considerable difference in timing for Coho. 
+
+```{r rstcumlOutmigration, fig.cap = 'Outmigration timing of juvenile salmon from 2023-2025.'}
+plot.rstcumlOutmigration
+```
+
+
+$\\$
+
+## Body size and species ID 
+
+For the purposes of field sampling we visually grouped salmonids as "fry" or "smolts" based on whether they were less than or greater than approximately 55 mm (respectively). However, these groupings may not be completely accurate depending on the species and stage of life. For example, San Juan Coho exhibit both yearling and sub-yearling life history strategies, where young-of-year may rear in the lower river and/or Fairy Lake for an additional winter before leaving freshwater as a yearling. Alternatively, a proportion will enter the estuary and undergo smoltification within their first year. The majority of WCVI Chinook are ocean-type, but a small proportion of the population may over-winter for a year in the lower San Juan as do Coho (H. Jones, Pacheedaht First Nation, pers. comm.). 
+
+For the purposes of body size explorations we present size data without making inference about the timing of smoltification, but with the assumption that larger fish would be heading to sea in the summer immediately following capture in the RST.
+
+The majority of juvenile salmon encountered were < 50 mm. Chinook exhibited a more protracted distribution of larger sizes (mostly between 55 - 70 mm) compared to Coho which ranged from 50 - 110 mm in relatively consistent frequency (Fig \@ref(fig:lengthDensityTime)). Increasing size was positively related to time, with most larger juvenile salmon encountered later in the season.  
+
+```{r lengthDensityTime, fig.cap='A) Probability density and B) temporal trends in fork length for Chinook, Chum and Coho from all RST years pooled.', fig.pos='H'}
+ggpubr::ggarrange(
+  plot.lengthDensity,
+  plot.lengthTime,
+  ncol=2,
+  labels="AUTO")
+```
+
+However, it is important to consider that identification of Chinook and Coho is often difficult, especially in freshwater larger size classes before smolt features have developed (i.e., the awkward teenage stage!). Of five genetic samples collected from smolts with uncertain Chinook/Coho IDs between `r min(misID$length)`-`r max(misID$length)` mm, all five turned out to be Coho. It is then possible that some of the larger sized Chinook noted later in the season (Figure \@ref(fig:lengthDensityTime)) could be Coho. 
+
+
+## Natural and hatchery-origin Chinook abundance and timing
+
+- Timing relative to hatchery release in these years too 
+- Abundance estimates 2006, 2024, 2025
+- Implied survival – adult x sex ratio x fecundity  compared to estimate?  
+  + Adult returns from outmigration? This could be hard to calculate as it needs age structure? 
+  
+
+
+$\\$
+
+## Condition factor  
+- Length/weight/condition of natural vs hatchery fish
+- Changes in natural fish over the season / early smalls/late-larges
+  + Otolith FL ? 
+
+
+$\\$
+
+
+
+
+
+
+
+
+
+
+
+$\\ \\$
+
+
+
+
+
+
+
+
+
+
+# DISCUSSION
+
+
+
+
+
+
+
+
+
+
+
