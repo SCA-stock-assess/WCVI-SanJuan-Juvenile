@@ -14,14 +14,14 @@ library(tidyverse)
 # Load and compile repunit_table_ids tabs all years ------------------------------------
 gsi.repunits_table_ids.LL <- c(
   # --- 2023:
-  lapply(list.files(here::here("data", "juvenile", "GSI", "2023"), 
-                    pattern=".xlsx", full.names=T), 
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
+                    pattern="new-format.xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="repunits_table_ids")
          }),
   
   # --- 2024:
-  lapply(list.files(here::here("data", "juvenile", "GSI", "2024"), 
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                     pattern=".xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="repunits_table_ids")
@@ -29,9 +29,9 @@ gsi.repunits_table_ids.LL <- c(
 )
 
 # Rename, convert to data frame: 
-names(gsi.repunits_table_ids.LL) <- c(list.files(here::here("data", "juvenile", "GSI", "2023"), 
-                                            pattern=".xlsx", full.names=F),
-                                   list.files(here::here("data", "juvenile", "GSI", "2024"), 
+names(gsi.repunits_table_ids.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
+                                            pattern="new-format.xlsx", full.names=F),
+                                   list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                                               pattern=".xlsx", full.names=F))
 
 # Convert the Large List into a useable R dataframe:
@@ -44,14 +44,14 @@ remove(gsi.repunits_table_ids.LL)
 # Load and compile extraction_sheet tabs all years ------------------------------------
 gsi.extraction_sheets.LL <- c(
   # --- 2023:
-  lapply(list.files(here::here("data", "juvenile", "GSI", "2023"), 
-                    pattern=".xlsx", full.names=T), 
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
+                    pattern="new-format.xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="extraction_sheet")
          }),
   
   # --- 2024:
-  lapply(list.files(here::here("data", "juvenile", "GSI", "2024"), 
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                     pattern=".xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="extraction_sheet")
@@ -59,9 +59,9 @@ gsi.extraction_sheets.LL <- c(
 )
 
 # Rename, convert to data frame: 
-names(gsi.extraction_sheets.LL) <- c(list.files(here::here("data", "juvenile", "GSI", "2023"), 
-                                                 pattern=".xlsx", full.names=F),
-                                      list.files(here::here("data", "juvenile", "GSI", "2024"), 
+names(gsi.extraction_sheets.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
+                                                 pattern="new-format.xlsx", full.names=F),
+                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                                                  pattern=".xlsx", full.names=F))
 
 # Convert the Large List into a useable R dataframe:
@@ -73,14 +73,14 @@ remove(gsi.extraction_sheets.LL)
 # Load and compile species_ID tabs all years ------------------------------------
 gsi.species_ID.LL <- c(
   # --- 2023:
-  lapply(list.files(here::here("data", "juvenile", "GSI", "2023"), 
-                    pattern=".xlsx", full.names=T), 
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
+                    pattern="new-format.xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="species_ID")
          }),
   
   # --- 2024:
-  lapply(list.files(here::here("data", "juvenile", "GSI", "2024"), 
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                     pattern=".xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="species_ID")
@@ -88,9 +88,9 @@ gsi.species_ID.LL <- c(
 )
 
 # Rename, convert to data frame: 
-names(gsi.species_ID.LL) <- c(list.files(here::here("data", "juvenile", "GSI", "2023"), 
-                                                 pattern=".xlsx", full.names=F),
-                                      list.files(here::here("data", "juvenile", "GSI", "2024"), 
+names(gsi.species_ID.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
+                                                 pattern="new-format.xlsx", full.names=F),
+                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                                                  pattern=".xlsx", full.names=F))
 
 # Convert the Large List into a useable R dataframe:
@@ -119,7 +119,7 @@ gsi.master <- full_join(
 
 
 # Export in case needed ------------------------------------
-writexl::write_xlsx(gsi.master, path=paste0(here::here("data", "juvenile", "GSI"), 
+writexl::write_xlsx(gsi.master, path=paste0("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/", 
                                             "/San Juan MGL master file ",
                                             Sys.Date(),
                                             ".xlsx"))
