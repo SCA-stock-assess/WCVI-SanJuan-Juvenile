@@ -52,7 +52,8 @@ setTotals <-  readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-
                                                              grepl("chinook", species, ignore.case=T) & clip_status == "clipped" ~ paste0(species, " (hatchery)"),
                                                              grepl("newt|toad", species, ignore.case=T) ~ "Amphibian",
                                                              grepl("lamprey|sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
-                                                             TRUE ~ species)))
+                                                             TRUE ~ species))) %>%
+  janitor::clean_names()
 
 
 # Mark-release ----------------- 
@@ -100,14 +101,14 @@ eventMeta_totals <- full_join(eventMeta %>%
                                 select(year, gear, date_start, datetime_start, date_stop, datetime_stop, set_type, usid),
                               setTotals %>% 
                                 filter(species %in% c("chinook", "chum", "coho")) %>%
-                                select(usid, DOY, species_stage_simple, total_caught_excl_recaps),
+                                select(usid, doy, species_stage_simple, total_caught_excl_recaps),
                               by="usid"
 ) %>%
   group_by(date_stop, species_stage_simple) %>% 
   summarize(year, gear, usid, set_type, date_start, datetime_start, 
             datetime_stop, 
             set_total = sum(total_caught_excl_recaps),
-            DOY) %>%
+            doy) %>%
   relocate(date_stop, .before=datetime_stop) %>% 
   relocate(species_stage_simple, .after=datetime_stop) %>% 
   distinct(species_stage_simple, date_stop, set_total, .keep_all = T) %>%
@@ -124,42 +125,47 @@ eventMeta_totals <- full_join(eventMeta %>%
          estimate_type = case_when(is.na(usid) ~ "infill",
                                    TRUE ~ "observed"),
          across(c(`chinook fry`:`chinook smolt (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
-                                                                        TRUE ~ .))) %>%
+                                                                        TRUE ~ .)),
+         chinook_fry_IMPTEST = `chinook fry`) %>%
+  janitor::clean_names() %>%
   print()
 
 
+# =============== CREATE IMPUTATION VALIDATION COLUMNS ===============
 
-# Remove some observations to test imputation methods:
-set.seed(123)
+# Identify sample sizes for each year: 20% of non-NA days each year ------------
 random.sample.sizes <- c(`2023` = eventMeta_totals %>% 
-                           filter(year==2023 & !is.na(`chinook fry`)) %>%
+                           filter(year==2023 & !is.na(chinook_fry)) %>%
                            summarize(n=round(n()*0.2, 0)) %>%
                            pull(n),
                          `2024` = eventMeta_totals %>% 
-                           filter(year==2024 & !is.na(`chinook fry`)) %>%
+                           filter(year==2024 & !is.na(chinook_fry)) %>%
                            summarize(n=round(n()*0.2, 0)) %>%
                            pull(n),
                          `2025` = eventMeta_totals %>% 
-                           filter(year==2025 & !is.na(`chinook fry`)) %>%
+                           filter(year==2025 & !is.na(chinook_fry)) %>%
                            summarize(n=round(n()*0.2, 0)) %>%
                            pull(n))
 
-eventMeta_totals_imputation <- eventMeta_totals %>%
-  mutate(`chinook fry IMPTEST` = `chinook fry`)
+
+# Randomly select year-specific n cases to replace for NAs to ground-truth interpolation methods: 
+set.seed(123)
+
+for (grp in names(random.sample.sizes)) {
+  # Get row indices for this group where my_column is not NA
+  idx <- which(eventMeta_totals$year == grp & !is.na(eventMeta_totals$chinook_fry))
+  
+  # Number to select, limited by available rows
+  n_select <- min(random.sample.sizes[grp], length(idx))
+  
+  # Randomly choose indices
+  selected_idx <- sample(idx, n_select)
+  
+  # Apply the selection
+  eventMeta_totals$chinook_fry_IMPTEST[selected_idx] <- NA
+}
 
 
-  group_by(year) %>%
-  group_modify(~ {
-    non_na_rows <- which(!is.na(.x$`chinook fry`))
-    n_select <- min(sample_sizes[unique(.x$group)], length(non_na_rows))
-    selected_rows <- sample(non_na_rows, size = n_select, replace = FALSE)
-    .x$selected[selected_rows] <- "selected"
-    .x
-  }) %>%
-  ungroup()
-
-
-View(eventMeta_totals %>% filter(!is.na(`chinook fry`) & is.na(`chinook fry IMPTEST`)))
 
 
 
@@ -225,14 +231,15 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
 
 
 # Create timeseries ------------
-ts_CNfry_COMPLETE <- ts(eventMeta_totals[eventMeta_totals$year==2024,]$`chinook fry`)
-ts_CNfry_TEST <- ts(eventMeta_totals[eventMeta_totals$year==2024,]$`chinook fry IMPTEST`)
+ts_CNfry_COMPLETE <- ts(eventMeta_totals_imputation[eventMeta_totals_imputation$year==2024,]$chinook_fry)
+ts_CNfry_TEST <- ts(eventMeta_totals_imputation[eventMeta_totals_imputation$year==2024,]$chinook_fry_imptest)
 
 
 # Visualilze imputeTS options ------------
 
 # Imputation by interpolation: linear, stineman  (spline doesn't floor at zero and predicts negatives)
 imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_interpolation(ts_CNfry, option="linear"))
+
 imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
                                 x_with_imputations = imputeTS::na_interpolation(ts_CNfry_TEST, option="linear"),
                                 x_with_truth = ts_CNfry_COMPLETE,
