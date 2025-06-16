@@ -124,9 +124,42 @@ eventMeta_totals <- full_join(eventMeta %>%
          estimate_type = case_when(is.na(usid) ~ "infill",
                                    TRUE ~ "observed"),
          across(c(`chinook fry`:`chinook smolt (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
-                                                                        TRUE ~ .)))
+                                                                        TRUE ~ .))) %>%
+  print()
 
 
+
+# Remove some observations to test imputation methods:
+set.seed(123)
+random.sample.sizes <- c(`2023` = eventMeta_totals %>% 
+                           filter(year==2023 & !is.na(`chinook fry`)) %>%
+                           summarize(n=round(n()*0.2, 0)) %>%
+                           pull(n),
+                         `2024` = eventMeta_totals %>% 
+                           filter(year==2024 & !is.na(`chinook fry`)) %>%
+                           summarize(n=round(n()*0.2, 0)) %>%
+                           pull(n),
+                         `2025` = eventMeta_totals %>% 
+                           filter(year==2025 & !is.na(`chinook fry`)) %>%
+                           summarize(n=round(n()*0.2, 0)) %>%
+                           pull(n))
+
+eventMeta_totals_imputation <- eventMeta_totals %>%
+  mutate(`chinook fry IMPTEST` = `chinook fry`)
+
+
+  group_by(year) %>%
+  group_modify(~ {
+    non_na_rows <- which(!is.na(.x$`chinook fry`))
+    n_select <- min(sample_sizes[unique(.x$group)], length(non_na_rows))
+    selected_rows <- sample(non_na_rows, size = n_select, replace = FALSE)
+    .x$selected[selected_rows] <- "selected"
+    .x
+  }) %>%
+  ungroup()
+
+
+View(eventMeta_totals %>% filter(!is.na(`chinook fry`) & is.na(`chinook fry IMPTEST`)))
 
 
 
@@ -169,13 +202,13 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
 
 # Moving forward I'm going to start by infilling missed days based on daily CPUE, not CPUE_24 (expand for entire 24hr period). 
 
-# Expanding for 24 hours adds quite a lot of fish in some cases (~700 coho fry on one day in 2024 are estimated to have migrated durnig
-# the day with the 24-hr expansion method!)
+# Expanding for 24 hours adds quite a lot of fish in some cases (~700 coho fry on one day in 2024 are estimated to have migrated during
+# the day with the 24-hr expansion method used by LGL!)
 
 # I will explore a few methods of infilling. I'm going to start with 2024 as it was a much more comprehensive season and then
-# determine how to approach 2023 pilot season afterwards. 
+# determine how to approach 2023 pilot season afterwards (likely won't be expanded). 
   # 1. Using methods within imputeTS (https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf)
-  # 2. Weighted "either side" days (LGL method). *I anticipate this will not work well for 2023 where effort was low*
+  # 2. Weighted "either side" days (LGL method).  
   # 3. Rolling window average centered around the missed day (window size TBD)
   # 4. zoo:rollapply ? 
 
@@ -184,20 +217,195 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
 
 # =============== INFILLING: imputeTS ===============
 
+# Notes from https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf: 
+  # "In general, for most time series one algorithm out of na_kalman, na_interpolation and na_seadec will yield the best results. Meanwhile, na_random, na_mean, 
+  # na_locf will be at the lower end accuracy wise for the majority of input time series."
+
+
+
+
 # Create timeseries ------------
-ts_CNfry <- ts(eventMeta_totals[eventMeta_totals$year==2024,]$`chinook fry`)
+ts_CNfry_COMPLETE <- ts(eventMeta_totals[eventMeta_totals$year==2024,]$`chinook fry`)
+ts_CNfry_TEST <- ts(eventMeta_totals[eventMeta_totals$year==2024,]$`chinook fry IMPTEST`)
 
 
+# Visualilze imputeTS options ------------
 
+# Imputation by interpolation: linear, stineman  (spline doesn't floor at zero and predicts negatives)
 imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_interpolation(ts_CNfry, option="linear"))
-#imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_interpolation(ts_CNfry, option="spline")) - hard no, does not floor at zero 
+imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+                                x_with_imputations = imputeTS::na_interpolation(ts_CNfry_TEST, option="linear"),
+                                x_with_truth = ts_CNfry_COMPLETE,
+                                
+                                color_points="gray",
+                                color_imputations = "orange",
+                                color_truth = "green",
+                                
+                                size_points=4,
+                                size_imputations=4,
+                                size_truth=4,
+                                
+                                connect_na = F,
+                                #color_lines = "transparent"
+                                ) +
+  scale_x_continuous(breaks=seq(0,1000,by=1)) +
+  theme(panel.grid.major.x = element_line(colour="gray70"),
+        panel.grid.minor.x = element_line(colour="gray90"),
+        panel.grid.major.y = element_line(colour="gray70"),
+        panel.grid.minor.y = element_line(colour="gray70"))
+
+
 imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_interpolation(ts_CNfry, option="stine"))
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_kalman(ts_CNfry))
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_mean(ts_CNfry))
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_locf(ts_CNfry))
+imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+                                x_with_imputations = imputeTS::na_interpolation(ts_CNfry_TEST, option="stine"),
+                                x_with_truth = ts_CNfry_COMPLETE,
+                                
+                                color_points="gray",
+                                color_imputations = "orange",
+                                color_truth = "green",
+                                
+                                size_points=4,
+                                size_imputations=4,
+                                size_truth=4,
+                                
+                                connect_na = F,
+                                #color_lines = "transparent"
+) +
+  scale_x_continuous(breaks=seq(0,1000,by=1)) +
+  theme(panel.grid.major.x = element_line(colour="gray70"),
+        panel.grid.minor.x = element_line(colour="gray90"),
+        panel.grid.major.y = element_line(colour="gray70"),
+        panel.grid.minor.y = element_line(colour="gray70"))
+
+
+
+
+
+# Imputation by Kalman: by Structural model & kalman smoothing (ARIMA model predicts negative values so was removed)
+imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_kalman(ts_CNfry, model="StructTS"))
+imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+                                x_with_imputations = imputeTS::na_kalman(ts_CNfry_TEST, model="StructTS"),
+                                x_with_truth = ts_CNfry_COMPLETE,
+                                
+                                color_points="gray",
+                                color_imputations = "orange",
+                                color_truth = "green",
+                                
+                                size_points=4,
+                                size_imputations=4,
+                                size_truth=4,
+                                
+                                connect_na = F,
+                                #color_lines = "transparent"
+) +
+  scale_x_continuous(breaks=seq(0,1000,by=1)) +
+  theme(panel.grid.major.x = element_line(colour="gray70"),
+        panel.grid.minor.x = element_line(colour="gray90"),
+        panel.grid.major.y = element_line(colour="gray70"),
+        panel.grid.minor.y = element_line(colour="gray70"))
+
+
+# imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_kalman(ts_CNfry, model="auto.arima"))
+# imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+#                                 x_with_imputations = imputeTS::na_kalman(ts_CNfry_TEST, model="auto.arima"),
+#                                 x_with_truth = ts_CNfry_COMPLETE,
+#                                 
+#                                 color_points="gray",
+#                                 color_imputations = "orange",
+#                                 color_truth = "green",
+#                                 
+#                                 size_points=4,
+#                                 size_imputations=4,
+#                                 size_truth=4,
+#                                 
+#                                 connect_na = F,
+#                                 #color_lines = "transparent"
+# ) +
+#   scale_x_continuous(breaks=seq(0,1000,by=1)) +
+#   theme(panel.grid.major.x = element_line(colour="gray70"),
+#         panel.grid.minor.x = element_line(colour="gray90"),
+#         panel.grid.major.y = element_line(colour="gray70"),
+#         panel.grid.minor.y = element_line(colour="gray70"))
+
+
+# Imputation by mean/median/mode (none are great)
+  #imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_mean(ts_CNfry))
+
+# Imputation by last observation carried forward/next observation carried backward (neither are great)
+  #imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_locf(ts_CNfry, option="locf"))
+  #imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_locf(ts_CNfry, option="nocb"))
+
+# Imputation by moving average: simple, linear weighted moving average, exponential weighted moving average 
 imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_ma(ts_CNfry, weighting="simple"))
+imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+                                x_with_imputations = imputeTS::na_ma(ts_CNfry_TEST, weighting="simple"),
+                                x_with_truth = ts_CNfry_COMPLETE,
+                                
+                                color_points="gray",
+                                color_imputations = "orange",
+                                color_truth = "green",
+                                
+                                size_points=4,
+                                size_imputations=4,
+                                size_truth=4,
+                                
+                                connect_na = F,
+                                #color_lines = "transparent"
+) +
+  scale_x_continuous(breaks=seq(0,1000,by=1)) +
+  theme(panel.grid.major.x = element_line(colour="gray70"),
+        panel.grid.minor.x = element_line(colour="gray90"),
+        panel.grid.major.y = element_line(colour="gray70"),
+        panel.grid.minor.y = element_line(colour="gray70"))
+
 imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_ma(ts_CNfry, weighting="linear"))
+imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+                                x_with_imputations = imputeTS::na_ma(ts_CNfry_TEST, weighting="linear"),
+                                x_with_truth = ts_CNfry_COMPLETE,
+                                
+                                color_points="gray",
+                                color_imputations = "orange",
+                                color_truth = "green",
+                                
+                                size_points=4,
+                                size_imputations=4,
+                                size_truth=4,
+                                
+                                connect_na = F,
+                                #color_lines = "transparent"
+) +
+  scale_x_continuous(breaks=seq(0,1000,by=1)) +
+  theme(panel.grid.major.x = element_line(colour="gray70"),
+        panel.grid.minor.x = element_line(colour="gray90"),
+        panel.grid.major.y = element_line(colour="gray70"),
+        panel.grid.minor.y = element_line(colour="gray70"))
+
 imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_ma(ts_CNfry, k=4, weighting="exponential"))
+imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
+                                x_with_imputations = imputeTS::na_ma(ts_CNfry_TEST, weighting="linear"),
+                                x_with_truth = ts_CNfry_COMPLETE,
+                                
+                                color_points="gray",
+                                color_imputations = "orange",
+                                color_truth = "green",
+                                
+                                size_points=4,
+                                size_imputations=4,
+                                size_truth=4,
+                                
+                                connect_na = F,
+                                #color_lines = "transparent"
+) +
+  scale_x_continuous(breaks=seq(0,1000,by=1)) +
+  theme(panel.grid.major.x = element_line(colour="gray70"),
+        panel.grid.minor.x = element_line(colour="gray90"),
+        panel.grid.major.y = element_line(colour="gray70"),
+        panel.grid.minor.y = element_line(colour="gray70"))
+
+
+
+
+
 
 imputeTS::statsNA(ts_CNfry)
 
