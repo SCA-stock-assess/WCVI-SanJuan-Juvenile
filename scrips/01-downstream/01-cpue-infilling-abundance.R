@@ -10,6 +10,7 @@
 library(tidyverse)
 
 # Load helpers ---------------
+"%notin%" <- Negate("%in%")
 
 
 # ========================= LOAD JUVENILE DATA =========================
@@ -128,44 +129,43 @@ eventMeta_totals <- full_join(eventMeta %>%
                                                                         TRUE ~ .)),
          chinook_fry_IMPTEST = `chinook fry`) %>%
   janitor::clean_names() %>%
+  ungroup() %>%
   print()
 
 
 # =============== CREATE IMPUTATION VALIDATION COLUMNS ===============
 
 # Identify sample sizes for each year: 20% of non-NA days each year ------------
-random.sample.sizes <- c(`2023` = eventMeta_totals %>% 
-                           filter(year==2023 & !is.na(chinook_fry)) %>%
-                           summarize(n=round(n()*0.2, 0)) %>%
-                           pull(n),
-                         `2024` = eventMeta_totals %>% 
-                           filter(year==2024 & !is.na(chinook_fry)) %>%
-                           summarize(n=round(n()*0.2, 0)) %>%
-                           pull(n),
-                         `2025` = eventMeta_totals %>% 
-                           filter(year==2025 & !is.na(chinook_fry)) %>%
-                           summarize(n=round(n()*0.2, 0)) %>%
-                           pull(n))
+random.sample.sizes <- data.frame(year=c(2023,2024,2025),
+                                  sample_size = c(
+                                    eventMeta_totals %>% 
+                                      filter(year==2023 & !is.na(chinook_fry)) %>%
+                                      summarize(n=round(n()*0.2, 0)) %>%
+                                      pull(n),
+                                    eventMeta_totals %>% 
+                                      filter(year==2024 & !is.na(chinook_fry)) %>%
+                                      summarize(n=round(n()*0.2, 0)) %>%
+                                      pull(n),
+                                    eventMeta_totals %>% 
+                                      filter(year==2025 & !is.na(chinook_fry)) %>%
+                                      summarize(n=round(n()*0.2, 0)) %>%
+                                      pull(n)))
 
 
-# Randomly select year-specific n cases to replace for NAs to ground-truth interpolation methods: 
-set.seed(123)
-
-for (grp in names(random.sample.sizes)) {
-  # Get row indices for this group where my_column is not NA
-  idx <- which(eventMeta_totals$year == grp & !is.na(eventMeta_totals$chinook_fry))
-  
-  # Number to select, limited by available rows
-  n_select <- min(random.sample.sizes[grp], length(idx))
-  
-  # Randomly choose indices
-  selected_idx <- sample(idx, n_select)
-  
-  # Apply the selection
-  eventMeta_totals$chinook_fry_IMPTEST[selected_idx] <- NA
-}
+# Random selection of values to replace per year
+set.seed(3)
+random.selection <- eventMeta_totals %>%
+  group_split(year) %>%
+  map2_dfr(random.sample.sizes$sample_size, ~slice_sample(.x[.x$estimate_type=="observed",], n=.y)) %>%
+  mutate(chinook_fry_imptest = NA)
 
 
+# Rejoin:
+eventMeta_totals_testing <- full_join(eventMeta_totals %>%
+                                filter(date_stop %notin% random.selection$date_stop),
+                              
+                              random.selection) %>%
+  arrange(date_stop)
 
 
 
@@ -228,186 +228,51 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
   # na_locf will be at the lower end accuracy wise for the majority of input time series."
 
 
+# Create new imputation variables ------------
+eventMeta_totals_testing.interp <- eventMeta_totals_testing %>%
+  filter(year==2024) %>%
+  mutate(chinook_fry_interp.linear = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="linear"),
+         chinook_fry_interp.stine = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="stine"),
+         chinook_fry_kal.structs = imputeTS::na_kalman(ts(chinook_fry_imptest), model="StructTS"),
+         chinook_fry_MA.simp = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple"),
+         chinook_fry_MA.linear = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear"),
+         chinook_fry_MA.exp = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential"),
+         infill_type = case_when(is.na(chinook_fry_imptest) & !is.na(chinook_fry) ~ "ground truth",
+                                 TRUE ~ "known value")) 
 
 
-# Create timeseries ------------
-ts_CNfry_COMPLETE <- ts(eventMeta_totals_imputation[eventMeta_totals_imputation$year==2024,]$chinook_fry)
-ts_CNfry_TEST <- ts(eventMeta_totals_imputation[eventMeta_totals_imputation$year==2024,]$chinook_fry_imptest)
 
 
 # Visualilze imputeTS options ------------
 
 # Imputation by interpolation: linear, stineman  (spline doesn't floor at zero and predicts negatives)
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_interpolation(ts_CNfry, option="linear"))
-
-imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-                                x_with_imputations = imputeTS::na_interpolation(ts_CNfry_TEST, option="linear"),
-                                x_with_truth = ts_CNfry_COMPLETE,
-                                
-                                color_points="gray",
-                                color_imputations = "orange",
-                                color_truth = "green",
-                                
-                                size_points=4,
-                                size_imputations=4,
-                                size_truth=4,
-                                
-                                connect_na = F,
-                                #color_lines = "transparent"
-                                ) +
-  scale_x_continuous(breaks=seq(0,1000,by=1)) +
-  theme(panel.grid.major.x = element_line(colour="gray70"),
-        panel.grid.minor.x = element_line(colour="gray90"),
-        panel.grid.major.y = element_line(colour="gray70"),
-        panel.grid.minor.y = element_line(colour="gray70"))
-
-
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_interpolation(ts_CNfry, option="stine"))
-imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-                                x_with_imputations = imputeTS::na_interpolation(ts_CNfry_TEST, option="stine"),
-                                x_with_truth = ts_CNfry_COMPLETE,
-                                
-                                color_points="gray",
-                                color_imputations = "orange",
-                                color_truth = "green",
-                                
-                                size_points=4,
-                                size_imputations=4,
-                                size_truth=4,
-                                
-                                connect_na = F,
-                                #color_lines = "transparent"
-) +
-  scale_x_continuous(breaks=seq(0,1000,by=1)) +
-  theme(panel.grid.major.x = element_line(colour="gray70"),
-        panel.grid.minor.x = element_line(colour="gray90"),
-        panel.grid.major.y = element_line(colour="gray70"),
-        panel.grid.minor.y = element_line(colour="gray70"))
-
-
-
-
-
-# Imputation by Kalman: by Structural model & kalman smoothing (ARIMA model predicts negative values so was removed)
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_kalman(ts_CNfry, model="StructTS"))
-imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-                                x_with_imputations = imputeTS::na_kalman(ts_CNfry_TEST, model="StructTS"),
-                                x_with_truth = ts_CNfry_COMPLETE,
-                                
-                                color_points="gray",
-                                color_imputations = "orange",
-                                color_truth = "green",
-                                
-                                size_points=4,
-                                size_imputations=4,
-                                size_truth=4,
-                                
-                                connect_na = F,
-                                #color_lines = "transparent"
-) +
-  scale_x_continuous(breaks=seq(0,1000,by=1)) +
-  theme(panel.grid.major.x = element_line(colour="gray70"),
-        panel.grid.minor.x = element_line(colour="gray90"),
-        panel.grid.major.y = element_line(colour="gray70"),
-        panel.grid.minor.y = element_line(colour="gray70"))
-
-
-# imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_kalman(ts_CNfry, model="auto.arima"))
-# imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-#                                 x_with_imputations = imputeTS::na_kalman(ts_CNfry_TEST, model="auto.arima"),
-#                                 x_with_truth = ts_CNfry_COMPLETE,
-#                                 
-#                                 color_points="gray",
-#                                 color_imputations = "orange",
-#                                 color_truth = "green",
-#                                 
-#                                 size_points=4,
-#                                 size_imputations=4,
-#                                 size_truth=4,
-#                                 
-#                                 connect_na = F,
-#                                 #color_lines = "transparent"
-# ) +
-#   scale_x_continuous(breaks=seq(0,1000,by=1)) +
-#   theme(panel.grid.major.x = element_line(colour="gray70"),
-#         panel.grid.minor.x = element_line(colour="gray90"),
-#         panel.grid.major.y = element_line(colour="gray70"),
-#         panel.grid.minor.y = element_line(colour="gray70"))
-
-
-# Imputation by mean/median/mode (none are great)
-  #imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_mean(ts_CNfry))
-
-# Imputation by last observation carried forward/next observation carried backward (neither are great)
-  #imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_locf(ts_CNfry, option="locf"))
-  #imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_locf(ts_CNfry, option="nocb"))
-
-# Imputation by moving average: simple, linear weighted moving average, exponential weighted moving average 
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_ma(ts_CNfry, weighting="simple"))
-imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-                                x_with_imputations = imputeTS::na_ma(ts_CNfry_TEST, weighting="simple"),
-                                x_with_truth = ts_CNfry_COMPLETE,
-                                
-                                color_points="gray",
-                                color_imputations = "orange",
-                                color_truth = "green",
-                                
-                                size_points=4,
-                                size_imputations=4,
-                                size_truth=4,
-                                
-                                connect_na = F,
-                                #color_lines = "transparent"
-) +
-  scale_x_continuous(breaks=seq(0,1000,by=1)) +
-  theme(panel.grid.major.x = element_line(colour="gray70"),
-        panel.grid.minor.x = element_line(colour="gray90"),
-        panel.grid.major.y = element_line(colour="gray70"),
-        panel.grid.minor.y = element_line(colour="gray70"))
-
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_ma(ts_CNfry, weighting="linear"))
-imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-                                x_with_imputations = imputeTS::na_ma(ts_CNfry_TEST, weighting="linear"),
-                                x_with_truth = ts_CNfry_COMPLETE,
-                                
-                                color_points="gray",
-                                color_imputations = "orange",
-                                color_truth = "green",
-                                
-                                size_points=4,
-                                size_imputations=4,
-                                size_truth=4,
-                                
-                                connect_na = F,
-                                #color_lines = "transparent"
-) +
-  scale_x_continuous(breaks=seq(0,1000,by=1)) +
-  theme(panel.grid.major.x = element_line(colour="gray70"),
-        panel.grid.minor.x = element_line(colour="gray90"),
-        panel.grid.major.y = element_line(colour="gray70"),
-        panel.grid.minor.y = element_line(colour="gray70"))
-
-imputeTS::ggplot_na_imputations(x_with_na=ts_CNfry, x_with_imputations=imputeTS::na_ma(ts_CNfry, k=4, weighting="exponential"))
-imputeTS::ggplot_na_imputations(x_with_na = ts_CNfry_TEST, 
-                                x_with_imputations = imputeTS::na_ma(ts_CNfry_TEST, weighting="linear"),
-                                x_with_truth = ts_CNfry_COMPLETE,
-                                
-                                color_points="gray",
-                                color_imputations = "orange",
-                                color_truth = "green",
-                                
-                                size_points=4,
-                                size_imputations=4,
-                                size_truth=4,
-                                
-                                connect_na = F,
-                                #color_lines = "transparent"
-) +
-  scale_x_continuous(breaks=seq(0,1000,by=1)) +
-  theme(panel.grid.major.x = element_line(colour="gray70"),
-        panel.grid.minor.x = element_line(colour="gray90"),
-        panel.grid.major.y = element_line(colour="gray70"),
-        panel.grid.minor.y = element_line(colour="gray70"))
+ggplot() +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024), 
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
+  
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.linear), colour="green", fill="green", shape=23, size=5, alpha=0.4) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.stine), colour="red", fill="red", shape=23, size=5, alpha=0.4) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.structs), colour="blue", fill="blue", shape=23, size=5, alpha=0.4) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp), colour="orange", fill="orange", shape=23, size=5, alpha=0.4) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear), colour="purple", fill="purple", shape=23, size=5, alpha=0.4) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp), colour="magenta", fill="magenta", shape=23, size=5, alpha=0.4) +
+  
+  
+  scale_x_date(date_breaks="1 day", date_labels="%b %d") +
+  scale_size_manual(breaks=waiver(), values = c(5,3)) +
+  scale_fill_manual(breaks=waiver(), values=c("black", "gray80")) +
+  scale_colour_manual(breaks=waiver(), values=c("black", "gray80")) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"),
+        axis.text.x = element_text(angle=45, hjust=1),
+        panel.grid.major.x = element_line(colour="gray40"),
+        panel.grid.minor.x = element_line(colour="gray80"))
 
 
 
