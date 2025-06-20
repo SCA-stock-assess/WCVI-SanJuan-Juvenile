@@ -227,13 +227,16 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
   # "In general, for most time series one algorithm out of na_kalman, na_interpolation and na_seadec will yield the best results. Meanwhile, na_random, na_mean, 
   # na_locf will be at the lower end accuracy wise for the majority of input time series."
 
+imputeTS::statsNA(ts(eventMeta_totals_testing.interp[eventMeta_totals_testing.interp$year==2024,]$chinook_fry))
 
-# Create new imputation variables ------------
+
+# Create new imputation testing variables ------------
 eventMeta_totals_testing.interp <- eventMeta_totals_testing %>%
   filter(year==2024) %>%
   mutate(chinook_fry_interp.linear = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="linear"),
          chinook_fry_interp.stine = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="stine"),
          chinook_fry_kal.structs = imputeTS::na_kalman(ts(chinook_fry_imptest), model="StructTS"),
+         chinook_fry_kal.arima = imputeTS::na_kalman(ts(chinook_fry_imptest), model="auto.arima"),
          chinook_fry_MA.simp = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple"),
          chinook_fry_MA.linear = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear"),
          chinook_fry_MA.exp = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential"),
@@ -241,11 +244,9 @@ eventMeta_totals_testing.interp <- eventMeta_totals_testing %>%
                                  TRUE ~ "known value")) 
 
 
+  
+# Visualize imputeTS options ------------
 
-
-# Visualilze imputeTS options ------------
-
-# Imputation by interpolation: linear, stineman  (spline doesn't floor at zero and predicts negatives)
 ggplot() +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024), 
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
@@ -256,6 +257,8 @@ ggplot() +
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.stine), colour="red", fill="red", shape=23, size=5, alpha=0.4) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.structs), colour="blue", fill="blue", shape=23, size=5, alpha=0.4) +
+  #geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+  #           aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.arima), colour="turquoise", fill="turquoise", shape=23, size=5, alpha=0.4) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp), colour="orange", fill="orange", shape=23, size=5, alpha=0.4) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
@@ -263,25 +266,33 @@ ggplot() +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp), colour="magenta", fill="magenta", shape=23, size=5, alpha=0.4) +
   
-  
   scale_x_date(date_breaks="1 day", date_labels="%b %d") +
   scale_size_manual(breaks=waiver(), values = c(5,3)) +
-  scale_fill_manual(breaks=waiver(), values=c("black", "gray80")) +
-  scale_colour_manual(breaks=waiver(), values=c("black", "gray80")) +
+  scale_fill_manual(breaks=waiver(), values=c("black", "gray70")) +
+  scale_colour_manual(breaks=waiver(), values=c("black", "gray70")) +
   theme_bw() +
   theme(axis.text = element_text(colour="black"),
         axis.text.x = element_text(angle=45, hjust=1),
-        panel.grid.major.x = element_line(colour="gray40"),
-        panel.grid.minor.x = element_line(colour="gray80"))
+        panel.grid.major.x = element_line(colour="gray80"),
+        panel.grid.minor.x = element_blank())
 
 
-
-
-
-
-imputeTS::statsNA(ts_CNfry)
-
-
+# Calculate overall magnitude of differences between estimates
+eventMeta_totals_testing.interp %>% 
+  filter(year==2024 & infill_type=="ground truth") %>% 
+  mutate(dif_interp.linear = chinook_fry_interp.linear - chinook_fry,
+         dif_interp.stine = chinook_fry_interp.stine - chinook_fry,
+         dif_kal.structs = chinook_fry_kal.structs - chinook_fry,
+         dif_kal.arima = chinook_fry_kal.arima - chinook_fry,
+         dif_MA.simp = chinook_fry_MA.simp - chinook_fry,
+         dif_MA.linear = chinook_fry_MA.linear - chinook_fry,
+         dif_MA.exp = chinook_fry_MA.exp - chinook_fry) %>%
+  select(date_stop, chinook_fry, dif_interp.linear:dif_MA.exp) %>%
+  pivot_longer(cols=c(dif_interp.linear:dif_MA.exp), names_to = "infill_method", values_to = "infill_value") %>%
+  group_by(infill_method) %>%
+  summarize(min=min(infill_value),
+            max=max(infill_value),
+            mean=mean(infill_value))
 
 
 
