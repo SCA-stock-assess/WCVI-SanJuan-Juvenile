@@ -41,6 +41,10 @@ remove(gsi.repunits_table_ids.LL)
 
 
 
+
+
+
+
 # Load and compile extraction_sheet tabs all years ------------------------------------
 gsi.extraction_sheets.LL <- c(
   # --- 2023:
@@ -68,6 +72,10 @@ names(gsi.extraction_sheets.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/
 gsi.extraction_sheets <- do.call("rbind", gsi.extraction_sheets.LL) %>%
   tibble::rownames_to_column(var="file_source")
 remove(gsi.extraction_sheets.LL)
+
+
+
+
 
 
 # Load and compile species_ID tabs all years ------------------------------------
@@ -101,20 +109,30 @@ remove(gsi.species_ID.LL)
 
 
 
+
+
+
 # ========================= JOIN MGL INTO 1 MASTER FILE =========================
 
 # Join into a master dataframe ------------------------------------
 gsi.master <- full_join(
   gsi.repunits_table_ids %>% 
-    select(indiv, mixture_collection:prob.2, top_collection, associated_collection_prob),
+    select(-c(file_source, collection, mixture_collection)),
   gsi.extraction_sheets %>% 
-    select(indiv, CatchJulDate, Vial, Comments, ID_Source),
+    select(-c(file_source, SampleID, StockCode, Adipose.Status, Lane, Fish, Tray, PID, DigestionDate..YYYY.MM.DD., ExtractionTech, X16, X17)),
   by=c("indiv", "ID_Source")
 ) %>%
+  relocate(c(Vial, CatchYear, CatchJulDate, CatchDate..YYYY.MM.DD.), .after=indiv) %>%
+  relocate(SampleName, .before=indiv) %>%
   full_join(.,
             gsi.species_ID %>%
-              select(indiv:neg_sp_confirmed),
+              select(-c(file_source)),
             by=c("indiv")) %>%
+  rename_with(.cols=everything(), ~paste0("MGL_", .x)) %>%
+  mutate(MGL_CatchDate = case_when(grepl("-", MGL_CatchDate..YYYY.MM.DD.) ~ lubridate::ymd(MGL_CatchDate..YYYY.MM.DD.),
+                               TRUE ~ janitor::excel_numeric_to_date(as.numeric(MGL_CatchDate..YYYY.MM.DD.)))) %>%
+  select(-c(MGL_CatchDate..YYYY.MM.DD.)) %>%
+  relocate(MGL_CatchDate, .before=MGL_ID_Source) %>%
   print()
 
 
@@ -137,10 +155,8 @@ biosamp.linked <-  full_join(
                                      pattern="^San Juan PSSI master database",
                                      full.names=T),
                      sheet="biosampling"),
-  gsi.master %>%
-    select(ID_Source:Vial,species:neg_sp_confirmed) %>%
-    rename(genetic_species = species),
-  by=c("DNA_vial" = "Vial"),
+  gsi.master,
+  by=c("DNA_vial" = "MGL_Vial"),
   na_matches = "never")
 
 
