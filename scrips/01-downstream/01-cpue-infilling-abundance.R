@@ -125,12 +125,12 @@ eventMeta_totals <- full_join(eventMeta %>%
                                 TRUE ~ 0),
          estimate_type = case_when(is.na(usid) ~ "infill",
                                    TRUE ~ "observed"),
-         across(c(`chinook fry`:`chinook smolt (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
+         across(c(`chinook fry`:`chinook (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
                                                                         TRUE ~ .)),
          chinook_fry_IMPTEST = `chinook fry`) %>%
   janitor::clean_names() %>%
   ungroup() %>%
-  rename_with(~ paste(., "obs", sep="_"), c(chinook_fry:)) %>%
+  rename_with(~ paste(., "obs", sep="_"), c(chinook_fry:chinook_hatchery)) %>%
   print()
 
 
@@ -140,15 +140,15 @@ eventMeta_totals <- full_join(eventMeta %>%
 random.sample.sizes <- data.frame(year=c(2023,2024,2025),
                                   sample_size = c(
                                     eventMeta_totals %>% 
-                                      filter(year==2023 & !is.na(chinook_fry)) %>%
+                                      filter(year==2023 & !is.na(chinook_fry_obs)) %>%
                                       summarize(n=round(n()*0.2, 0)) %>%
                                       pull(n),
                                     eventMeta_totals %>% 
-                                      filter(year==2024 & !is.na(chinook_fry)) %>%
+                                      filter(year==2024 & !is.na(chinook_fry_obs)) %>%
                                       summarize(n=round(n()*0.2, 0)) %>%
                                       pull(n),
                                     eventMeta_totals %>% 
-                                      filter(year==2025 & !is.na(chinook_fry)) %>%
+                                      filter(year==2025 & !is.na(chinook_fry_obs)) %>%
                                       summarize(n=round(n()*0.2, 0)) %>%
                                       pull(n)))
 
@@ -158,7 +158,7 @@ set.seed(3)
 random.selection <- eventMeta_totals %>%
   group_split(year) %>%
   map2_dfr(random.sample.sizes$sample_size, ~slice_sample(.x[.x$estimate_type=="observed",], n=.y)) %>%
-  mutate(chinook_fry_imptest = NA)
+  mutate(chinook_fry_imptest = NA)                  # ** not sure what this is for.. delete? 
 
 
 # Rejoin:
@@ -243,18 +243,18 @@ eventMeta_totals_testing.interp <- eventMeta_totals_testing %>%
          chinook_fry_MA.exp2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential", k=2),
          chinook_fry_MA.exp3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential", k=3),
          
-         infill_type = case_when(is.na(chinook_fry_imptest) & !is.na(chinook_fry) ~ "ground truth",
+         infill_type = case_when(is.na(chinook_fry_imptest) & !is.na(chinook_fry_obs) ~ "ground truth",
                                  TRUE ~ "known value"))  
 
 
-imputeTS::statsNA(ts(eventMeta_totals_testing.interp[eventMeta_totals_testing.interp$year==2024,]$chinook_fry))
+imputeTS::statsNA(ts(eventMeta_totals_testing.interp[eventMeta_totals_testing.interp$year==2024,]$chinook_fry_obs))
 
   
 # Visualize imputeTS options ------------
 
 ggplot() +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024), 
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_obs, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
   
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.linear), colour="dodger blue", fill="dodger blue", shape=23, size=5, alpha=0.4) +
@@ -295,23 +295,34 @@ ggplot() +
 
 
 # Calculate overall magnitude of differences between estimates ------------
-infill_summary_table <- eventMeta_totals_testing.interp %>% 
+infill_evaluation_table <- eventMeta_totals_testing.interp %>% 
   filter(year==2024 & infill_type=="ground truth") %>% 
-  select(-c(year, gear, usid, set_type, date_start, datetime_start, datetime_stop, chum_fry:hrs_fished))
-  pivot_longer(cols=c(absdif_interp.linear:absdif_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
-  mutate(absdif_interp.linear = abs(chinook_fry_interp.linear - chinook_fry),
-         absdif_interp.stine = abs(chinook_fry_interp.stine - chinook_fry),
-         absdif_kal.structs = abs(chinook_fry_kal.structs - chinook_fry),
-         absdif_kal.arima = abs(chinook_fry_kal.arima - chinook_fry),
-         absdif_MA.simp2 = abs(chinook_fry_MA.simp2 - chinook_fry),
-         absdif_MA.simp3 = abs(chinook_fry_MA.simp3 - chinook_fry),
-         absdif_MA.linear2 = abs(chinook_fry_MA.linear2 - chinook_fry),
-         absdif_MA.linear3 = abs(chinook_fry_MA.linear3 - chinook_fry),
-         absdif_MA.exp2 = abs(chinook_fry_MA.exp2 - chinook_fry),
-         absdif_MA.exp3 = abs(chinook_fry_MA.exp3 - chinook_fry)) %>%
-  select(date_stop, chinook_fry, absdif_interp.linear:absdif_MA.exp3) %>%
+  select(-c(year, gear, usid, set_type, date_start, datetime_start, datetime_stop, chum_fry_obs:hrs_fished, chinook_fry_imptest, estimate_type)) %>%
+  pivot_longer(cols=c(chinook_fry_interp.linear:chinook_fry_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
+  mutate(APE = case_when(chinook_fry_obs!=0 ~ (abs((chinook_fry_obs-infill_value)/chinook_fry_obs))*100,
+                         chinook_fry_obs==0 ~ NA),
+         
+         AE = abs(chinook_fry_obs-infill_value)) %>% 
+  group_by(infill_method) %>%
+  mutate(n_APE = length(na.omit(APE)),
+         n_AE = n(),
+         sumAPE = case_when(!is.na(APE) ~ sum(APE, na.rm=T),
+                          is.na(APE) ~ NA),
+         MAPE = sumAPE/n_APE,
+         sumAE = sum(AE),
+         MAE = sumAE/n_AE) 
+  # mutate(absdif_interp.linear = abs(chinook_fry_interp.linear - chinook_fry),
+  #        absdif_interp.stine = abs(chinook_fry_interp.stine - chinook_fry),
+  #        absdif_kal.structs = abs(chinook_fry_kal.structs - chinook_fry),
+  #        absdif_kal.arima = abs(chinook_fry_kal.arima - chinook_fry),
+  #        absdif_MA.simp2 = abs(chinook_fry_MA.simp2 - chinook_fry),
+  #        absdif_MA.simp3 = abs(chinook_fry_MA.simp3 - chinook_fry),
+  #        absdif_MA.linear2 = abs(chinook_fry_MA.linear2 - chinook_fry),
+  #        absdif_MA.linear3 = abs(chinook_fry_MA.linear3 - chinook_fry),
+  #        absdif_MA.exp2 = abs(chinook_fry_MA.exp2 - chinook_fry),
+  #        absdif_MA.exp3 = abs(chinook_fry_MA.exp3 - chinook_fry)) %>%
+
   
-  mutate(MAPE = (abs( (chinook_fry-infill_value)/chinook_fry))*100 ) %>%
   group_by(infill_method)
   print()
   group_by(infill_method) %>%
