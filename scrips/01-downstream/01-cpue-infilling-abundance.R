@@ -44,7 +44,7 @@ setTotals <-  readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-
   filter(grepl("RST|IPT", gear)) %>%
   mutate(species_stage_simple = case_when(grepl("rainbow|steelhead", species, ignore.case=T) | life_stage=="rainbow" ~ "Rainbow parr",
                                           grepl("cutthroat", species, ignore.case=T) ~ "Cutthroat parr",
-                                          grepl("chinook", species, ignore.case=T) & clip_status == "clipped" ~ paste0(species, " ", life_stage, " ", "(hatchery)"),
+                                          grepl("chinook", species, ignore.case=T) & clip_status == "clipped" ~ paste0(species, " ", "(hatchery)"),
                                           !is.na(life_stage) ~ paste0(species, " ", life_stage),
                                           grepl("newt|toad", species, ignore.case=T) ~ "Amphibian",
                                           grepl("lamprey|sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
@@ -97,7 +97,7 @@ ggplot() +
 
 # =============== JOIN META + TOTALS ===============
 
-# Link set totals to events 
+# Link set totals to events so that I have the start/end times associated with the totals
 eventMeta_totals <- full_join(eventMeta %>%
                                 select(year, gear, date_start, datetime_start, date_stop, datetime_stop, set_type, usid),
                               setTotals %>% 
@@ -130,12 +130,13 @@ eventMeta_totals <- full_join(eventMeta %>%
          chinook_fry_IMPTEST = `chinook fry`) %>%
   janitor::clean_names() %>%
   ungroup() %>%
+  rename_with(~ paste(., "obs", sep="_"), c(chinook_fry:)) %>%
   print()
 
 
-# =============== CREATE IMPUTATION VALIDATION COLUMNS ===============
+# =============== CREATE IMPUTATION VALIDATION DATA SET ===============
 
-# Identify sample sizes for each year: 20% of non-NA days each year ------------
+# Random selection of 20% of the data (non-NA days) in each year to examine which infilling methods provide estimates closest estimate to the observed count------------
 random.sample.sizes <- data.frame(year=c(2023,2024,2025),
                                   sample_size = c(
                                     eventMeta_totals %>% 
@@ -215,10 +216,8 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
 # determine how to approach 2023 pilot season afterwards (likely won't be expanded). 
   # 1. Using methods within imputeTS (https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf)
   # 2. Weighted "either side" days (LGL method).  
-  # 3. Rolling window average centered around the missed day (window size TBD)
-  # 4. zoo:rollapply ? 
+  # 3. Rolling window average centered around the missed day (window size TBD) xxxDONE WITH IMPUTETS
 
-# I'm going to try to do this for all salmon species all at once... 
 
 
 # =============== INFILLING: imputeTS ===============
@@ -227,22 +226,28 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
   # "In general, for most time series one algorithm out of na_kalman, na_interpolation and na_seadec will yield the best results. Meanwhile, na_random, na_mean, 
   # na_locf will be at the lower end accuracy wise for the majority of input time series."
 
-imputeTS::statsNA(ts(eventMeta_totals_testing.interp[eventMeta_totals_testing.interp$year==2024,]$chinook_fry))
 
-
-# Create new imputation testing variables ------------
+# Create a bunch of different imputed time series using various methods ------------
 eventMeta_totals_testing.interp <- eventMeta_totals_testing %>%
   filter(year==2024) %>%
   mutate(chinook_fry_interp.linear = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="linear"),
          chinook_fry_interp.stine = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="stine"),
          chinook_fry_kal.structs = imputeTS::na_kalman(ts(chinook_fry_imptest), model="StructTS"),
          chinook_fry_kal.arima = imputeTS::na_kalman(ts(chinook_fry_imptest), model="auto.arima"),
-         chinook_fry_MA.simp = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple"),
-         chinook_fry_MA.linear = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear"),
-         chinook_fry_MA.exp = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential"),
+         chinook_fry_MA.simp2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple", k=2),
+         chinook_fry_MA.simp3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple", k=3),
+         
+         chinook_fry_MA.linear2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear", k=2),
+         chinook_fry_MA.linear3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear", k=3),
+         
+         chinook_fry_MA.exp2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential", k=2),
+         chinook_fry_MA.exp3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential", k=3),
+         
          infill_type = case_when(is.na(chinook_fry_imptest) & !is.na(chinook_fry) ~ "ground truth",
-                                 TRUE ~ "known value")) 
+                                 TRUE ~ "known value"))  
 
+
+imputeTS::statsNA(ts(eventMeta_totals_testing.interp[eventMeta_totals_testing.interp$year==2024,]$chinook_fry))
 
   
 # Visualize imputeTS options ------------
@@ -252,19 +257,28 @@ ggplot() +
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
   
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.linear), colour="green", fill="green", shape=23, size=5, alpha=0.4) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.linear), colour="dodger blue", fill="dodger blue", shape=23, size=5, alpha=0.4) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.stine), colour="red", fill="red", shape=23, size=5, alpha=0.4) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.stine), colour="turquoise", fill="turquoise", shape=23, size=5, alpha=0.4) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.structs), colour="blue", fill="blue", shape=23, size=5, alpha=0.4) +
-  #geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-  #           aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.arima), colour="turquoise", fill="turquoise", shape=23, size=5, alpha=0.4) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp), colour="orange", fill="orange", shape=23, size=5, alpha=0.4) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.arima), colour="sky blue", fill="sky blue", shape=23, size=5, alpha=0.4) +
+  
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear), colour="purple", fill="purple", shape=23, size=5, alpha=0.4) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp2), colour="red", fill="red", shape=23, size=5, alpha=0.6) +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp), colour="magenta", fill="magenta", shape=23, size=5, alpha=0.4) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp3), colour="orange", fill="orange", shape=23, size=5, alpha=0.6) +
+  
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear2), colour="purple", fill="purple", shape=23, size=5, alpha=0.6) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear3), colour="lavender", fill="lavender", shape=23, size=5, alpha=0.8) +
+  
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp2), colour="dark green", fill="dark green", shape=23, size=5, alpha=0.6) +
+  geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp3), colour="green", fill="green", shape=23, size=5, alpha=0.6) +
   
   scale_x_date(date_breaks="1 day", date_labels="%b %d") +
   scale_size_manual(breaks=waiver(), values = c(5,3)) +
@@ -277,22 +291,41 @@ ggplot() +
         panel.grid.minor.x = element_blank())
 
 
-# Calculate overall magnitude of differences between estimates
-eventMeta_totals_testing.interp %>% 
+
+
+
+# Calculate overall magnitude of differences between estimates ------------
+infill_summary_table <- eventMeta_totals_testing.interp %>% 
   filter(year==2024 & infill_type=="ground truth") %>% 
-  mutate(dif_interp.linear = chinook_fry_interp.linear - chinook_fry,
-         dif_interp.stine = chinook_fry_interp.stine - chinook_fry,
-         dif_kal.structs = chinook_fry_kal.structs - chinook_fry,
-         dif_kal.arima = chinook_fry_kal.arima - chinook_fry,
-         dif_MA.simp = chinook_fry_MA.simp - chinook_fry,
-         dif_MA.linear = chinook_fry_MA.linear - chinook_fry,
-         dif_MA.exp = chinook_fry_MA.exp - chinook_fry) %>%
-  select(date_stop, chinook_fry, dif_interp.linear:dif_MA.exp) %>%
-  pivot_longer(cols=c(dif_interp.linear:dif_MA.exp), names_to = "infill_method", values_to = "infill_value") %>%
+  select(-c(year, gear, usid, set_type, date_start, datetime_start, datetime_stop, chum_fry:hrs_fished))
+  pivot_longer(cols=c(absdif_interp.linear:absdif_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
+  mutate(absdif_interp.linear = abs(chinook_fry_interp.linear - chinook_fry),
+         absdif_interp.stine = abs(chinook_fry_interp.stine - chinook_fry),
+         absdif_kal.structs = abs(chinook_fry_kal.structs - chinook_fry),
+         absdif_kal.arima = abs(chinook_fry_kal.arima - chinook_fry),
+         absdif_MA.simp2 = abs(chinook_fry_MA.simp2 - chinook_fry),
+         absdif_MA.simp3 = abs(chinook_fry_MA.simp3 - chinook_fry),
+         absdif_MA.linear2 = abs(chinook_fry_MA.linear2 - chinook_fry),
+         absdif_MA.linear3 = abs(chinook_fry_MA.linear3 - chinook_fry),
+         absdif_MA.exp2 = abs(chinook_fry_MA.exp2 - chinook_fry),
+         absdif_MA.exp3 = abs(chinook_fry_MA.exp3 - chinook_fry)) %>%
+  select(date_stop, chinook_fry, absdif_interp.linear:absdif_MA.exp3) %>%
+  
+  mutate(MAPE = (abs( (chinook_fry-infill_value)/chinook_fry))*100 ) %>%
+  group_by(infill_method)
+  print()
   group_by(infill_method) %>%
   summarize(min=min(infill_value),
             max=max(infill_value),
-            mean=mean(infill_value))
+            mean=mean(infill_value)) %>%
+  #purrr::map(infill_method, ~MLm)
+  arrange(mean)
+
+
+# ---- DECISION: KALMAN STRUCT TS HAS THE LEAST TOTAL ERROR! 
+
+
+
 
 
 
