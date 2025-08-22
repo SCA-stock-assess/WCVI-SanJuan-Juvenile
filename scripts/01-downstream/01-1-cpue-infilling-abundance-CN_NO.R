@@ -40,52 +40,64 @@ CNNO_impVal <- eventMeta_totals_impValFull %>%
 plot_cn_imputation_validation <- 
   ggplot() +
   geom_point(data=CNNO_impVal %>% 
-               filter(!is.na(value), estimate_type=="observed"& data_series=="chinook_natural_obs"),
-             aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type), colour="black", alpha=1) +
+               filter(!is.na(value), estimate_type=="observed" & data_series=="chinook_natural_obs"),
+             aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
   geom_point(data=CNNO_impVal %>% 
                filter(!is.na(value), estimate_type=="infill"),
-             aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=2, alpha=0.2) +
+             aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
   geom_jitter(data=CNNO_impVal %>% 
                 filter(!is.na(value), validation_type=="validation" & data_series!="chinook_natural_obs"),
-              aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=4, stroke=2, alpha=0.7, shape=4, width=0.1) +
-  scale_x_date(date_breaks="1 day", date_labels="%b %d") +
-  labs(x="", y="Natural Chinook observed count", colour="Imputation method", fill="Imputation method", size="Data type") +
-  scale_size_manual(breaks=waiver(), values=c(2, 2)) +
+              aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
+  scale_x_date(date_breaks="2 day", date_labels="%b %d") +
+  scale_size_manual(breaks=waiver(), values=c(2, 3)) +
+  scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
+  labs(x="", y="Natural Chinook count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
   theme_bw() +
   theme(axis.text = element_text(colour="black"),
-        axis.text.x = element_text(angle=45, hjust=1),
-        panel.grid.major.x = element_line(colour="gray80"),
+        axis.text.x = element_text(angle=45, hjust=1, size=10),
+        axis.title = element_text(face="bold", size=13),
+        panel.grid.major.x = element_line(colour="gray80", size=0.5),
+        panel.grid.major.y = element_line(colour="gray80", size=0.5),
         panel.grid.minor.x = element_blank(),
-        legend.title = element_text(face="bold"),
-        axis.title = element_text(face="bold")) +
-  facet_wrap(~year, nrow=2)
+        legend.title = element_text(face="bold", size=11),
+        legend.text = element_text(size=10),
+        strip.text = element_text(size=12, face="bold")) +
+  facet_wrap(~year, nrow=2, scales="free_x") +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         size = guide_legend(override.aes = element_blank()))
 
 # Save as PDF: 
 pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Chinook NO.pdf"),   # The directory you want to save the file in
-    width = 11, # The width of the plot in inches
-    height = 8.5) # The height of the plot in inches
+    width = 14, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
 
 ggplot() +
   geom_point(data=CNNO_impVal %>% 
-               filter(!is.na(value), estimate_type=="observed"& data_series=="chinook_natural_obs"),
-             aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type), colour="black", alpha=1) +
+               filter(!is.na(value), estimate_type=="observed" & data_series=="chinook_natural_obs"),
+             aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
   geom_point(data=CNNO_impVal %>% 
                filter(!is.na(value), estimate_type=="infill"),
-             aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=2, alpha=0.2) +
+             aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
   geom_jitter(data=CNNO_impVal %>% 
                 filter(!is.na(value), validation_type=="validation" & data_series!="chinook_natural_obs"),
-              aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=4, stroke=2, alpha=0.7, shape=4, width=0.1) +
-  scale_x_date(date_breaks="1 day", date_labels="%b %d") +
-  labs(x="", y="Natural Chinook observed count", colour="Imputation method", fill="Imputation method", size="Data type") +
-  scale_size_manual(breaks=waiver(), values=c(2, 2)) +
+              aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
+  scale_x_date(date_breaks="2 day", date_labels="%b %d") +
+  scale_size_manual(breaks=waiver(), values=c(2, 3)) +
+  scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
+  labs(x="", y="Natural Chinook count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
   theme_bw() +
   theme(axis.text = element_text(colour="black"),
-        axis.text.x = element_text(angle=45, hjust=1),
-        panel.grid.major.x = element_line(colour="gray80"),
+        axis.text.x = element_text(angle=45, hjust=1, size=10),
+        axis.title = element_text(face="bold", size=13),
+        panel.grid.major.x = element_line(colour="gray80", size=0.5),
+        panel.grid.major.y = element_line(colour="gray80", size=0.5),
         panel.grid.minor.x = element_blank(),
-        legend.title = element_text(face="bold"),
-        axis.title = element_text(face="bold")) +
-  facet_wrap(~year, nrow=2)
+        legend.title = element_text(face="bold", size=11),
+        legend.text = element_text(size=10),
+        strip.text = element_text(size=12, face="bold")) +
+  facet_wrap(~year, nrow=2, scales="free_x") +
+  guides(color = guide_legend(override.aes = list(alpha = 1)),
+         size = guide_legend(override.aes = element_blank()))
 
 dev.off()
 
