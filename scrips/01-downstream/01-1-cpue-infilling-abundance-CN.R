@@ -7,22 +7,22 @@
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Create a bunch of different imputed time series using various methods ------------
-eventMeta_totals_testing.interp <- eventMeta_totals_testing %>%
+eventMeta_totals_testing.interp <- eventMeta_totals_validation %>%
   filter(year==2024) %>%
-  mutate(chinook_fry_interp.linear = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="linear"),
-         chinook_fry_interp.stine = imputeTS::na_interpolation(ts(chinook_fry_imptest), option="stine"),
-         chinook_fry_kal.structs = imputeTS::na_kalman(ts(chinook_fry_imptest), model="StructTS"),
-         chinook_fry_kal.arima = imputeTS::na_kalman(ts(chinook_fry_imptest), model="auto.arima"),
-         chinook_fry_MA.simp2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple", k=2),
-         chinook_fry_MA.simp3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="simple", k=3),
+  mutate(chinook_fry_interp.linear = imputeTS::na_interpolation(ts(chinook_natural_obs_validation), option="linear"),
+         chinook_fry_interp.stine = imputeTS::na_interpolation(ts(chinook_natural_obs_validation), option="stine"),
+         chinook_fry_kal.structs = imputeTS::na_kalman(ts(chinook_natural_obs_validation), model="StructTS"),
+         chinook_fry_kal.arima = imputeTS::na_kalman(ts(chinook_natural_obs_validation), model="auto.arima"),
+         chinook_fry_MA.simp2 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="simple", k=2),
+         chinook_fry_MA.simp3 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="simple", k=3),
          
-         chinook_fry_MA.linear2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear", k=2),
-         chinook_fry_MA.linear3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="linear", k=3),
+         chinook_fry_MA.linear2 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="linear", k=2),
+         chinook_fry_MA.linear3 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="linear", k=3),
          
-         chinook_fry_MA.exp2 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential", k=2),
-         chinook_fry_MA.exp3 = imputeTS::na_ma(ts(chinook_fry_imptest), weighting="exponential", k=3),
+         chinook_fry_MA.exp2 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="exponential", k=2),
+         chinook_fry_MA.exp3 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="exponential", k=3),
          
-         infill_type = case_when(is.na(chinook_fry_imptest) & !is.na(chinook_fry_obs) ~ "ground truth",
+         infill_type = case_when(is.na(chinook_natural_obs_validation) & !is.na(chinook_natural_obs) ~ "ground truth",
                                  TRUE ~ "known value"))  
 
 
@@ -33,47 +33,54 @@ imputeTS::statsNA(ts(eventMeta_totals_testing.interp[eventMeta_totals_testing.in
 
 ggplot() +
   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024), 
-             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_obs, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
+             aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_obs, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
   
   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.linear), colour="dodger blue", fill="dodger blue", shape=23, size=5, alpha=0.4, 
-              width=0.1) +
-  
-  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.stine), colour="turquoise", fill="turquoise", shape=23, size=5, alpha=0.4, 
-              width=0.15) +
-  
-  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.structs), colour="blue", fill="blue", shape=23, size=5, alpha=0.4,
-              width=0.2) +
-  
-  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.arima), colour="sky blue", fill="sky blue", shape=23, size=5, alpha=0.4, 
-              width=0.25) +
-  
-  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp2), colour="red", fill="red", shape=23, size=5, alpha=0.4,
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.linear), colour="dodger blue", fill="dodger blue", stroke=2, shape=4, size=3, alpha=0.7,
               width=0.3) +
   
   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp3), colour="orange", fill="orange", shape=23, size=5, alpha=0.4) +
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_interp.stine), colour="turquoise", fill="turquoise", stroke=2, shape=4, size=3, alpha=0.7, 
+              width=0.3) +
   
   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear2), colour="purple", fill="purple", shape=23, size=5, alpha=0.4) +
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.structs), colour="blue", fill="blue", stroke=2, shape=4, size=3, alpha=0.7,
+              width=0.3) +
   
   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear3), colour="lavender", fill="lavender", shape=23, size=5, alpha=0.4) +
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_kal.arima), colour="navy", fill="navy", stroke=2, shape=4, size=3, alpha=0.7,
+              width=0.3) +
   
   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp2), colour="dark green", fill="dark green", shape=23, size=5, alpha=0.4) +
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp2), colour="red", fill="red", stroke=2, shape=4, size=3, alpha=0.7,
+              width=0.3) +
   
   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp3), colour="green", fill="green", shape=23, size=5, alpha=0.4) +
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.simp3), colour="orange", fill="orange", stroke=2, shape=4, size=3, alpha=0.7,
+              width=0.3) +
+  
+  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear2), colour="purple", fill="purple", stroke=2, shape=4, size=3, alpha=0.7,
+              width=0.3) +
+  
+  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.linear3), colour="magenta", fill="magenta", stroke=2, shape=4, size=3, alpha=0.7, 
+              width=0.3) +
+  
+  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp2), colour="dark green", fill="dark green", stroke=2, shape=4, size=3, alpha=0.7,
+              width=0.3) +
+  
+  geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
+              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_fry_MA.exp3), colour="green", fill="green", stroke=2, shape=4, size=3, alpha=0.7, 
+              width=0.3) +
   
   scale_x_date(date_breaks="1 day", date_labels="%b %d") +
   scale_size_manual(breaks=waiver(), values = c(5,3)) +
+  
   scale_fill_manual(breaks=waiver(), values=c("black", "gray70")) +
   scale_colour_manual(breaks=waiver(), values=c("black", "gray70")) +
+  
   theme_bw() +
   theme(axis.text = element_text(colour="black"),
         axis.text.x = element_text(angle=45, hjust=1),
