@@ -231,4 +231,4 @@ write.csv(infill_summary, file=here::here("outputs", "R_OUT - imputation method 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # Clean up for source()
-remove(ls(CNNO_impVal, infill_evaluation_table))
+remove(CNNO_impVal, infill_evaluation_table)
