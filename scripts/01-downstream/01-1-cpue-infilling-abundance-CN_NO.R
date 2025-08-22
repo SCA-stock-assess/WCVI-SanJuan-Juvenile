@@ -71,7 +71,7 @@ pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Chinoo
     width = 14, # The width of the plot in inches
     height = 10) # The height of the plot in inches
 
-ggplot() +
+print(ggplot() +
   geom_point(data=CNNO_impVal %>% 
                filter(!is.na(value), estimate_type=="observed" & data_series=="chinook_natural_obs"),
              aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
@@ -94,12 +94,14 @@ ggplot() +
         panel.grid.minor.x = element_blank(),
         legend.title = element_text(face="bold", size=11),
         legend.text = element_text(size=10),
-        strip.text = element_text(size=12, face="bold")) +
+        strip.text = element_text(size=11, face="bold")) +
   facet_wrap(~year, nrow=2, scales="free_x") +
   guides(color = guide_legend(override.aes = list(alpha = 1)),
-         size = guide_legend(override.aes = element_blank()))
+         size = guide_legend(override.aes = element_blank())))
 
 dev.off()
+
+
 
 
 # Visualize imputeTS options ------------       *delete soon! 
@@ -231,4 +233,4 @@ write.csv(infill_summary, file=here::here("outputs", "R_OUT - imputation method 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # Clean up for source()
-remove(CNNO_impVal, infill_evaluation_table)
+#remove(CNNO_impVal, infill_evaluation_table)
