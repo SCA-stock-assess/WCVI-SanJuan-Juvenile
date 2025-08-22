@@ -259,9 +259,8 @@ imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$yea
   # "In general, for most time series one algorithm out of na_kalman, na_interpolation and na_seadec will yield the best results. Meanwhile, na_random, na_mean, 
   # na_locf will be at the lower end accuracy wise for the majority of input time series."
 
+# Each focal species/stage was split out into their own scripts so that infilling models could be thoroughly documented and examined. The critcial final
+#   components (metrics, plots) are loaded with the source() calls below: 
 
-
-
-
-# ********* next day- is it the right move to have separate scripts for each species/stage, or can i find a way to group_by efficiently???? 
-
+# Natural-origin Chinook:
+source(here::here("scripts", "01-downstream", "01-1-cpue-infilling-abundance-CN_NO.R"))
