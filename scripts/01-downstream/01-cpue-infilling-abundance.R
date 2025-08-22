@@ -263,5 +263,5 @@ imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$yea
 #   components (metrics, plots) are loaded with the source() calls below: 
 
 # Natural-origin Chinook:
-source(here::here("scripts", "01-downstream", "01-1-cpue-infilling-abundance-CN_NO"))
+source(here::here("scripts", "01-downstream", "01-1-cpue-infilling-abundance-CN_NO.R"))
 
