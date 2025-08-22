@@ -3,31 +3,31 @@
 # Want to do an in-depth evaluation for each species-stage thoroughly, and it is too bulky in the parent 01-cpue-infilling-abundance.R script
 # Therefore, consider these child scripts of the parent script. 
 
-# CHINOOK NATURAL 
 
 
-#------------------------------------------------------------------------------------------------------------------------------------------------------------
+# NATURAL-ORIGIN CHINOOK 
 
-# Create a bunch of different imputed time series using various methods ------------
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
+# =============== IMPUTE VALUES ===============
+
+# ----- Create a bunch of different imputed time series using various methods ------------
 CNNO_impVal <- eventMeta_totals_impValFull %>%
   select(-c(chum_fry_obs:chinook_hatchery_obs, coho_subyearling_obs_validation:chinook_hatchery_obs_validation)) %>%
   filter(year != 2023) %>%
   group_by(year) %>%
   mutate(chinook_natural_interp.linear = imputeTS::na_interpolation(ts(chinook_natural_obs_validation), option="linear"),
          chinook_natural_interp.stine = imputeTS::na_interpolation(ts(chinook_natural_obs_validation), option="stine"),
-         
          chinook_natural_kal.structs = imputeTS::na_kalman(ts(chinook_natural_obs_validation), model="StructTS"),
          chinook_natural_kal.arima = imputeTS::na_kalman(ts(chinook_natural_obs_validation), model="auto.arima"),
-         
          chinook_natural_MA.simp2 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="simple", k=2),
          chinook_natural_MA.simp3 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="simple", k=3),
-         
          chinook_natural_MA.linear2 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="linear", k=2),
          chinook_natural_MA.linear3 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="linear", k=3),
-         
          chinook_natural_MA.exp2 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="exponential", k=2),
          chinook_natural_MA.exp3 = imputeTS::na_ma(ts(chinook_natural_obs_validation), weighting="exponential", k=3),
-         
          # infill_type = case_when(is.na(chinook_natural_obs_validation) & !is.na(chinook_natural_obs) ~ "ground truth",
          #                         TRUE ~ "known value")
          )  %>%
@@ -35,7 +35,8 @@ CNNO_impVal <- eventMeta_totals_impValFull %>%
 
 
 
-# Visualize Chinook imputation methods ---  
+# ----- VISUALIZE ------------
+
 plot_cn_imputation_validation <- 
 ggplot() +
   geom_point(data=CNNO_impVal %>% 
@@ -55,12 +56,9 @@ ggplot() +
         axis.text.x = element_text(angle=45, hjust=1),
         panel.grid.major.x = element_line(colour="gray80"),
         panel.grid.minor.x = element_blank(),
-        legend.title = element_text(face="bold")) +
+        legend.title = element_text(face="bold"),
+        axis.title = element_text(face="bold")) +
   facet_wrap(~year, nrow=2)
-
-#
-
-
 
 
 
@@ -112,8 +110,12 @@ ggplot() +
 
 
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# Calculate overall magnitude of differences between estimates ------------
+
+# =============== METRICS TO ASSESS IMPUTATION MODELS ===============
+
+# ----- Calculate overall magnitude of differences between estimates ------------
 # First used MAPE, but realized it is not stable at/near 0, so also included MAE and MASE. Tried SMAPE but returned Inf/NaN. 
 # Also tried MAE with and without the observed zero count to see if it changed the "top model" - it did not. These are called MAE_w0 (with zero) and MAE_no0 (without zero)
 
@@ -125,10 +127,10 @@ infill_evaluation_table <- CNNO_impVal %>%
   mutate(# Just doing this to show my work for future me: 
     Error = (chinook_natural_obs - infill_value),   # Calculate error
     `Error/Obs` = Error/chinook_natural_obs,        # Calculate error divided by observed value (part of MAPE)
-    `Abs(Error/Obs)` = abs(`Error/Obs`),        # Calculate absolute value (for MAPE)
-    `Abs(Error)` = abs(Error)) %>%              # Calculate aboslute value (for MAE)
-  arrange(doy) %>%                                   # Arrange by DOY because MASE is for time series and it is assumed the data are in temporal order
-  group_by(year, infill_method) %>%                        # Calculate metrics for each of the 10 "models" being assessed
+    `Abs(Error/Obs)` = abs(`Error/Obs`),            # Calculate absolute value (for MAPE)
+    `Abs(Error)` = abs(Error)) %>%                  # Calculate aboslute value (for MAE)
+  arrange(doy) %>%                                  # Arrange by DOY because MASE is for time series and it is assumed the data are in temporal order
+  group_by(year, infill_method) %>%                 # Calculate metrics for each of the 10 "models" being assessed
   mutate(#        n_w0 = n(),                       # This is all long-hand work to ensure I understood how the metric calculations work. For simplicity of coding, I installed the Metrics package and verified my work 
     #        n_no0 = length(na.omit(APE)),
     #        
@@ -140,7 +142,7 @@ infill_evaluation_table <- CNNO_impVal %>%
     #        MAE_w0 = sumAE_w0/n_AE,
     #        MAE_no0 = sumAE_no0/n_APE,
     MAE_w0 = Metrics::mae(chinook_natural_obs, infill_value),                              # Calculate MAE including the observed zero to see if it has an affect
-    MAE_no0 = Metrics::mae(chinook_natural_obs[chinook_natural_obs>0], infill_value),          # Calculate MAE excluding the observed zero to see if it has an affect
+    MAE_no0 = Metrics::mae(chinook_natural_obs[chinook_natural_obs>0], infill_value),      # Calculate MAE excluding the observed zero to see if it has an affect
     MASE = Metrics::mase(chinook_natural_obs, infill_value, step_size = 1)                 # Calculate MASE. Step of 1 indicates the previous day is informative for the naive model. For example, a step of 4 would be used for quarterly work where you imply the last quarter was more informative.
   ) %>% 
   print()
@@ -153,8 +155,6 @@ infill_summary <- full_join(infill_evaluation_table %>%
                               mutate(MAPE = Metrics::mape(chinook_natural_obs, infill_value)) %>% 
                               group_by(year, infill_method) %>%
                               summarize(MAPE=unique(MAPE)),
-                            
-                            
                             infill_evaluation_table %>%
                               group_by(year, infill_method) %>%
                               summarize(MAE_w0 = unique(MAE_w0),
@@ -165,9 +165,7 @@ infill_summary <- full_join(infill_evaluation_table %>%
   print()
 
 
-
-
-# ---- DECISION: 
+# ----- DECISION: 
 #   While MAPE indicates the moving-average 3-day window model performs best, the other metrics all support the Kalman (Structural TS) infilling model. A quick 
 #   Google suggests this could be due to the error distribution of the models, where some models have small error and small values and large error at large  
 #   values. It sounds like this is not necessarily surprising...
@@ -175,4 +173,14 @@ infill_summary <- full_join(infill_evaluation_table %>%
 #   other metrics (MAE/MASE). They are in agreement, plus visual examination of the prediction values indicates that the Kalmon model is the most consistent 
 #   with its predictions, regardless of whether it's near zero or a bigger value. 
 
-# --> Kalmon StrucTS wins for Chinook fry! 
+# --> Kalmon StrucTS wins for Chinook fry in 2024
+# -->  
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
+
+# =============== EXPORT ===============
+
+write.csv(infill_summary, file=here::here("outputs", "R_OUT - imputation method metrics CNNO.csv"), row.names=F)
