@@ -42,17 +42,28 @@ setTotals <-  readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-
                                                    full.names = T),
                                  sheet = "set_totals") %>% 
   filter(grepl("RST|IPT", gear)) %>%
-  mutate(species_stage_simple = case_when(grepl("rainbow|steelhead", species, ignore.case=T) | life_stage=="rainbow" ~ "Rainbow parr",
+  mutate(life_stage = case_when(grepl("coho", species, ignore.case=T) & life_stage=="fry" ~ "subyearling",
+                                grepl("coho", species, ignore.case=T) & life_stage=="smolt" ~ "yearling",
+                                TRUE ~ life_stage),
+         species_stage = case_when(grepl("rainbow|steelhead", species, ignore.case=T) | life_stage=="rainbow" ~ "Rainbow parr",
+                                   grepl("cutthroat", species, ignore.case=T) ~ "Cutthroat parr",
+                                   grepl("chinook", species, ignore.case=T) & clip_status == "clipped" ~ paste0(species, " ", "(hatchery)"),
+                                   !is.na(life_stage) ~ paste0(species, " ", life_stage),
+                                   grepl("newt|toad", species, ignore.case=T) ~ "Amphibian",
+                                   grepl("sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
+                                   TRUE ~ species),
+         species_stage_simple = case_when(grepl("rainbow|steelhead", species, ignore.case=T) | life_stage=="rainbow" ~ "Rainbow parr",
                                           grepl("cutthroat", species, ignore.case=T) ~ "Cutthroat parr",
                                           grepl("chinook", species, ignore.case=T) & clip_status == "clipped" ~ paste0(species, " ", "(hatchery)"),
+                                          grepl("chinook", species, ignore.case=T) & clip_status != "clipped" ~ paste0(species, " ", "(natural)"),
                                           !is.na(life_stage) ~ paste0(species, " ", life_stage),
                                           grepl("newt|toad", species, ignore.case=T) ~ "Amphibian",
-                                          grepl("lamprey|sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
+                                          grepl("sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
                                           TRUE ~ species),
          species_simple = stringr::str_to_sentence(case_when(grepl("rainbow|steelhead", species, ignore.case=T) | life_stage=="rainbow" ~ "Rainbow",
                                                              grepl("chinook", species, ignore.case=T) & clip_status == "clipped" ~ paste0(species, " (hatchery)"),
                                                              grepl("newt|toad", species, ignore.case=T) ~ "Amphibian",
-                                                             grepl("lamprey|sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
+                                                             grepl("sculpin|stickleback", species, ignore.case=T) ~ "Other fish",
                                                              TRUE ~ species))) %>%
   janitor::clean_names()
 
@@ -125,43 +136,50 @@ eventMeta_totals <- full_join(eventMeta %>%
                                 TRUE ~ 0),
          estimate_type = case_when(is.na(usid) ~ "infill",
                                    TRUE ~ "observed"),
-         across(c(`chinook fry`:`chinook (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
-                                                                        TRUE ~ .)),
-         chinook_fry_IMPTEST = `chinook fry`) %>%
+         across(c(`chinook (natural)`:`chinook (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
+                                                                  TRUE ~ .)),
+         chinook_natural_obs_validation = `chinook (natural)`) %>%
   janitor::clean_names() %>%
   ungroup() %>%
-  rename_with(~ paste(., "obs", sep="_"), c(chinook_fry:chinook_hatchery)) %>%
+  rename_with(~ paste(., "obs", sep="_"), c(chinook_natural:chinook_hatchery)) %>%
   print()
 
 
 # =============== CREATE IMPUTATION VALIDATION DATA SET ===============
 
-# Random selection of 20% of the data (non-NA days) in each year to examine which infilling methods provide estimates closest estimate to the observed count------------
+# Identify annual sample sizes representing 20% of the data (non-NA days) each year ------------
+#     These sample sizes are going to be used to randomly select a number of days from each year to validate imputation models
+#     Here I just used the natural Chinook series as a representative variable - all species counts have the same NA days so it is arbitrary which variable is
+#     used. Could have also used coho_subyearling_obs and gotten the same calculation 
 random.sample.sizes <- data.frame(year=c(2023,2024,2025),
                                   sample_size = c(
                                     eventMeta_totals %>% 
-                                      filter(year==2023 & !is.na(chinook_fry_obs)) %>%
+                                      filter(year==2023 & !is.na(chinook_natural_obs)) %>%
                                       summarize(n=round(n()*0.2, 0)) %>%
                                       pull(n),
                                     eventMeta_totals %>% 
-                                      filter(year==2024 & !is.na(chinook_fry_obs)) %>%
+                                      filter(year==2024 & !is.na(chinook_natural_obs)) %>%
                                       summarize(n=round(n()*0.2, 0)) %>%
                                       pull(n),
                                     eventMeta_totals %>% 
-                                      filter(year==2025 & !is.na(chinook_fry_obs)) %>%
+                                      filter(year==2025 & !is.na(chinook_natural_obs)) %>%
                                       summarize(n=round(n()*0.2, 0)) %>%
                                       pull(n)))
 
 
-# Random selection of values to replace per year
+# Random selection of values to replace per year for each of the focal species being infilled: 
 set.seed(3)
 random.selection <- eventMeta_totals %>%
   group_split(year) %>%
   map2_dfr(random.sample.sizes$sample_size, ~slice_sample(.x[.x$estimate_type=="observed",], n=.y)) %>%
-  mutate(chinook_fry_imptest = NA)                  # ** not sure what this is for.. delete? 
+  mutate(chinook_natural_obs_validation = NA,
+         coho_subyearling_obs_validation = NA,
+         coho_yearling_obs_validation = NA,
+         chum_fry_obs_validation = NA,
+         chinook_hatchery_obs_validation = NA)                   
 
 
-# Rejoin:
+# Rejoin to full dataset:
 eventMeta_totals_testing <- full_join(eventMeta_totals %>%
                                 filter(date_stop %notin% random.selection$date_stop),
                               
@@ -170,10 +188,9 @@ eventMeta_totals_testing <- full_join(eventMeta_totals %>%
 
 
 
-## ************ RE ASSESS NEXT DAY *********** 
 # After trying to expand the whole series by 30-min intervals to differentially expand/infill missed daytime vs nighttime catch, I
 # think I'm over-reaching what I can do with the data on hand. 
-# I think i'm over-thinking this. i'm only expanding 2024 because 2023 was a pilot, and in 2024 the fishing was pretty consistent, 
+# I think I'm over-thinking this. i'm only expanding 2024 because 2023 was a pilot, and in 2024 the fishing was pretty consistent, 
 # sure there were a few daytime instances of fishing but i just need to look at the spread of hours fished vs. unfished and expand 
 # a tiny bit, maybe using the lower of the cowichan expansions for daytime, and maybe only for a few situations.
 
