@@ -1,6 +1,6 @@
 # Add lab results in to database 
 # Feb 2024
-# Only need to run if new lab results returned (e.g., GSI, stomachs, etc.)
+# Only need to run if new lab results returned (e.g., GSI, stomachs, etc.) or if changes to underlying data file (San Juan PSSI master database...)
 
 
 
