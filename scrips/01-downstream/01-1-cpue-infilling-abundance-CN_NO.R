@@ -3,7 +3,9 @@
 # Want to do an in-depth evaluation for each species-stage thoroughly, and it is too bulky in the parent 01-cpue-infilling-abundance.R script
 # Therefore, consider these child scripts of the parent script. 
 
-# CHINOOK FRY 
+# CHINOOK NATURAL 
+
+
 #------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Create a bunch of different imputed time series using various methods ------------
