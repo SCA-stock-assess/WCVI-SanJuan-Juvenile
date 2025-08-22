@@ -171,20 +171,29 @@ random.sample.sizes <- data.frame(year=c(2023,2024,2025),
 set.seed(3)
 random.selection <- eventMeta_totals %>%
   group_split(year) %>%
-  map2_dfr(random.sample.sizes$sample_size, ~slice_sample(.x[.x$estimate_type=="observed",], n=.y)) %>%
+  map2_dfr(random.sample.sizes$sample_size, ~slice_sample(.x[.x$estimate_type=="observed",], n=.y)) %>%         # Select random dates based on year-specific sample sizes defined above
   mutate(chinook_natural_obs_validation = NA,
          coho_subyearling_obs_validation = NA,
          coho_yearling_obs_validation = NA,
          chum_fry_obs_validation = NA,
-         chinook_hatchery_obs_validation = NA)                   
+         chinook_hatchery_obs_validation = NA)                                                                  # Overwrite those dates with NAs for model validation
 
 
-# Rejoin to full dataset:
-eventMeta_totals_testing <- full_join(eventMeta_totals %>%
+# Rejoin to full dataset, but just simplify a bit for infilling/validation --------------
+eventMeta_totals_impValFull <- full_join(eventMeta_totals %>%
                                 filter(date_stop %notin% random.selection$date_stop),
                               
                               random.selection) %>%
+  mutate(validation_type = case_when(!is.na(chinook_natural_obs) & is.na(chinook_natural_obs_validation) ~ "validation",
+                                     !is.na(chinook_natural_obs) & !is.na(chinook_natural_obs_validation) ~ "observed",
+                                     is.na(chinook_natural_obs) & is.na(chinook_natural_obs_validation) ~ "infill")) %>%
+  select(-c(gear, usid, set_type, date_start, datetime_start, datetime_stop, hrs_fished)) %>%
+  relocate(c(estimate_type, validation_type), .after=doy) %>%
+  mutate(doy = lubridate::yday(date_stop)) %>%
+  #pivot_longer(cols=c(chinook_natural_obs:chinook_hatchery_obs_validation), names_to = "species_stage", values_to = "estimate") %>%
+  #pivot_longer(cols=c(chinook_natural_obs_validation:chinook_hatchery_obs_validation), names_to = "species_stage_val", values_to = "estimate_val") %>%
   arrange(date_stop)
+
 
 
 
@@ -234,6 +243,13 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
   # 1. Using methods within imputeTS (https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf)
   # 2. Weighted "either side" days (LGL method).  
   # 3. Rolling window average centered around the missed day (window size TBD) xxxDONE WITH IMPUTETS
+
+# =============== MISSED DAY SUMMARY REPORT ===============
+# Again using Natural Chinook to assess prevalence/extent of NAs, but could have been any of the species counts. 
+imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$year==2024,]$chinook_natural_obs))
+imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$year==2025,]$chinook_natural_obs))
+
+# About half of days missing each year, sadly, but c'est la vie. 
 
 
 
