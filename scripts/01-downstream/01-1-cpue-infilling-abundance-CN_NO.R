@@ -65,7 +65,27 @@ pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Chinoo
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
-plot_cn_imputation_validation
+ggplot() +
+  geom_point(data=CNNO_impVal %>% 
+               filter(!is.na(value), estimate_type=="observed"& data_series=="chinook_natural_obs"),
+             aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type), colour="black", alpha=1) +
+  geom_point(data=CNNO_impVal %>% 
+               filter(!is.na(value), estimate_type=="infill"),
+             aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=2, alpha=0.2) +
+  geom_jitter(data=CNNO_impVal %>% 
+                filter(!is.na(value), validation_type=="validation" & data_series!="chinook_natural_obs"),
+              aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=4, stroke=2, alpha=0.7, shape=4, width=0.1) +
+  scale_x_date(date_breaks="1 day", date_labels="%b %d") +
+  labs(x="", y="Natural Chinook observed count", colour="Imputation method", fill="Imputation method", size="Data type") +
+  scale_size_manual(breaks=waiver(), values=c(2, 2)) +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black"),
+        axis.text.x = element_text(angle=45, hjust=1),
+        panel.grid.major.x = element_line(colour="gray80"),
+        panel.grid.minor.x = element_blank(),
+        legend.title = element_text(face="bold"),
+        axis.title = element_text(face="bold")) +
+  facet_wrap(~year, nrow=2)
 
 dev.off()
 
