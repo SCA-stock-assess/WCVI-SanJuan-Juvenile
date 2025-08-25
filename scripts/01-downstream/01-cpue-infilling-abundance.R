@@ -138,7 +138,10 @@ eventMeta_totals <- full_join(eventMeta %>%
                                    TRUE ~ "observed"),
          across(c(`chinook (natural)`:`chinook (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
                                                                   TRUE ~ .)),
-         chinook_natural_obs_validation = `chinook (natural)`) %>%
+         chinook_natural_obs_validation = `chinook (natural)`,
+         coho_subyearling_obs_validation = `coho subyearling`,
+         coho_yearling_obs_validation = `coho yearling`,
+         chinook_hatchery_obs_validation = `chinook (hatchery)`) %>%
   janitor::clean_names() %>%
   ungroup() %>%
   rename_with(~ paste(., "obs", sep="_"), c(chinook_natural:chinook_hatchery)) %>%
@@ -264,4 +267,11 @@ imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$yea
 
 # Natural-origin Chinook:
 source(here::here("scripts", "01-downstream", "01-1-cpue-infilling-abundance-CN_NO.R"))
+
+# Subyearling coho:
+source(here::here("scripts", "01-downstream", "01-2-cpue-infilling-abundance-CO_SUB.R"))
+
+
+
+
 
