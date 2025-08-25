@@ -62,7 +62,7 @@ plot_cohsub_imputation_validation <-
         legend.title = element_text(face="bold", size=11),
         legend.text = element_text(size=10),
         strip.text = element_text(size=12, face="bold")) +
-  facet_wrap(~year, nrow=2, scales="free_x") +
+  facet_wrap(~year, nrow=2, scales="free_y") +
   guides(color = guide_legend(override.aes = list(alpha = 1)),
          size = guide_legend(override.aes = element_blank()))
 
@@ -97,7 +97,7 @@ print(  ggplot() +
                 legend.title = element_text(face="bold", size=11),
                 legend.text = element_text(size=10),
                 strip.text = element_text(size=12, face="bold")) +
-          facet_wrap(~year, nrow=2, scales="free_x") +
+          facet_wrap(~year, nrow=2, scales="free_y") +
           guides(color = guide_legend(override.aes = list(alpha = 1)),
                  size = guide_legend(override.aes = element_blank())))
 
