@@ -15,7 +15,7 @@
 
 # ----- Create a bunch of different imputed time series using various methods ------------
 COYEAR_impVal <- eventMeta_totals_impValFull %>%
-  select(-c(chinook_natural_obs, chum_fry_obs, coho_yearling_obs:chinook_natural_obs_validation, coho_yearling_obs_validation:chum_fry_obs_validation)) %>%
+  select(-c(chinook_natural_obs:coho_subyearling_obs, coho_alevin_obs:coho_subyearling_obs_validation, chinook_hatchery_obs_validation:chum_fry_obs_validation)) %>%
   filter(year != 2023) %>%
   group_by(year) %>%
   mutate(coho_yearling_interp.linear = imputeTS::na_interpolation(ts(coho_yearling_obs_validation), option="linear"),
@@ -31,27 +31,27 @@ COYEAR_impVal <- eventMeta_totals_impValFull %>%
          # infill_type = case_when(is.na(coho_yearling_obs_validation) & !is.na(coho_yearling_obs) ~ "ground truth",
          #                         TRUE ~ "known value")
   )  %>%
-  pivot_longer(cols=c(coho_subyearling_obs:coho_subyearling_MA.exp3), names_to = "data_series", values_to = "value") 
+  pivot_longer(cols=c(coho_yearling_obs:coho_yearling_MA.exp3), names_to = "data_series", values_to = "value") 
 
 
 
 # ----- VISUALIZE ------------
 
-plot_cohsub_imputation_validation <- 
+plot_coyear_imputation_validation <- 
   ggplot() +
-  geom_point(data=COSUB_impVal %>% 
-               filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
+  geom_point(data=COYEAR_impVal %>% 
+               filter(!is.na(value), estimate_type=="observed" & data_series=="coho_yearling_obs"),
              aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
-  geom_point(data=COSUB_impVal %>% 
+  geom_point(data=COYEAR_impVal %>% 
                filter(!is.na(value), estimate_type=="infill"),
              aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
-  geom_jitter(data=COSUB_impVal %>% 
-                filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
+  geom_jitter(data=COYEAR_impVal %>% 
+                filter(!is.na(value), validation_type=="validation" & data_series!="coho_yearling_obs"),
               aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
   scale_x_date(date_breaks="2 day", date_labels="%b %d") +
-  scale_size_manual(breaks=waiver(), values=c(2, 3)) +
-  scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-  labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
+  scale_size_manual(breaks=waiver(), values=c(2, 3), labels=c("observed"="observed", "validation"="observed (model validation)")) +
+  scale_shape_manual(breaks=waiver(), values=c(16, 4), labels=c("observed"="observed", "validation"="observed (model validation)")) +
+  labs(x="", y="Yearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
   theme_bw() +
   theme(axis.text = element_text(colour="black"),
         axis.text.x = element_text(angle=45, hjust=1, size=10),
@@ -62,31 +62,31 @@ plot_cohsub_imputation_validation <-
         legend.title = element_text(face="bold", size=11),
         legend.text = element_text(size=10),
         strip.text = element_text(size=12, face="bold")) +
-  facet_wrap(~year, nrow=2, scales="free_x") +
+  facet_wrap(~year, nrow=2, scales="free_y") +
   guides(color = guide_legend(override.aes = list(alpha = 1)),
          size = guide_legend(override.aes = element_blank()))
 
 
 
 # Save as PDF: 
-pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Coho subyearling.pdf"),   # The directory you want to save the file in
+pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Coho yearling.pdf"),   # The directory you want to save the file in
     width = 14, # The width of the plot in inches
     height = 10) # The height of the plot in inches
 
 print(  ggplot() +
-          geom_point(data=COSUB_impVal %>% 
-                       filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
+          geom_point(data=COYEAR_impVal %>% 
+                       filter(!is.na(value), estimate_type=="observed" & data_series=="coho_yearling_obs"),
                      aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
-          geom_point(data=COSUB_impVal %>% 
+          geom_point(data=COYEAR_impVal %>% 
                        filter(!is.na(value), estimate_type=="infill"),
                      aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
-          geom_jitter(data=COSUB_impVal %>% 
-                        filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
+          geom_jitter(data=COYEAR_impVal %>% 
+                        filter(!is.na(value), validation_type=="validation" & data_series!="coho_yearling_obs"),
                       aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
           scale_x_date(date_breaks="2 day", date_labels="%b %d") +
           scale_size_manual(breaks=waiver(), values=c(2, 3)) +
           scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-          labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
+          labs(x="", y="Yearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
           theme_bw() +
           theme(axis.text = element_text(colour="black"),
                 axis.text.x = element_text(angle=45, hjust=1, size=10),
@@ -97,7 +97,7 @@ print(  ggplot() +
                 legend.title = element_text(face="bold", size=11),
                 legend.text = element_text(size=10),
                 strip.text = element_text(size=12, face="bold")) +
-          facet_wrap(~year, nrow=2, scales="free_x") +
+          facet_wrap(~year, nrow=2, scales="free_y") +
           guides(color = guide_legend(override.aes = list(alpha = 1)),
                  size = guide_legend(override.aes = element_blank())))
 
@@ -117,14 +117,14 @@ dev.off()
 # First used MAPE, but realized it is not stable at/near 0, so also included MAE and MASE. Tried SMAPE but returned Inf/NaN. 
 # Also tried MAE with and without the observed zero count to see if it changed the "top model" - it did not. These are called MAE_w0 (with zero) and MAE_no0 (without zero)
 
-infill_evaluation_table.COSUB <- COSUB_impVal %>% 
+infill_evaluation_table.COYEAR <- COYEAR_impVal %>% 
   pivot_wider(names_from = data_series, values_from = value) %>%
   filter(validation_type=="validation") %>% 
-  select(-c(coho_subyearling_obs_validation)) %>%
-  pivot_longer(cols=c(coho_subyearling_interp.linear:coho_subyearling_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
+  select(-c(coho_yearling_obs_validation)) %>%
+  pivot_longer(cols=c(coho_yearling_interp.linear:coho_yearling_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
   mutate(# Just doing this to show my work for future me: 
-    Error = (coho_subyearling_obs - infill_value),   # Calculate error
-    `Error/Obs` = Error/coho_subyearling_obs,        # Calculate error divided by observed value (part of MAPE)
+    Error = (coho_yearling_obs - infill_value),   # Calculate error
+    `Error/Obs` = Error/coho_yearling_obs,        # Calculate error divided by observed value (part of MAPE)
     `Abs(Error/Obs)` = abs(`Error/Obs`),            # Calculate absolute value (for MAPE)
     `Abs(Error)` = abs(Error)) %>%                  # Calculate aboslute value (for MAE)
   arrange(doy) %>%                                  # Arrange by DOY because MASE is for time series and it is assumed the data are in temporal order
@@ -139,21 +139,21 @@ infill_evaluation_table.COSUB <- COSUB_impVal %>%
     #        sumAE_no0 = sum(AE[chinook_natural_obs>0]),
     #        MAE_w0 = sumAE_w0/n_AE,
     #        MAE_no0 = sumAE_no0/n_APE,
-    MAE_w0 = Metrics::mae(coho_subyearling_obs, infill_value),                               # Calculate MAE including the observed zero to see if it has an affect
-    MAE_no0 = Metrics::mae(coho_subyearling_obs[coho_subyearling_obs>0], infill_value),      # Calculate MAE excluding the observed zero to see if it has an affect
-    MASE = Metrics::mase(coho_subyearling_obs, infill_value, step_size = 1)                  # Calculate MASE. Step of 1 indicates the previous day is informative for the naive model. For example, a step of 4 would be used for quarterly work where you imply the last quarter was more informative.
+    MAE_w0 = Metrics::mae(coho_yearling_obs, infill_value),                               # Calculate MAE including the observed zero to see if it has an affect
+    MAE_no0 = Metrics::mae(coho_yearling_obs[coho_yearling_obs>0], infill_value),      # Calculate MAE excluding the observed zero to see if it has an affect
+    MASE = Metrics::mase(coho_yearling_obs, infill_value, step_size = 1)                  # Calculate MASE. Step of 1 indicates the previous day is informative for the naive model. For example, a step of 4 would be used for quarterly work where you imply the last quarter was more informative.
   ) %>% 
   print()
 
 
 # Summarize the results of the metrics above, and join it to a table that calculates MAPE (had to exclude the zero count and it was just easier this way)
-infill_summary.COSUB <- full_join(infill_evaluation_table.COSUB %>% 
-                                    filter(coho_subyearling_obs>0) %>%
+infill_summary.COYEAR <- full_join(infill_evaluation_table.COYEAR %>% 
+                                    filter(coho_yearling_obs>0) %>%
                                     group_by(year, infill_method) %>%
-                                    mutate(MAPE = Metrics::mape(coho_subyearling_obs, infill_value)) %>% 
+                                    mutate(MAPE = Metrics::mape(coho_yearling_obs, infill_value)) %>% 
                                     group_by(year, infill_method) %>%
                                     summarize(MAPE=unique(MAPE)),
-                                  infill_evaluation_table.COSUB %>%
+                                   infill_evaluation_table.COYEAR %>%
                                     group_by(year, infill_method) %>%
                                     summarize(MAE_w0 = unique(MAE_w0),
                                               MAE_no0 = unique(MAE_no0),
@@ -173,7 +173,7 @@ infill_summary.COSUB <- full_join(infill_evaluation_table.COSUB %>%
 
 # =============== EXPORT ===============
 
-write.csv(infill_summary.COSUB, file=here::here("outputs", "R_OUT - imputation method metrics subyearling Coho.csv"), row.names=F)
+write.csv(infill_summary.COYEAR, file=here::here("outputs", "R_OUT - imputation method metrics yearling Coho.csv"), row.names=F)
 
 
 
