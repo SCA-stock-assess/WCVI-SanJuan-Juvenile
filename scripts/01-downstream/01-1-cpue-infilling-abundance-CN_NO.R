@@ -161,7 +161,7 @@ dev.off()
 # First used MAPE, but realized it is not stable at/near 0, so also included MAE and MASE. Tried SMAPE but returned Inf/NaN. 
 # Also tried MAE with and without the observed zero count to see if it changed the "top model" - it did not. These are called MAE_w0 (with zero) and MAE_no0 (without zero)
 
-infill_evaluation_table <- CNNO_impVal %>% 
+infill_evaluation_table.CNNO <- CNNO_impVal %>% 
   pivot_wider(names_from = data_series, values_from = value) %>%
   filter(validation_type=="validation") %>% 
   select(-c(chinook_natural_obs_validation)) %>%
@@ -191,7 +191,7 @@ infill_evaluation_table <- CNNO_impVal %>%
 
 
 # Summarize the results of the metrics above, and join it to a table that calculates MAPE (had to exclude the zero count and it was just easier this way)
-infill_summary <- full_join(infill_evaluation_table %>% 
+infill_summary.CNNO <- full_join(infill_evaluation_table %>% 
                               filter(chinook_natural_obs>0) %>%
                               group_by(year, infill_method) %>%
                               mutate(MAPE = Metrics::mape(chinook_natural_obs, infill_value)) %>% 
@@ -225,7 +225,7 @@ infill_summary <- full_join(infill_evaluation_table %>%
 
 # =============== EXPORT ===============
 
-write.csv(infill_summary, file=here::here("outputs", "R_OUT - imputation method metrics CNNO.csv"), row.names=F)
+write.csv(infill_summary.CNNO, file=here::here("outputs", "R_OUT - imputation method metrics CNNO.csv"), row.names=F)
 
 
 
