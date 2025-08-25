@@ -37,7 +37,7 @@ COSUB_impVal <- eventMeta_totals_impValFull %>%
 
 # ----- VISUALIZE ------------
 
-plot_cn_imputation_validation <- 
+plot_cohsub_imputation_validation <- 
   ggplot() +
   geom_point(data=COSUB_impVal %>% 
                filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
@@ -66,88 +66,44 @@ plot_cn_imputation_validation <-
   guides(color = guide_legend(override.aes = list(alpha = 1)),
          size = guide_legend(override.aes = element_blank()))
 
+
+
 # Save as PDF: 
 pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Coho subyearling.pdf"),   # The directory you want to save the file in
     width = 14, # The width of the plot in inches
     height = 10) # The height of the plot in inches
 
-print(ggplot() +
-        geom_point(data=COSUB_impVal %>% 
-                     filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
-                   aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
-        geom_point(data=COSUB_impVal %>% 
-                     filter(!is.na(value), estimate_type=="infill"),
-                   aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
-        geom_jitter(data=COSUB_impVal %>% 
-                      filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
-                    aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
-        scale_x_date(date_breaks="2 day", date_labels="%b %d") +
-        scale_size_manual(breaks=waiver(), values=c(2, 3)) +
-        scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-        labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
-        theme_bw() +
-        theme(axis.text = element_text(colour="black"),
-              axis.text.x = element_text(angle=45, hjust=1, size=10),
-              axis.title = element_text(face="bold", size=13),
-              panel.grid.major.x = element_line(colour="gray80", size=0.5),
-              panel.grid.major.y = element_line(colour="gray80", size=0.5),
-              panel.grid.minor.x = element_blank(),
-              legend.title = element_text(face="bold", size=11),
-              legend.text = element_text(size=10),
-              strip.text = element_text(size=11, face="bold")) +
-        facet_wrap(~year, nrow=2, scales="free_x") +
-        guides(color = guide_legend(override.aes = list(alpha = 1)),
-               size = guide_legend(override.aes = element_blank())))
+print(  ggplot() +
+          geom_point(data=COSUB_impVal %>% 
+                       filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
+                     aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
+          geom_point(data=COSUB_impVal %>% 
+                       filter(!is.na(value), estimate_type=="infill"),
+                     aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
+          geom_jitter(data=COSUB_impVal %>% 
+                        filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
+                      aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
+          scale_x_date(date_breaks="2 day", date_labels="%b %d") +
+          scale_size_manual(breaks=waiver(), values=c(2, 3)) +
+          scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
+          labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
+          theme_bw() +
+          theme(axis.text = element_text(colour="black"),
+                axis.text.x = element_text(angle=45, hjust=1, size=10),
+                axis.title = element_text(face="bold", size=13),
+                panel.grid.major.x = element_line(colour="gray80", size=0.5),
+                panel.grid.major.y = element_line(colour="gray80", size=0.5),
+                panel.grid.minor.x = element_blank(),
+                legend.title = element_text(face="bold", size=11),
+                legend.text = element_text(size=10),
+                strip.text = element_text(size=12, face="bold")) +
+          facet_wrap(~year, nrow=2, scales="free_x") +
+          guides(color = guide_legend(override.aes = list(alpha = 1)),
+                 size = guide_legend(override.aes = element_blank())))
 
 dev.off()
 
 
-
-
-# Visualize imputeTS options ------------       *delete soon! 
-
-# ggplot() +
-#   geom_point(data=eventMeta_totals_testing.interp %>% filter(year==2024), 
-#              aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_obs, fill=infill_type, colour=infill_type, size=infill_type), shape=21) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_interp.linear), colour="dodger blue", fill="dodger blue", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_interp.stine), colour="turquoise", fill="turquoise", stroke=2, shape=4, size=3, alpha=0.7, 
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_kal.structs), colour="blue", fill="blue", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_kal.arima), colour="navy", fill="navy", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_MA.simp2), colour="red", fill="red", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_MA.simp3), colour="orange", fill="orange", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_MA.linear2), colour="purple", fill="purple", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_MA.linear3), colour="magenta", fill="magenta", stroke=2, shape=4, size=3, alpha=0.7, 
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_MA.exp2), colour="dark green", fill="dark green", stroke=2, shape=4, size=3, alpha=0.7,
-#               width=0.3) +
-#   geom_jitter(data=eventMeta_totals_testing.interp %>% filter(year==2024 & infill_type=="ground truth"),
-#               aes(x=as.Date(doy,origin="2024-12-31"), y=chinook_natural_MA.exp3), colour="green", fill="green", stroke=2, shape=4, size=3, alpha=0.7, 
-#               width=0.3) +
-#   scale_x_date(date_breaks="1 day", date_labels="%b %d") +
-#   scale_size_manual(breaks=waiver(), values = c(5,3)) +
-#   scale_fill_manual(breaks=waiver(), values=c("black", "gray70")) +
-#   scale_colour_manual(breaks=waiver(), values=c("black", "gray70")) +
-#   theme_bw() +
-#   theme(axis.text = element_text(colour="black"),
-#         axis.text.x = element_text(angle=45, hjust=1),
-#         panel.grid.major.x = element_line(colour="gray80"),
-#         panel.grid.minor.x = element_blank())
 
 
 
@@ -161,14 +117,14 @@ dev.off()
 # First used MAPE, but realized it is not stable at/near 0, so also included MAE and MASE. Tried SMAPE but returned Inf/NaN. 
 # Also tried MAE with and without the observed zero count to see if it changed the "top model" - it did not. These are called MAE_w0 (with zero) and MAE_no0 (without zero)
 
-infill_evaluation_table <- CNNO_impVal %>% 
+infill_evaluation_table.COSUB <- COSUB_impVal %>% 
   pivot_wider(names_from = data_series, values_from = value) %>%
   filter(validation_type=="validation") %>% 
-  select(-c(chinook_natural_obs_validation)) %>%
-  pivot_longer(cols=c(chinook_natural_interp.linear:chinook_natural_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
+  select(-c(coho_subyearling_obs_validation)) %>%
+  pivot_longer(cols=c(coho_subyearling_interp.linear:coho_subyearling_MA.exp3), names_to = "infill_method", values_to = "infill_value") %>%
   mutate(# Just doing this to show my work for future me: 
-    Error = (chinook_natural_obs - infill_value),   # Calculate error
-    `Error/Obs` = Error/chinook_natural_obs,        # Calculate error divided by observed value (part of MAPE)
+    Error = (coho_subyearling_obs - infill_value),   # Calculate error
+    `Error/Obs` = Error/coho_subyearling_obs,        # Calculate error divided by observed value (part of MAPE)
     `Abs(Error/Obs)` = abs(`Error/Obs`),            # Calculate absolute value (for MAPE)
     `Abs(Error)` = abs(Error)) %>%                  # Calculate aboslute value (for MAE)
   arrange(doy) %>%                                  # Arrange by DOY because MASE is for time series and it is assumed the data are in temporal order
@@ -183,21 +139,21 @@ infill_evaluation_table <- CNNO_impVal %>%
     #        sumAE_no0 = sum(AE[chinook_natural_obs>0]),
     #        MAE_w0 = sumAE_w0/n_AE,
     #        MAE_no0 = sumAE_no0/n_APE,
-    MAE_w0 = Metrics::mae(chinook_natural_obs, infill_value),                              # Calculate MAE including the observed zero to see if it has an affect
-    MAE_no0 = Metrics::mae(chinook_natural_obs[chinook_natural_obs>0], infill_value),      # Calculate MAE excluding the observed zero to see if it has an affect
-    MASE = Metrics::mase(chinook_natural_obs, infill_value, step_size = 1)                 # Calculate MASE. Step of 1 indicates the previous day is informative for the naive model. For example, a step of 4 would be used for quarterly work where you imply the last quarter was more informative.
+    MAE_w0 = Metrics::mae(coho_subyearling_obs, infill_value),                               # Calculate MAE including the observed zero to see if it has an affect
+    MAE_no0 = Metrics::mae(coho_subyearling_obs[coho_subyearling_obs>0], infill_value),      # Calculate MAE excluding the observed zero to see if it has an affect
+    MASE = Metrics::mase(coho_subyearling_obs, infill_value, step_size = 1)                  # Calculate MASE. Step of 1 indicates the previous day is informative for the naive model. For example, a step of 4 would be used for quarterly work where you imply the last quarter was more informative.
   ) %>% 
   print()
 
 
 # Summarize the results of the metrics above, and join it to a table that calculates MAPE (had to exclude the zero count and it was just easier this way)
-infill_summary <- full_join(infill_evaluation_table %>% 
-                              filter(chinook_natural_obs>0) %>%
+infill_summary.COSUB <- full_join(infill_evaluation_table.COSUB %>% 
+                              filter(coho_subyearling_obs>0) %>%
                               group_by(year, infill_method) %>%
-                              mutate(MAPE = Metrics::mape(chinook_natural_obs, infill_value)) %>% 
+                              mutate(MAPE = Metrics::mape(coho_subyearling_obs, infill_value)) %>% 
                               group_by(year, infill_method) %>%
                               summarize(MAPE=unique(MAPE)),
-                            infill_evaluation_table %>%
+                              infill_evaluation_table.COSUB %>%
                               group_by(year, infill_method) %>%
                               summarize(MAE_w0 = unique(MAE_w0),
                                         MAE_no0 = unique(MAE_no0),
@@ -208,15 +164,7 @@ infill_summary <- full_join(infill_evaluation_table %>%
 
 
 # ----- DECISION: 
-#   While MAPE indicates the moving-average 3-day window model performs best, the other metrics all support the Kalman (Structural TS) infilling model. A quick 
-#   Google suggests this could be due to the error distribution of the models, where some models have small error and small values and large error at large  
-#   values. It sounds like this is not necessarily surprising...
-#   Given that a zero count is just as important to be able to predict, but that MAPE cannot evaluate prediction ability at a true zero, I will go with the
-#   other metrics (MAE/MASE). They are in agreement, plus visual examination of the prediction values indicates that the Kalmon model is the most consistent 
-#   with its predictions, regardless of whether it's near zero or a bigger value. 
 
-# --> Kalmon StrucTS wins for Chinook fry in 2024
-# -->  
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -225,7 +173,7 @@ infill_summary <- full_join(infill_evaluation_table %>%
 
 # =============== EXPORT ===============
 
-write.csv(infill_summary, file=here::here("outputs", "R_OUT - imputation method metrics CNNO.csv"), row.names=F)
+write.csv(infill_summary.COSUB, file=here::here("outputs", "R_OUT - imputation method metrics subyearling Coho.csv"), row.names=F)
 
 
 
