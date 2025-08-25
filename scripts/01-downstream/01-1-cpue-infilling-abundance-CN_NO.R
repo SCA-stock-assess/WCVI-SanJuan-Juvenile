@@ -191,13 +191,13 @@ infill_evaluation_table.CNNO <- CNNO_impVal %>%
 
 
 # Summarize the results of the metrics above, and join it to a table that calculates MAPE (had to exclude the zero count and it was just easier this way)
-infill_summary.CNNO <- full_join(infill_evaluation_table %>% 
+infill_summary.CNNO <- full_join(infill_evaluation_table.CNNO %>% 
                               filter(chinook_natural_obs>0) %>%
                               group_by(year, infill_method) %>%
                               mutate(MAPE = Metrics::mape(chinook_natural_obs, infill_value)) %>% 
                               group_by(year, infill_method) %>%
                               summarize(MAPE=unique(MAPE)),
-                            infill_evaluation_table %>%
+                              infill_evaluation_table.CNNO %>%
                               group_by(year, infill_method) %>%
                               summarize(MAE_w0 = unique(MAE_w0),
                                         MAE_no0 = unique(MAE_no0),
