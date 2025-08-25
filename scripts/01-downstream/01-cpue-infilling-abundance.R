@@ -141,6 +141,7 @@ eventMeta_totals <- full_join(eventMeta %>%
          chinook_natural_obs_validation = `chinook (natural)`,
          coho_subyearling_obs_validation = `coho subyearling`,
          coho_yearling_obs_validation = `coho yearling`,
+         chum_fry_obs_validation = `chum fry`,
          chinook_hatchery_obs_validation = `chinook (hatchery)`) %>%
   janitor::clean_names() %>%
   ungroup() %>%
@@ -271,7 +272,13 @@ source(here::here("scripts", "01-downstream", "01-1-cpue-infilling-abundance-CN_
 # Subyearling coho:
 source(here::here("scripts", "01-downstream", "01-2-cpue-infilling-abundance-CO_SUB.R"))
 
+# Yearling coho:
+source(here::here("scripts", "01-downstream", "01-3-cpue-infilling-abundance-CO_YEAR.R"))
 
+# Chum:
+source(here::here("scripts", "01-downstream", "01-4-cpue-infilling-abundance-CM.R"))
 
+# Hatchery Chinook:
+source(here::here("scripts", "01-downstream", "01-5-cpue-infilling-abundance-CN_HO.R"))
 
 
