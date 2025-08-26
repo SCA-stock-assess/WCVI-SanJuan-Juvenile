@@ -154,7 +154,7 @@ biosamp.linked <-  full_join(
   readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                      pattern="^San Juan PSSI master database",
                                      full.names=T),
-                     sheet="biosampling"),
+                     sheet="biosampling", guess_max = 5000),
   gsi.master,
   by=c("DNA_vial" = "MGL_Vial"),
   na_matches = "never")
