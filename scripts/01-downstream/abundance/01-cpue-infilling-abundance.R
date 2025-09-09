@@ -248,6 +248,12 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
   # 2. Weighted "either side" days (LGL method).  
   # 3. Rolling window average centered around the missed day (window size TBD) xxxDONE WITH IMPUTETS
 
+
+# Notes from https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf: 
+# "In general, for most time series one algorithm out of na_kalman, na_interpolation and na_seadec will yield the best results. Meanwhile, na_random, na_mean, 
+# na_locf will be at the lower end accuracy wise for the majority of input time series."
+
+
 # =============== MISSED DAY SUMMARY REPORT ===============
 # Again using Natural Chinook to assess prevalence/extent of NAs, but could have been any of the species counts. 
 imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$year==2024,]$chinook_natural_obs))
@@ -257,11 +263,7 @@ imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$yea
 
 
 
-# =============== INFILLING: imputeTS ===============
-
-# Notes from https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf: 
-  # "In general, for most time series one algorithm out of na_kalman, na_interpolation and na_seadec will yield the best results. Meanwhile, na_random, na_mean, 
-  # na_locf will be at the lower end accuracy wise for the majority of input time series."
+# =============== MODEL VALIDATION ===============
 
 # Each focal species/stage was split out into their own scripts so that infilling models could be thoroughly documented and examined. The critcial final
 #   components (metrics, plots) are loaded with the source() calls below: 
@@ -279,6 +281,12 @@ source(here::here("scripts", "01-downstream", "01-3-cpue-infilling-abundance-CO_
 source(here::here("scripts", "01-downstream", "01-4-cpue-infilling-abundance-CM.R"))
 
 # Hatchery Chinook:
-source(here::here("scripts", "01-downstream", "01-5-cpue-infilling-abundance-CN_HO.R"))
+source(here::here("scripts", "01-downstream", "01-5-cpue-infilling-abundance-CN_HO.R")) #** this needs revising a bit - based on release timing predictions don't really work when we have discrete release events
 
 
+# **** next day: need to truncate hatchery chinook timeseries based on release dates and re-do infilling from the new "day 0"
+
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~

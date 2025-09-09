@@ -4,12 +4,33 @@
 # Therefore, consider these child scripts of the parent script. 
 
 
+# The method for hatchery origin chinook is a bit different from others as the infilling can't start before the release dates. 
+# Therefore have taking this script back a bit and repeated some of the earlier code in the parent script (e.g., random selection onward)
+
 
 # HATCHERY CHINOOK
-
+source(here::here("scripts", "01-downstream", "01-cpue-infilling-abundance"))
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+
+
+# =============== CREATE IMPUTATION VALIDATION DATA SET ===============
+
+# Identify annual sample sizes representing 20% of the data (non-NA days) each year FOR HO CHINOOK ONLY ------------
+#     These sample sizes are going to be used to randomly select a number of days from each year to validate imputation models
+#     There were no in-river releases in 2023. 
+
+random.sample.sizes.HOCN <- data.frame(year=c(2024,2025),
+                                       sample_size = c(
+                                         eventMeta_totals %>% 
+                                           filter(year==2024 & !is.na(chinook_hatchery_obs) & date_stop>=as.Date("2024-04-29")) %>%
+                                           summarize(n=round(n()*0.2, 0)) %>%
+                                           pull(n),
+                                         eventMeta_totals %>% 
+                                           filter(year==2025 & !is.na(chinook_hatchery_obs) & date_stop>=as.Date()) %>%
+                                           summarize(n=round(n()*0.2, 0)) %>%
+                                           pull(n)))
 
 # =============== IMPUTE VALUES ===============
 
@@ -173,7 +194,7 @@ infill_summary.CNHO <- full_join(infill_evaluation_table.CNHO %>%
 
 # =============== EXPORT ===============
 
-write.csv(infill_summary.CNHO, file=here::here("outputs", "R_OUT - imputation method metrics Hatchery Chinook"), row.names=F)
+write.csv(infill_summary.CNHO, file=here::here("outputs", "R_OUT - imputation method metrics Hatchery Chinook.csv"), row.names=F)
 
 
 
