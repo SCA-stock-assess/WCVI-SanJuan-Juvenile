@@ -179,11 +179,15 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                                    full.names=T, recursive=T),
                                    sheet=2, skip=5) %>%
   select(-c(Company_Doing_Analysis, Year, Project, Date_Sampled, Biologica_Sample_ID)) %>% 
-  rename(biologica_comments = Comments) %>% 
+  rename(diet_comments = Comments) %>% 
   janitor::clean_names() %>%
-  mutate(across(c(stage:total_ww_g), ~case_when(.=="n/a"~NA, TRUE~.))) %>%
+  mutate(across(c(stage:total_ww_g), ~case_when(.=="n/a"~NA, TRUE~.)),
+         ww_note = case_when(total_ww_g=="TR" ~ "TRACE",
+                             TRUE ~ NA),
+         total_ww_g = case_when(total_ww_g=="TR" ~ 0,
+                                TRUE ~ as.numeric(total_ww_g))) %>%
   mutate(taxon_clean = stringr::str_remove(taxon, " indet."),
-         taxon_clean = case_when(grepl("fish feed", biologica_comments) ~ "Fish feed",
+         taxon_clean = case_when(grepl("fish feed", diet_comments) ~ "Fish feed",
                                   TRUE ~ taxon_clean),
          taxonomy_stage_simple_detail = case_when(
                                      source=="Benthic" & taxon_clean %in% c("Acari", "Diptera") ~ paste0(taxon_clean, " (larvae/pupae)"),
@@ -194,8 +198,8 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      source=="Benthic" & taxon_clean=="Phyllodocida" ~ "Phyllodocida",
                                      source=="Fish" & taxon_clean=="Actinopterygii" ~ "Fish (unknown)",
                                      source=="Fish" & taxon_clean=="Perciformes" ~ "Fish (likely sandlance)",
-                                     source=="Fish" & taxon_clean=="Teleostei" & !grepl("Perciformes", biologica_comments) ~ "Fish (likely herring/sardine/anchovy)",
-                                     source=="Fish" & taxon_clean=="Teleostei" & grepl("Perciformes", biologica_comments) ~ "Fish (likely sandlance)",
+                                     source=="Fish" & taxon_clean=="Teleostei" & !grepl("Perciformes", diet_comments) ~ "Fish (likely herring/sardine/anchovy)",
+                                     source=="Fish" & taxon_clean=="Teleostei" & grepl("Perciformes", diet_comments) ~ "Fish (likely sandlance)",
                                      source=="Parasite" & taxon_clean%in%c("Nematoda", "Trematoda") ~ "Internal parasite",
                                      source=="Planktonic" & taxon_clean=="Amphipoda" ~ "Amphipod (adult/juvenile)",
                                      source=="Planktonic" & taxon_clean=="Crustacean remains" ~ "Amphipod (adult/juvenile)",
@@ -236,8 +240,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      taxon_clean=="Psocodea" ~ "Lice (non-parasitic)",
                                      taxon_clean=="Trichoptera" ~ "Caddisflies",
                                      TRUE ~ taxon_clean
-                                     )) %>%
-  mutate_at("total_ww_g", as.numeric)
+                                     )) 
 
 
 
