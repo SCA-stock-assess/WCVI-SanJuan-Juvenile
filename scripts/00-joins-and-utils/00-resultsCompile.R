@@ -7,6 +7,7 @@
 # Load libraries ------------------------------------
 library(tidyverse)
 options(scipen = 99999999999999)
+"%notin%" <- Negate("%in%")
 
 
 # ========================= LOAD MGL FILES =========================
@@ -175,73 +176,61 @@ biosamp.gsi.linked <-  left_join(
 
 # ================= MASTER DIET DATA ================= 
 diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/",
-                                                   pattern="^Stomach_Analyis_Master.xlsx",
+                                                   pattern="^Stomach_Analyis_Master_cleaned.xlsx",
                                                    full.names=T, recursive=T),
                                    sheet=2, skip=5) %>%
-  select(-c(Company_Doing_Analysis, Year, Project, Date_Sampled, Biologica_Sample_ID)) %>% 
+  select(-c(Company_Doing_Analysis, Year, Date_Sampled, Biologica_Sample_ID)) %>% 
   rename(diet_comments = Comments) %>% 
   janitor::clean_names() %>%
-  mutate(across(c(stage:total_ww_g), ~case_when(.=="n/a"~NA, TRUE~.)),
+  mutate(across(c(source1:total_ww_g), ~case_when(.%in%c("n/a", "NA")~NA, TRUE~.)),
          ww_note = case_when(total_ww_g=="TR" ~ "TRACE",
                              TRUE ~ NA),
          total_ww_g = case_when(total_ww_g=="TR" ~ 0,
                                 TRUE ~ as.numeric(total_ww_g))) %>%
-  mutate(taxon_clean = stringr::str_remove(taxon, " indet."),
-         taxon_clean = case_when(grepl("fish feed", diet_comments) ~ "Fish feed",
-                                  TRUE ~ taxon_clean),
-         taxonomy_stage_simple_detail = case_when(
-                                     source=="Benthic" & taxon_clean %in% c("Acari", "Diptera") ~ paste0(taxon_clean, " (larvae/pupae)"),
-                                     source=="Benthic" & order=="Balanomorpha" ~ "Balanomorpha",
-                                     source=="Benthic" & order=="Isopoda" ~ "Isopod",
-                                     source=="Benthic" & taxon_clean=="Ostracoda" ~ "Ostracod",
-                                     source=="Benthic" & taxon_clean=="Copepoda" ~ "Copepod (Harpacticoid)",
-                                     source=="Benthic" & taxon_clean=="Phyllodocida" ~ "Phyllodocida",
-                                     source=="Fish" & taxon_clean=="Actinopterygii" ~ "Fish (unknown)",
-                                     source=="Fish" & taxon_clean=="Perciformes" ~ "Fish (likely sandlance)",
-                                     source=="Fish" & taxon_clean=="Teleostei" & !grepl("Perciformes", diet_comments) ~ "Fish (likely herring/sardine/anchovy)",
-                                     source=="Fish" & taxon_clean=="Teleostei" & grepl("Perciformes", diet_comments) ~ "Fish (likely sandlance)",
-                                     source=="Parasite" & taxon_clean%in%c("Nematoda", "Trematoda") ~ "Internal parasite",
-                                     source=="Planktonic" & taxon_clean=="Amphipoda" ~ "Amphipod (adult/juvenile)",
-                                     source=="Planktonic" & taxon_clean=="Crustacean remains" ~ "Amphipod (adult/juvenile)",
-                                     source=="Planktonic" & taxon_clean=="Decapoda" ~ "Decapod (zoae/megalopa)",
-                                     source=="Planktonic" & taxon_clean=="Ostracoda" ~ "Ostracod", 
-                                     source=="Terrestrial" ~ paste0(taxon_clean, " (adult)"),
-                                     source=="Undetermined" & taxon_clean=="Amphipoda" ~ "Amphipod (adult/juvenile)",
-                                     source=="Undetermined" & taxon_clean=="Crustacean remains" ~ "UnID crustacean",
-                                     source=="Undetermined" & taxon_clean=="Decapoda" ~ "Decapod (zoae/megalopa)",
-                                     source=="Undetermined" & taxon_clean=="Diptera" ~ "Diptera (larvae/pupae)",
-                                     source=="Undetermined" & taxon_clean=="Insecta" ~ "UnID insect",
-                                     source=="Undetermined" & taxon_clean=="Invertebrate remains" ~ "UnID invert",
-                                     source=="Undetermined" & taxon_clean=="Lepidoptera" ~ "Lepidoptera (larvae)",
-                                     source=="Undetermined" & taxon_clean=="UnID remains" ~ "Unknown"),
-         taxonomy_simple = case_when(grepl("Acari", taxonomy_stage_simple_detail, ignore.case=T) ~ "Mites",
-                                     grepl("Diptera", taxonomy_stage_simple_detail, ignore.case=T) ~ "Flies",
-                                     grepl("Balanomorpha|Barnacle", taxonomy_stage_simple_detail, ignore.case=T) ~ "Barnacles",
-                                     grepl("Isopod", taxonomy_stage_simple_detail, ignore.case=T) ~ "Isopods",
-                                     grepl("Ostracod", taxonomy_stage_simple_detail, ignore.case=T) ~ "Ostracods",
-                                     grepl("Copepod", taxonomy_stage_simple_detail, ignore.case=T) ~ "Copepods",
-                                     grepl("Fish", taxonomy_stage_simple_detail, ignore.case=T) ~ "Fish",
-                                     grepl("Phyllodocida", taxonomy_stage_simple_detail, ignore.case=T) ~ "Polychaete worms",
-                                     grepl("parasite", taxonomy_stage_simple_detail, ignore.case=T) ~ "Internal parasites",
-                                     grepl("Amphipod", taxonomy_stage_simple_detail, ignore.case=T) ~ "Amphipods",
-                                     grepl("Crustacean", taxonomy_stage_simple_detail, ignore.case=T) ~ "UnID crustaceans",
-                                     grepl("Decapod", taxonomy_stage_simple_detail, ignore.case=T) ~ "Crab larvae",
-                                     grepl("Insect", taxonomy_stage_simple_detail, ignore.case=T) ~ "UnID insects",
-                                     grepl("invert", taxonomy_stage_simple_detail, ignore.case=T) ~ "UnID inverts",
-                                     grepl("Lepidoptera", taxonomy_stage_simple_detail, ignore.case=T) ~ "Butteryfly larvae",
-                                     grepl("UnID remains", taxonomy_stage_simple_detail, ignore.case=T) ~ "Unknown",
-                                     taxon_clean%in%c("Arachnida","Araneae") ~ "Spiders",
-                                     taxon_clean=="Coleoptera" ~ "Beetles",
-                                     taxon_clean=="Hemiptera" ~ "True bugs",
-                                     taxon_clean=="Hymenoptera" ~ "Wasps/bees",
-                                     taxon_clean=="Hemiptera" ~ "True bugs",
-                                     taxon_clean=="Neuroptera" ~ "Lacewing flies",
-                                     taxon_clean=="Perciformes" ~ "Fish",
-                                     taxon_clean=="Psocodea" ~ "Lice (non-parasitic)",
-                                     taxon_clean=="Trichoptera" ~ "Caddisflies",
-                                     TRUE ~ taxon_clean
-                                     )) 
+  mutate(lowest_taxon_final = case_when(!is.na(taxon) ~ taxon,
+                                        is.na(taxon) & !is.na(order) ~ paste0("O. ", order),
+                                        is.na(taxon) & is.na(order) & !is.na(class) ~ paste0("C. ", class),
+                                        is.na(taxon) & is.na(order) & is.na(class) & !is.na(phylum) ~ paste0("Ph. ", phylum),
+                                        is.na(phylum) & !is.na(category) ~ paste0("Unknown ", category),
+                                        TRUE ~ "FLAG"),
+         taxonomy_simple = case_when(grepl("Acari|arachnid|Araneae|pseudoscorpion", lowest_taxon_final, ignore.case=T) ~ "Arachnids",
+                                     grepl("Psocodea", lowest_taxon_final, ignore.case=T) ~ "Lice (non-parasitic)",
+                                     grepl("staphylinid|Coleoptera", lowest_taxon_final, ignore.case=T) ~ "Beetles",
+                                     grepl("hemiptera", lowest_taxon_final, ignore.case=T) ~ "True bugs",
+                                     grepl("myriapod", lowest_taxon_final, ignore.case=T) ~ "Centipedes",
+                                     grepl("annelid", lowest_taxon_final, ignore.case=T) ~ "Worms",
+                                     grepl("chironomid", lowest_taxon_final, ignore.case=T) ~ "Midges",
+                                     grepl("Diptera", lowest_taxon_final, ignore.case=T) ~ "'True' flies",
+                                     grepl("caddisfly|trichoptera", lowest_taxon_final, ignore.case=T) ~ "Aquatic flies",
+                                     grepl("Hymenoptera", lowest_taxon_final, ignore.case=T) ~ "Wasps/bees",
+                                     grepl("Neuroptera", lowest_taxon_final, ignore.case=T) ~ "Lacewing flies",
+                                     grepl("Lepidoptera", lowest_taxon_final, ignore.case=T) ~ "Butterflies/moths",
 
+                                     grepl("Balanomorpha|Cirripedia", lowest_taxon_final, ignore.case=T) ~ "Barnacles",
+                                     grepl("Copepod|Eucalanus|harpactacoid", lowest_taxon_final, ignore.case=T) ~ "Copepods",
+                                     grepl("Ostracod", lowest_taxon_final, ignore.case=T) ~ "Ostracods",
+                                     grepl("Isopod|Gnorimosphaeroma", lowest_taxon_final, ignore.case=T) ~ "Isopods",
+                                     grepl("Amphipod|Corophium|Gammaridae", lowest_taxon_final, ignore.case=T) ~ "Amphipods",
+                                     grepl("Decapod|Anomura|porcellanidae", lowest_taxon_final, ignore.case=T) ~ "Decapods",
+                                     grepl("campylaspis|podon|cumacea|euphausiacea", lowest_taxon_final, ignore.case=T) ~ "Shrimps",
+                                     grepl("Phyllodocida|Polychaet", lowest_taxon_final, ignore.case=T) ~ "Polychaete worms",
+                                     
+                                     grepl("Actinopterygii|Teleost|Osmeriformes|Clupeiformes|Ammodytidae", lowest_taxon_final, ignore.case=T) ~ "Fish",
+                                     
+                                     grepl("parasite|sea louse|nematod|trematod", lowest_taxon_final, ignore.case=T) ~ "Parasites*",
+                                     
+                                     grepl("Crustacea", lowest_taxon_final, ignore.case=T) ~ "Unknown Crustaceans",
+                                     grepl("Arthropod", lowest_taxon_final, ignore.case=T) ~ "Unknown Arthropods",
+                                     grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Unknown Invertebrates",
+                                     grepl("insect", lowest_taxon_final, ignore.case=T) ~ "Unknown Insects",
+                                     
+                                     grepl("Rock|feather|plant|Seaweed", lowest_taxon_final, ignore.case=T) ~ "Non-food",
+                                     
+                                     TRUE ~ lowest_taxon_final),
+         
+         taxonomy_stage_simple = case_when(!is.na(stage_simple) ~ paste0(taxonomy_simple, " (", stage_simple, ")"),
+                                           is.na(stage_simple) ~ taxonomy_simple)) %>%
+  print()
 
 
 
@@ -256,10 +245,14 @@ core.biosample.linked <- full_join(biosamp.gsi.linked %>%
                                      select(year, gear, usid, date, DOY, species, length, height, weight, ad_clip, cwt, hatchery_origin, lethal_tag_no,
                                             DNA_vial, MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
                                             MGL_associated_collection_prob, MGL_species, MGL_notes),
-                                   diet.results,
-                                   by=c("DNA_vial" = "client_sample_id"),
+                                   diet.results %>%
+                                     select(-c(project)),
+                                   by=c("lethal_tag_no" = "client_sample_id"),
                                    multiple = "all")
 
+
+View(core.biosample.linked %>%
+       filter(grepl("RST|IPT", gear, ignore.case=T), !is.na(lethal_tag_no)))
 
 #write.csv(core.biosample.linked, "C:/Users/DAVIDSONKA/Desktop/biosample diet gsi linked.csv", row.names=F)
 
