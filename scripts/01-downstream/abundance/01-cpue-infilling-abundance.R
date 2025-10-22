@@ -266,25 +266,29 @@ imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$yea
 # =============== MODEL VALIDATION ===============
 
 # Each focal species/stage was split out into their own scripts so that infilling models could be thoroughly documented and examined. The critcial final
-#   components (metrics, plots) are loaded with the source() calls below: 
+#   components (metrics, plots) are loaded with the excel calls below: 
+#   Do NOT replace this with source() calls - it creates an endless loop of source()ing! 
 
-# Natural-origin Chinook:
-source(here::here("scripts", "01-downstream", "01-1-cpue-infilling-abundance-CN_NO.R"))
+# See each unique sub-script, e.g., 01-1-cpue-infilling-abundance-CN_NO.R
 
-# Subyearling coho:
-source(here::here("scripts", "01-downstream", "01-2-cpue-infilling-abundance-CO_SUB.R"))
 
-# Yearling coho:
-source(here::here("scripts", "01-downstream", "01-3-cpue-infilling-abundance-CO_YEAR.R"))
+
+# =============== FINAL INFILLING! ===============
+# *** next day: need the paper sheets in office to put in the final choice for each species!
+
+
+
+# Hatchery-origin Chinook:
+# **** next day: need to truncate hatchery chinook time series based on release dates and re-do infilling from the new "day 0"
+
+# Sub-yearling Coho:
+
+# Yearling Coho:
 
 # Chum:
-source(here::here("scripts", "01-downstream", "01-4-cpue-infilling-abundance-CM.R"))
-
-# Hatchery Chinook:
-source(here::here("scripts", "01-downstream", "01-5-cpue-infilling-abundance-CN_HO.R")) #** this needs revising a bit - based on release timing predictions don't really work when we have discrete release events
 
 
-# **** next day: need to truncate hatchery chinook timeseries based on release dates and re-do infilling from the new "day 0"
+
 
 
 

@@ -9,7 +9,7 @@
 
 
 # HATCHERY CHINOOK
-source(here::here("scripts", "01-downstream", "01-cpue-infilling-abundance"))
+source(here::here("scripts", "01-downstream", "abundance", "01-cpue-infilling-abundance.R"))
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -28,9 +28,10 @@ random.sample.sizes.HOCN <- data.frame(year=c(2024,2025),
                                            summarize(n=round(n()*0.2, 0)) %>%
                                            pull(n),
                                          eventMeta_totals %>% 
-                                           filter(year==2025 & !is.na(chinook_hatchery_obs) & date_stop>=as.Date()) %>%
+                                           filter(year==2025 & !is.na(chinook_hatchery_obs) & date_stop>=as.Date("2025-04-15")) %>% ## update
                                            summarize(n=round(n()*0.2, 0)) %>%
-                                           pull(n)))
+                                           pull(n))) %>%
+  print()
 
 # =============== IMPUTE VALUES ===============
 

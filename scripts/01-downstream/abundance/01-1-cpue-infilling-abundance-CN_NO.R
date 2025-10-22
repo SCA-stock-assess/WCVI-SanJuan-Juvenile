@@ -6,6 +6,7 @@
 
 
 # NATURAL-ORIGIN CHINOOK 
+source(here::here("scripts", "01-downstream", "abundance", "01-cpue-infilling-abundance.R"))
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -207,16 +208,6 @@ infill_summary.CNNO <- full_join(infill_evaluation_table.CNNO %>%
   print()
 
 
-# ----- DECISION: 
-#   While MAPE indicates the moving-average 3-day window model performs best, the other metrics all support the Kalman (Structural TS) infilling model. A quick 
-#   Google suggests this could be due to the error distribution of the models, where some models have small error and small values and large error at large  
-#   values. It sounds like this is not necessarily surprising...
-#   Given that a zero count is just as important to be able to predict, but that MAPE cannot evaluate prediction ability at a true zero, I will go with the
-#   other metrics (MAE/MASE). They are in agreement, plus visual examination of the prediction values indicates that the Kalmon model is the most consistent 
-#   with its predictions, regardless of whether it's near zero or a bigger value. 
-
-# --> Kalmon StrucTS wins for Chinook fry in 2024
-# -->  
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
