@@ -20,7 +20,8 @@ bs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-
                                taxonomy_simple %notin% c("Empty", "Non-food") ~ "Functional prey items",
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
-         condK = (as.numeric(weight)/(as.numeric(length)^3))*100000) %>%
+         condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
+         month = lubridate::month(date, label=T, abbr=T)) %>%
   left_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
   print()
@@ -141,8 +142,20 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # Prey SOURCES 
+bs.biodat.diet$source1 <- factor(bs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", ordered=T))
 
-# marine vs terrestrial 
+ggplot(data=bs.biodat.diet %>% 
+         filter(!is.na(source1)) %>%
+         group_by(year, month, source1) %>%
+         summarize(weight_by_source1 = sum(total_ww_g, na.rm=T)) %>%
+         group_by(year, month) %>%
+         mutate(propn=weight_by_source1/sum(weight_by_source1, na.rm=T))) +
+  geom_bar(aes(x=month, y=propn, fill=source1, colour=source1), stat="identity", postion="stack") +
+  scale_fill_manual(breaks=waiver(), values=c("dodger blue", "light green", "green", "dark green", "gray80",  "gray40")) +
+  scale_colour_manual(breaks=waiver(), values=c("dodger blue", "light green", "green", "dark green", "gray80",  "gray40")) +
+  theme_bw() +
+  facet_wrap(~year)
+  
 
 
 
