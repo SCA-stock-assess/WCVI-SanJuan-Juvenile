@@ -24,9 +24,15 @@ rst.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                taxonomy_simple %notin% c("Empty", "Non-food") ~ "Functional prey items",
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
-         condK = (as.numeric(weight)/(as.numeric(length)^3))*100000) %>%
+         condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
+         month = lubridate::month(date, label=T, abbr=T)) %>%
   left_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
+  group_by(lethal_tag_no) %>%
+  mutate(MT_status_fish = case_when(!is.na(lethal_tag_no) & MT_status=="Empty" ~ "Empty",
+                                    !is.na(lethal_tag_no) & MT_status!="Empty" ~ "Not empty",
+                                    TRUE ~ NA)) %>%
+  ungroup() %>%
   print()
 
 
@@ -55,36 +61,47 @@ View(rst.biodat.diet %>% filter(!is.na(lethal_tag_no), is.na(taxonomy_simple)))
 #                                                                         Fullness
 
 # % empty stomachs vs some contents --------------
-# Total inventory of empty/prey/non-food 
+# Total inventory of empty/prey/non-food etc. 
 rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample") %>%
   group_by(year, MT_status) %>% 
   summarize(n=n())  
 
-# Exclude non-food and calculate % empty/not empty
+
+# Exclude non-food and calculate % empty by YEAR (pooled) --------------
 rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
-  group_by(year, MT_status) %>% 
-  summarize(n=n()) %>% 
+  group_by(year, lethal_tag_no) %>% 
+  summarize(MT_status_fish=unique(MT_status_fish)) %>% 
+  group_by(year, MT_status_fish) %>%
+  summarize(n = n()) %>%
   group_by(year) %>%
-  mutate(year_total = sum(n),
-         propn = n/year_total) 
+  mutate(year_total=sum(n),
+         propn=n/year_total) 
 
 
-# Fullness plot (mirror Sarita) --------------
-fullness <- rst.biodat.diet %>%
+# ================== PLOTS ================== 
+
+# Fullness plot by YEAR --------------
+  # Formatted this way to mirror the Sarita plot for comparison 
+
+rst.fullness <- rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
-  group_by(year, MT_status) %>% 
-  summarize(n=n()) %>% 
+  group_by(year, lethal_tag_no) %>% 
+  summarize(MT_status=unique(MT_status)) %>% 
+  group_by(year, MT_status) %>%
+  summarize(n = n()) %>%
   group_by(year) %>%
-  mutate(year_total = sum(n),
-         propn = n/year_total)
-fullness$MT_status <- factor(fullness$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
+  mutate(year_total=sum(n),
+         propn=n/year_total)
+
+rst.fullness$MT_status <- factor(rst.fullness$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
 
 pdf(file = here::here("outputs", "figures", "RST stomach fullness (pooled).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
-ggplot(data=fullness, aes(x=year, y=propn, fill=MT_status)) +
+
+ggplot(data=rst.fullness, aes(x=year, y=propn, fill=MT_status)) +
   geom_bar(stat="identity", position="stack", alpha=0.8) +
   geom_text(aes(x=year, y=1.03, label=year_total), inherit.aes=F, size=5) +
   scale_fill_manual(values=c("Functional prey items"="green", "Trace"="#FDB100", "Empty"="#ff7100")) +
@@ -97,26 +114,33 @@ ggplot(data=fullness, aes(x=year, y=propn, fill=MT_status)) +
         legend.text = element_text(size=13),
         legend.position = c(0.85, 0.6),
         legend.background = element_rect(fill=alpha('white', 0.9))
-        #legend.direction = "horizontal"
         )
+
 dev.off()
 
 
-fullness_month <- rst.biodat.diet %>%
+
+# Fullness plot by MONTH --------------
+  # Formatted this way to mirror the Sarita plot for comparison 
+
+rest.fullness_month <- rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
-  group_by(year, lubridate::month(date, label=T, abbr=T), MT_status) %>% 
-  summarize(n=n()) %>% 
-  rename(month=`lubridate::month(date, label = T, abbr = T)`) %>%
+  group_by(year, month, lethal_tag_no, MT_status) %>% 
+  summarize(MT_status = unique(MT_status)) %>% 
+  group_by(year, month, MT_status) %>%
+  summarize(n = n()) %>%
   group_by(year, month) %>%
-  mutate(month_total = sum(n),
-         propn = n/month_total)
-fullness_month$MT_status <- factor(fullness_month$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
+  mutate(month_total=sum(n),
+         propn=n/month_total)
+
+rest.fullness_month$MT_status <- factor(rest.fullness_month$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
 
 
 pdf(file = here::here("outputs", "figures", "RST stomach fullness (monthly).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
-ggplot(data=fullness_month, aes(x=month, y=propn, fill=MT_status)) +
+
+ggplot(data=rest.fullness_month, aes(x=month, y=propn, fill=MT_status)) +
   geom_bar(stat="identity", position="stack", alpha=0.8) +
   geom_text(aes(x=month, y=1.05, label=month_total), inherit.aes=F) +
   scale_fill_manual(values=c("Functional prey items"="green", "Trace"="#FDB100", "Empty"="#ff7100")) +
@@ -127,12 +151,12 @@ ggplot(data=fullness_month, aes(x=month, y=propn, fill=MT_status)) +
         axis.text = element_text(colour="black", size=15),
         legend.title = element_text(face="bold", size=13),
         legend.text = element_text(size=13),
-        #legend.position = "none",
+        legend.position = c(0.13, 0.2),
         legend.background = element_rect(fill=alpha('white', 0.9)),
         strip.text = element_text(size=15)
-        #legend.direction = "horizontal"
   ) +
   facet_wrap(~year)
+
 dev.off()
 
 
@@ -151,5 +175,3 @@ View(rst.biodat.diet %>%
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-#                                                                     Fish traits
