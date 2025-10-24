@@ -24,6 +24,10 @@ bs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-
          month = lubridate::month(date, label=T, abbr=T)) %>%
   left_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
+  group_by(lethal_tag_no) %>%
+  mutate(MT_status_fish = case_when(!is.na(lethal_tag_no) & MT_status=="Empty" ~ "Empty",
+                                    !is.na(lethal_tag_no) & MT_status!="Empty" ~ "Not empty",
+                                    TRUE ~ NA)) %>%
   print()
 
 
@@ -38,6 +42,7 @@ bs.biodat.diet %>%
   summarize(n=n()) %>%
   group_by(year) %>%
   summarize(n=n())
+
 
 # stomach content groups --------------
 bs.biodat.diet %>%
@@ -57,105 +62,114 @@ View(bs.biodat.diet %>% filter(!is.na(lethal_tag_no), is.na(taxonomy_simple)))
 bs.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample") %>%
   group_by(year, MT_status) %>% 
-  summarize(n=n())  
+  summarize(MT_status = unique(MT_status))  
 
-# Exclude non-food and calculate % empty/not empty
+
+# Exclude non-food and calculate % empty/not empty --------------
 bs.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
-  group_by(year, MT_status) %>% 
-  summarize(n=n()) %>% 
+  group_by(year, lethal_tag_no) %>% 
+  summarize(MT_status_fish=unique(MT_status_fish)) %>% 
+  group_by(year, MT_status_fish) %>%
+  summarize(n = n()) %>%
   group_by(year) %>%
-  mutate(year_total = sum(n),
-         propn = n/year_total) 
+    mutate(year_total=sum(n),
+           propn=n/year_total)
+
+
+# Do we know anything about the fish with empty stomachs --------------
+bs.biodat.diet %>%
+  filter(MT_status_fish=="Empty") %>%
+  select(mgl_id_source, mgl_top_collection)
 
 
 
-# Fullness plot (mirror Sarita) --------------
-bs.fullness <- bs.biodat.diet %>%
-  filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
-  group_by(year, MT_status) %>% 
-  summarize(n=n()) %>% 
-  group_by(year) %>%
-  mutate(year_total = sum(n),
-         propn = n/year_total) %>%
-  print()
-bs.fullness$MT_status <- factor(bs.fullness$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
-
-pdf(file = here::here("outputs", "figures", "Beach seine stomach fullness (pooled).pdf"),   
-    width = 11, # The width of the plot in inches
-    height = 8.5) # The height of the plot in inches
-
-ggplot(data=bs.fullness, aes(x=year, y=propn, fill=MT_status)) +
-  geom_bar(stat="identity", position="stack", alpha=0.8) +
-  geom_text(aes(x=year, y=1.03, label=year_total), inherit.aes=F, size=5) +
-  scale_fill_manual(values=c("Functional prey items"="green", "Trace"="#FDB100", "Empty"="#ff7100")) +
-  scale_y_continuous(labels=scales::percent_format()) +
-  labs(x="", y="Proportion of stomachs (%)", fill="Fullness status") +
-  theme_bw() +
-  theme(axis.title = element_text(face="bold", size=17),
-        axis.text = element_text(colour="black", size=15),
-        legend.title = element_text(face="bold", size=13),
-        legend.text = element_text(size=13),
-        legend.position = c(0.85, 0.6),
-        legend.background = element_rect(fill=alpha('white', 0.9))
-        #legend.direction = "horizontal"
-  )
-
-dev.off()
-
-
-bs.fullness_month <- bs.biodat.diet %>%
-  filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
-  group_by(year, lubridate::month(date, label=T, abbr=T), MT_status) %>% 
-  summarize(n=n()) %>% 
-  rename(month=`lubridate::month(date, label = T, abbr = T)`) %>%
-  group_by(year, month) %>%
-  mutate(month_total = sum(n),
-         propn = n/month_total)
-bs.fullness_month$MT_status <- factor(bs.fullness_month$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
-
-
-pdf(file = here::here("outputs", "figures", "RST stomach fullness (monthly).pdf"),   
-    width = 11, # The width of the plot in inches
-    height = 8.5) # The height of the plot in inches
-
-ggplot(data=bs.fullness_month, aes(x=month, y=propn, fill=MT_status)) +
-  geom_bar(stat="identity", position="stack", alpha=0.8) +
-  geom_text(aes(x=month, y=1.05, label=month_total), inherit.aes=F) +
-  scale_fill_manual(values=c("Functional prey items"="green", "Trace"="#FDB100", "Empty"="#ff7100")) +
-  scale_y_continuous(labels=scales::percent_format()) +
-  labs(x="", y="Proportion of stomachs (%)", fill="Fullness status") +
-  theme_bw() +
-  theme(axis.title = element_text(face="bold", size=17),
-        axis.text = element_text(colour="black", size=15),
-        legend.title = element_text(face="bold", size=13),
-        legend.text = element_text(size=13),
-        legend.background = element_rect(fill=alpha('white', 0.9)),
-        strip.text = element_text(size=15)
-  ) +
-  facet_wrap(~year)
-
-dev.off()
-
+# ================== PLOTS ================== 
+# Not going to bother plotting because there were almost no empty stomachs and obviously the rest will have a mix of detectable and non-detectable parts. 
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# Prey SOURCES 
+#                                                                     Prey SOURCES 
+
+# Prey sources as a % of total prey weight ------------
+bs.biodat.diet %>% 
+  filter(!is.na(source1)) %>%
+  group_by(year, month, source1) %>%
+  summarize(weight_by_source1 = sum(total_ww_g, na.rm=T)) %>%
+  group_by(year, month) %>%
+  mutate(propn = weight_by_source1/sum(weight_by_source1, na.rm=T))
+
+
+# Prey sources POOLED ------------
 bs.biodat.diet$source1 <- factor(bs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", ordered=T))
 
-ggplot(data=bs.biodat.diet %>% 
-         filter(!is.na(source1)) %>%
-         group_by(year, month, source1) %>%
-         summarize(weight_by_source1 = sum(total_ww_g, na.rm=T)) %>%
-         group_by(year, month) %>%
-         mutate(propn=weight_by_source1/sum(weight_by_source1, na.rm=T))) +
-  geom_bar(aes(x=month, y=propn, fill=source1, colour=source1), stat="identity", postion="stack") +
-  scale_fill_manual(breaks=waiver(), values=c("dodger blue", "light green", "green", "dark green", "gray80",  "gray40")) +
-  scale_colour_manual(breaks=waiver(), values=c("dodger blue", "light green", "green", "dark green", "gray80",  "gray40")) +
+pdf(file = here::here("outputs", "figures", "Estuary diets (yearly).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data=bs.biodat.diet %>% 
+             filter(!is.na(source1)) %>%
+             group_by(year, source1) %>%
+             summarize(weight_by_source1 = sum(total_ww_g, na.rm=T)) %>%
+             group_by(year) %>%
+             mutate(propn = weight_by_source1/sum(weight_by_source1, na.rm=T)),
+           aes(x=as.factor(year), y=propn, fill=source1, colour=source1), stat="identity", postion="stack", alpha=0.8, linewidth =1) +
+  geom_text(data=bs.biodat.diet %>% 
+              filter(!is.na(source1), !is.na(lethal_tag_no)) %>%
+              group_by(year, lethal_tag_no) %>%
+              summarize(lethal_tag_no = unique(lethal_tag_no)) %>%
+              group_by(year) %>%
+              summarize(n = n()), 
+            aes(x=as.factor(year), y=1.05, label=n), size=5) +
+  scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
+  scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+  labs(y="Proportion of all prey items (by weight)", fill="Prey source", colour="Prey source") +
   theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.title = element_text(face='bold', size=19),
+        axis.text = element_text(colour="black", size=17),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.position = c(0.85, 0.7),
+        legend.background = element_rect(fill=alpha("white", alpha=0.9))) 
+
+dev.off()
+
+
+
+
+# Prey sources by MONTH ------------
+  # Not great because such small sample sizes, but made and will save in case there is interest. 
+bs.biodat.diet$source1 <- factor(bs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", ordered=T))
+
+ggplot() +
+  geom_bar(data=bs.biodat.diet %>% 
+             filter(!is.na(source1)) %>%
+             group_by(year, month, source1) %>%
+             summarize(weight_by_source1 = sum(total_ww_g, na.rm=T)) %>%
+             group_by(year, month) %>%
+             mutate(propn = weight_by_source1/sum(weight_by_source1, na.rm=T)),
+           aes(x=month, y=propn, fill=source1, colour=source1), stat="identity", postion="stack", alpha=0.8, linewidth =1) +
+  geom_text(data=bs.biodat.diet %>% 
+              filter(!is.na(source1), !is.na(lethal_tag_no)) %>%
+              group_by(year, month, lethal_tag_no) %>%
+              summarize(lethal_tag_no = unique(lethal_tag_no)) %>%
+              group_by(year, month) %>%
+              summarize(n = n()), 
+            aes(x=month, y=1.1, label=n)) +
+  scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
+  scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+  labs(y="Proportion of all prey items", fill="Prey source", colour="Prey source") +
+  theme_bw() +
+  theme(axis.title.x = element_blank(),
+        axis.title = element_text(face='bold'),
+        axis.text = element_text(colour="black")) +
   facet_wrap(~year)
-  
+
 
 
 
