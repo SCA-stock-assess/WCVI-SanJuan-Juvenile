@@ -145,32 +145,39 @@ dev.off()
   # Not great because such small sample sizes, but made and will save in case there is interest. 
 bs.biodat.diet$source1 <- factor(bs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", ordered=T))
 
+pdf(file = here::here("outputs", "figures", "Estuary diets (yearly).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
 ggplot() +
   geom_bar(data=bs.biodat.diet %>% 
              filter(!is.na(source1)) %>%
-             group_by(year, month, source1) %>%
+             group_by(month, source1) %>%
              summarize(weight_by_source1 = sum(total_ww_g, na.rm=T)) %>%
-             group_by(year, month) %>%
+             group_by(month) %>%
              mutate(propn = weight_by_source1/sum(weight_by_source1, na.rm=T)),
            aes(x=month, y=propn, fill=source1, colour=source1), stat="identity", postion="stack", alpha=0.8, linewidth =1) +
   geom_text(data=bs.biodat.diet %>% 
               filter(!is.na(source1), !is.na(lethal_tag_no)) %>%
-              group_by(year, month, lethal_tag_no) %>%
+              group_by(month, lethal_tag_no) %>%
               summarize(lethal_tag_no = unique(lethal_tag_no)) %>%
-              group_by(year, month) %>%
+              group_by(month) %>%
               summarize(n = n()), 
-            aes(x=month, y=1.1, label=n)) +
+            aes(x=month, y=1.05, label=n)) +
   scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
   scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
-  labs(y="Proportion of all prey items", fill="Prey source", colour="Prey source") +
+  labs(y="Proportion of all prey items (by weight)", fill="Prey source", colour="Prey source") +
   theme_bw() +
   theme(axis.title.x = element_blank(),
-        axis.title = element_text(face='bold'),
-        axis.text = element_text(colour="black")) +
-  facet_wrap(~year)
+        axis.title = element_text(face='bold', size=19),
+        axis.text = element_text(colour="black", size=17),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.position = c(0.85, 0.7),
+        legend.background = element_rect(fill=alpha("white", alpha=0.9))) 
 
-
+dev.off()
 
 
 
