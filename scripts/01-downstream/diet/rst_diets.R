@@ -25,14 +25,19 @@ rst.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
          condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
-         month = lubridate::month(date, label=T, abbr=T)) %>%
+         month = lubridate::month(date, label=T, abbr=T),
+         total_ww_g = case_when(lowest_taxon_final=="Empty" ~ 0,
+                                TRUE ~ total_ww_g)) %>%
   left_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
   group_by(lethal_tag_no) %>%
   mutate(MT_status_fish = case_when(!is.na(lethal_tag_no) & MT_status=="Empty" ~ "Empty",
                                     !is.na(lethal_tag_no) & MT_status!="Empty" ~ "Not empty",
-                                    TRUE ~ NA)) %>%
+                                    TRUE ~ NA),
+         total_ww_contents = sum(total_ww_g)) %>%
   ungroup() %>%
+  mutate(weight_no_contents = as.numeric(weight) - total_ww_contents,
+         PFI = total_ww_g/weight_no_contents) %>%
   print()
 
 
