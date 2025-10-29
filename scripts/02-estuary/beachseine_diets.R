@@ -21,13 +21,19 @@ bs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
          condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
-         month = lubridate::month(date, label=T, abbr=T)) %>%
+         month = lubridate::month(date, label=T, abbr=T),
+         total_ww_g = case_when(lowest_taxon_final=="Empty" ~ 0,
+                                TRUE ~ total_ww_g)) %>%
   left_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
   group_by(lethal_tag_no) %>%
   mutate(MT_status_fish = case_when(!is.na(lethal_tag_no) & MT_status=="Empty" ~ "Empty",
                                     !is.na(lethal_tag_no) & MT_status!="Empty" ~ "Not empty",
-                                    TRUE ~ NA)) %>%
+                                    TRUE ~ NA),
+         total_ww_contents = sum(total_ww_g)) %>%
+  ungroup() %>%
+  mutate(weight_no_contents = as.numeric(weight) - total_ww_contents,
+         PFI = total_ww_g/weight_no_contents) %>%
   print()
 
 
@@ -145,7 +151,7 @@ dev.off()
   # Not great because such small sample sizes, but made and will save in case there is interest. 
 bs.biodat.diet$source1 <- factor(bs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", ordered=T))
 
-pdf(file = here::here("outputs", "figures", "Estuary diets (yearly).pdf"),   
+pdf(file = here::here("outputs", "figures", "Estuary diets (monthly).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -163,7 +169,7 @@ ggplot() +
               summarize(lethal_tag_no = unique(lethal_tag_no)) %>%
               group_by(month) %>%
               summarize(n = n()), 
-            aes(x=month, y=1.05, label=n)) +
+            aes(x=month, y=1.05, label=n), size=5) +
   scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
   scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "#8bc7e1", "gray80",  "gray40")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
@@ -174,7 +180,7 @@ ggplot() +
         axis.text = element_text(colour="black", size=17),
         legend.title = element_text(face="bold", size=17),
         legend.text = element_text(size=15),
-        legend.position = c(0.85, 0.7),
+        legend.position = c(0.17, 0.75),
         legend.background = element_rect(fill=alpha("white", alpha=0.9))) 
 
 dev.off()
@@ -183,6 +189,74 @@ dev.off()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# Prey TAXA
+#                                                                            Prey TAXA
 
-# taxon simple, colour groups by mar/terr still?? 
+# Prey TAXA as a % of total prey weight ------------
+bs.biodat.diet %>% 
+  filter(!is.na(taxonomy_stage_simple), taxonomy_stage_simple!="Empty") %>%
+  group_by(taxonomy_stage_simple) %>%
+  summarize(weight_by_taxa = sum(total_ww_g, na.rm=T)) %>%
+  ungroup() %>%
+  mutate(propn = weight_by_taxa/sum(weight_by_taxa, na.rm=T))
+
+
+pdf(file = here::here("outputs", "figures", "Estuary diets (by taxonomy simplified - no stage).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data=bs.biodat.diet %>% 
+             filter(!is.na(taxonomy_simple), taxonomy_simple!="Empty") %>%
+             mutate(source_simple = case_when(taxonomy_simple=="Non-food" ~ "Non-food",
+                                              source1=="Marine" ~ "Marine",
+                                              source1 %in% c("Terrestrial", "Freshwater", "Terrestrial/Freshwater", "Aquatic") ~ "Terrestrial/Freshwater",
+                                              
+                                              source1=="Undetermined" ~ "Undetermined",
+                                              TRUE ~ NA)) %>%
+             group_by(taxonomy_simple) %>%
+             summarize(source_simple = unique(source_simple), weight_by_taxa = sum(total_ww_g, na.rm=T)) %>%
+             ungroup() %>%
+             mutate(propn = weight_by_taxa/sum(weight_by_taxa, na.rm=T)),
+           aes(x=fct_reorder(taxonomy_simple, propn, .desc = TRUE), y=propn, fill=source_simple, colour=source_simple), 
+           stat="identity", position="dodge", alpha=0.7, linewidth=1) +
+  scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "gray80", "#569351", "gray40")) +
+  scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "gray80", "#569351", "gray40")) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+  labs(x="Lowest identifiable prey group and life stage (if known)", y="Proportion of all prey items (by weight)", fill="Prey source", colour="Prey source") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(colour="black", size=15),
+        axis.title = element_text(face="bold", size=17),
+        legend.position=c(0.8,0.8),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.background = element_rect(colour="black", fill=alpha("white", 0.7)))  
+
+dev.off()
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+#                                                                          Fullness/Partial Fullness INDEX
+
+bs.biodat.diet %>%
+  group_by()
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
+#                                                                          Ordinations
+
+
+
+
+
+
+
+
+
+
+
+
+
