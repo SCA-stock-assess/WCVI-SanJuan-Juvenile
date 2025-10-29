@@ -195,6 +195,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                         TRUE ~ "FLAG"),
          taxonomy_simple = case_when(grepl("Acari|arachnid|Araneae|pseudoscorpion", lowest_taxon_final, ignore.case=T) ~ "Arachnids",
                                      grepl("Psocodea", lowest_taxon_final, ignore.case=T) ~ "Lice (non-parasitic)",
+                                     #grepl("formicidae", lowest_taxon_final, ignore.case=T) ~ "Ants", 
                                      grepl("staphylinid|Coleoptera", lowest_taxon_final, ignore.case=T) ~ "Beetles",
                                      grepl("hemiptera", lowest_taxon_final, ignore.case=T) ~ "True bugs",
                                      grepl("myriapod", lowest_taxon_final, ignore.case=T) ~ "Centipedes",
@@ -207,7 +208,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("Lepidoptera", lowest_taxon_final, ignore.case=T) ~ "Butterflies/moths",
 
                                      grepl("Balanomorpha|Cirripedia", lowest_taxon_final, ignore.case=T) ~ "Barnacles",
-                                     grepl("Copepod|Eucalanus|harpactacoid", lowest_taxon_final, ignore.case=T) ~ "Copepods",
+                                     grepl("Copepod|Eucalanus|harpactacoid|harpacticoid", lowest_taxon_final, ignore.case=T) ~ "Copepods",
                                      grepl("Ostracod", lowest_taxon_final, ignore.case=T) ~ "Ostracods",
                                      grepl("Isopod|Gnorimosphaeroma", lowest_taxon_final, ignore.case=T) ~ "Isopods",
                                      grepl("Amphipod|Corophium|Gammaridae", lowest_taxon_final, ignore.case=T) ~ "Amphipods",
@@ -219,10 +220,10 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      
                                      grepl("parasite|sea louse|nematod|trematod", lowest_taxon_final, ignore.case=T) ~ "Parasites*",
                                      
-                                     grepl("Crustacea", lowest_taxon_final, ignore.case=T) ~ "Unknown Crustaceans",
-                                     grepl("Arthropod", lowest_taxon_final, ignore.case=T) ~ "Unknown Arthropods",
-                                     grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Unknown Invertebrates",
-                                     grepl("insect", lowest_taxon_final, ignore.case=T) ~ "Unknown Insects",
+                                     grepl("Crustacea", lowest_taxon_final, ignore.case=T) ~ "Crustaceans (unspecified)",
+                                     grepl("Arthropod", lowest_taxon_final, ignore.case=T) ~ "Arthropods (unspecified)",
+                                     grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Invertebrates (unspecified)",
+                                     grepl("insect|formicidae", lowest_taxon_final, ignore.case=T) ~ "Insects (unspecified)",
                                      
                                      grepl("Rock|feather|plant|Seaweed", lowest_taxon_final, ignore.case=T) ~ "Non-food",
                                      
@@ -251,8 +252,8 @@ core.biosample.linked <- full_join(biosamp.gsi.linked %>%
                                    multiple = "all")
 
 
-View(core.biosample.linked %>%
-       filter(grepl("RST|IPT", gear, ignore.case=T), !is.na(lethal_tag_no)))
+#View(core.biosample.linked %>%
+#       filter(grepl("RST|IPT", gear, ignore.case=T), !is.na(lethal_tag_no)))
 
 #write.csv(core.biosample.linked, "C:/Users/DAVIDSONKA/Desktop/biosample diet gsi linked.csv", row.names=F)
 
