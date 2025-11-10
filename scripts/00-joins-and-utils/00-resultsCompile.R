@@ -10,9 +10,44 @@ options(scipen = 99999999999999)
 "%notin%" <- Negate("%in%")
 
 
-# ========================= LOAD MGL FILES =========================
 
-# Load and compile repunit_table_ids tabs all years ------------------------------------
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ================================================================= DATA LOAD =================================================================
+
+
+## ========================= LOAD FIELD BIODATA =========================
+
+### Load field biodata and add in some variables ------------------------------------
+# (Doing this here so it is carried through the subsequent biodata tabs later)
+  # See height_weight script for rationale on equation used to convert height to modelled weight
+biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
+                                              pattern="^San Juan PSSI master database",
+                                              full.names=T),
+                              sheet="biosampling", guess_max = 5000) %>%
+  mutate(resolved_weight_source = case_when(!is.na(weight) & is.na(lab_weight_g) ~ "field",
+                                            is.na(weight) & !is.na(lab_weight_g) ~ "lab",
+                                            is.na(weight) & is.na(lab_weight_g) ~ "modelled"),
+         modelled_weight_g = as.numeric(exp(-6.5 + (2.9*log(height)))),
+         resolved_weight_g = case_when(resolved_weight_source=="field" ~ as.numeric(weight),
+                                       resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
+                                       resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
+         condK = resolved_weight_g/(as.numeric(length)^3)*100000) %>%
+  relocate(c(lab_weight_g, modelled_weight_g), .after=weight) %>%
+  relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
+  rename(length_mm = length,
+         height_mm = height,
+         field_weight_g = weight) %>%
+  print()
+
+
+
+
+## ========================= LOAD MGL FILES =========================
+
+### Load and compile repunit_table_ids tabs all years ------------------------------------
 gsi.repunits_table_ids.LL <- c(
   # --- 2023:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
@@ -43,10 +78,7 @@ remove(gsi.repunits_table_ids.LL)
 
 
 
-
-
-
-# Load and compile extraction_sheet tabs all years ------------------------------------
+### Load and compile extraction_sheet tabs all years ------------------------------------
 gsi.extraction_sheets.LL <- c(
   # --- 2023:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
@@ -76,10 +108,7 @@ remove(gsi.extraction_sheets.LL)
 
 
 
-
-
-
-# Load and compile species_ID tabs all years ------------------------------------
+### Load and compile species_ID tabs all years ------------------------------------
 gsi.species_ID.LL <- c(
   # --- 2023:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
@@ -109,15 +138,10 @@ remove(gsi.species_ID.LL)
 
 
 
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+## ========================= JOIN MGL INTO 1 MASTER FILE =========================
 
-
-
-# ========================= JOIN MGL INTO 1 MASTER FILE =========================
-
-# Join into a master GSI dataframe ------------------------------------
+### Join into a master GSI dataframe ------------------------------------
 gsi.master <- full_join(
   gsi.repunits_table_ids %>% 
     select(-c(file_source, collection, mixture_collection)),
@@ -133,22 +157,20 @@ gsi.master <- full_join(
             by=c("indiv")) %>%
   rename_with(.cols=everything(), ~paste0("MGL_", .x)) %>%
   mutate(MGL_CatchDate = case_when(grepl("-", MGL_CatchDate..YYYY.MM.DD.) ~ lubridate::ymd(MGL_CatchDate..YYYY.MM.DD.),
-                               TRUE ~ janitor::excel_numeric_to_date(as.numeric(MGL_CatchDate..YYYY.MM.DD.)))) %>%
+                                   TRUE ~ janitor::excel_numeric_to_date(as.numeric(MGL_CatchDate..YYYY.MM.DD.)))) %>%
   select(-c(MGL_CatchDate..YYYY.MM.DD.)) %>%
   relocate(MGL_CatchDate, .before=MGL_ID_Source) %>%
   print()
 
 
-# Export in case needed ------------------------------------
+### Export in case needed ------------------------------------
 writexl::write_xlsx(gsi.master, path=paste0("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/", 
                                             "/San Juan MGL master file ",
                                             Sys.Date(),
                                             ".xlsx"))
 
 
-
-
-
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
@@ -156,14 +178,10 @@ writexl::write_xlsx(gsi.master, path=paste0("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/
 
 
 # Load Biosampling sheet of juvenile database, Join to MGL Master file ----------------- 
-biosamp.gsi.linked <-  left_join(
-  readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
-                                     pattern="^San Juan PSSI master database",
-                                     full.names=T),
-                     sheet="biosampling", guess_max = 5000),
-  gsi.master,
-  by=c("DNA_vial" = "MGL_Vial"),
-  na_matches = "never") %>%
+biosamp.gsi.linked <-  left_join(biodata,
+                                 gsi.master,
+                                 by=c("DNA_vial" = "MGL_Vial"),
+                                 na_matches = "never") %>%
   mutate(hatchery_origin = case_when(ad_clip=="Y" ~ "Y",
                                      MGL_ID_Source=="PBT" ~ "Y",
                                      grepl("HATTK", usid) ~ "Y",
@@ -173,8 +191,8 @@ biosamp.gsi.linked <-  left_join(
                                      MGL_ID_Source=="GSI" ~ "N",
                                      gear %in% c("IPT", "6'RST") & species %in% c("chum", "coho", "trout") ~ "N",
                                      gear=="IPT" ~ "N",
-                                     TRUE ~ "U"))
-
+                                     TRUE ~ "U")) %>%
+  print()
 
 
 
@@ -255,8 +273,10 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
 
 
 core.biosample.linked <- full_join(biosamp.gsi.linked %>%
-                                     select(year, gear, usid, date, DOY, species, length, height, weight, ad_clip, cwt, hatchery_origin, lethal_tag_no,
-                                            DNA_vial, MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
+                                     select(year, gear, usid, date, DOY, species, length_mm, height_mm, field_weight_g, lab_weight_g,
+                                            modelled_weight_g, resolved_weight_g, resolved_weight_source, 
+                                            ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
+                                            MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
                                             MGL_associated_collection_prob, MGL_species, MGL_notes),
                                    diet.results %>%
                                      select(-c(project)),
@@ -264,14 +284,8 @@ core.biosample.linked <- full_join(biosamp.gsi.linked %>%
                                    multiple = "all")
 
 
-#View(core.biosample.linked %>%
-#       filter(grepl("RST|IPT", gear, ignore.case=T), !is.na(lethal_tag_no)))
-
-#write.csv(core.biosample.linked, "C:/Users/DAVIDSONKA/Desktop/biosample diet gsi linked.csv", row.names=F)
-
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
