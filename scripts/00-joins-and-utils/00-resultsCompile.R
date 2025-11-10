@@ -117,7 +117,7 @@ remove(gsi.species_ID.LL)
 
 # ========================= JOIN MGL INTO 1 MASTER FILE =========================
 
-# Join into a master dataframe ------------------------------------
+# Join into a master GSI dataframe ------------------------------------
 gsi.master <- full_join(
   gsi.repunits_table_ids %>% 
     select(-c(file_source, collection, mixture_collection)),
@@ -163,7 +163,17 @@ biosamp.gsi.linked <-  left_join(
                      sheet="biosampling", guess_max = 5000),
   gsi.master,
   by=c("DNA_vial" = "MGL_Vial"),
-  na_matches = "never")
+  na_matches = "never") %>%
+  mutate(hatchery_origin = case_when(ad_clip=="Y" ~ "Y",
+                                     MGL_ID_Source=="PBT" ~ "Y",
+                                     grepl("HATTK", usid) ~ "Y",
+                                     year=="2024" & date < as.Date("2024-04-29") ~ "N",  # hatchery river release date 2024
+                                     year=="2025" & ad_clip=="N" ~ "N",
+                                     year=="2025" & date < as.Date("2025-04-27") ~ "N",  # earliest hatchery river release date 2025
+                                     MGL_ID_Source=="GSI" ~ "N",
+                                     gear %in% c("IPT", "6'RST") & species %in% c("chum", "coho", "trout") ~ "N",
+                                     gear=="IPT" ~ "N",
+                                     TRUE ~ "U"))
 
 
 
@@ -215,8 +225,9 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("Decapod|Anomura|porcellanidae", lowest_taxon_final, ignore.case=T) ~ "Decapods",
                                      grepl("campylaspis|podon|cumacea|euphausiacea", lowest_taxon_final, ignore.case=T) ~ "Shrimps",
                                      grepl("Phyllodocida|Polychaet", lowest_taxon_final, ignore.case=T) ~ "Polychaete worms",
+                                     grepl("cephalopod", lowest_taxon_final, ignore.case=T) ~ "Octopus (larvae)",
                                      
-                                     grepl("Actinopterygii|Teleost|Osmeriformes|Clupeiformes|Ammodytidae", lowest_taxon_final, ignore.case=T) ~ "Fish",
+                                     grepl("Actinopterygii|Teleost|Osmeriformes|Clupeiformes|Ammodytidae|Perciformes", lowest_taxon_final, ignore.case=T) ~ "Fish",
                                      
                                      grepl("parasite|sea louse|nematod|trematod", lowest_taxon_final, ignore.case=T) ~ "Parasites*",
                                      
@@ -225,7 +236,8 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Invertebrates (unspecified)",
                                      grepl("insect|formicidae", lowest_taxon_final, ignore.case=T) ~ "Insects (unspecified)",
                                      
-                                     grepl("Rock|feather|plant|Seaweed", lowest_taxon_final, ignore.case=T) ~ "Non-food",
+                                     grepl("Rock|feather", lowest_taxon_final, ignore.case=T) ~ "Non-food",
+                                     grepl("plant|Seaweed", lowest_taxon_final, ignore.case=T) ~ "Plant/seaweed",
                                      
                                      TRUE ~ lowest_taxon_final),
          
