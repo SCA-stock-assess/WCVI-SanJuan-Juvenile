@@ -191,8 +191,32 @@ biosamp.gsi.linked <-  left_join(biodata,
                                      MGL_ID_Source=="GSI" ~ "N",
                                      gear %in% c("IPT", "6'RST") & species %in% c("chum", "coho", "trout") ~ "N",
                                      gear=="IPT" ~ "N",
-                                     TRUE ~ "U")) %>%
+                                     TRUE ~ "U"),
+         resolved_stock_id = case_when(MGL_ID_Source=="PBT" & !is.na(MGL_PBT_brood_group) ~ 
+                                         paste0(stringr::str_to_title(gsub(MGL_PBT_brood_collection, pattern="_", replacement=" ")), 
+                                                " (", 
+                                                stringr::str_to_title(gsub(MGL_PBT_brood_group, pattern="_", replacement=" ")),
+                                                ")"),
+                                       MGL_ID_Source=="PBT" & is.na(MGL_PBT_brood_group) ~ 
+                                         stringr::str_to_title(gsub(MGL_PBT_brood_collection, pattern="_", replacement=" ")),
+                                       MGL_ID_Source=="GSI" & MGL_associated_collection_prob > 0.80 ~ 
+                                         stringr::str_to_title(gsub(MGL_top_collection, pattern="_", replacement=" ")),
+                                       MGL_ID_Source=="GSI" & MGL_associated_collection_prob < 0.80 ~ 
+                                         stringr::str_to_title(gsub(MGL_repunit.1, pattern="_", replacement=" ")),
+                                       gear %in% c("IPT", "6'RST") ~ "San Juan River*",
+                                       TRUE ~ NA),
+         resolved_stock_origin = case_when(hatchery_origin=="Y" ~ paste0("Hatchery ", resolved_stock_id),
+                                           hatchery_origin=="N" ~ paste0("Natural ", resolved_stock_id),
+                                           hatchery_origin=="U" & !is.na(resolved_stock_id) ~ paste0("Unknown ", resolved_stock_id),
+                                           hatchery_origin=="U" & is.na(resolved_stock_id) ~ NA,
+                                           TRUE ~ NA),
+         stray_status = case_when(!is.na(resolved_stock_id) & grepl("san juan", resolved_stock_id, ignore.case=T) ~ "local",
+                                  !is.na(resolved_stock_id) & !grepl("san juan", resolved_stock_id, ignore.case=T) ~ "stray",
+                                  TRUE ~ NA)) %>%
   print()
+
+
+
 
 
 
@@ -277,7 +301,8 @@ core.biosample.linked <- full_join(biosamp.gsi.linked %>%
                                             modelled_weight_g, resolved_weight_g, resolved_weight_source, 
                                             ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
                                             MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
-                                            MGL_associated_collection_prob, MGL_species, MGL_notes),
+                                            MGL_associated_collection_prob, MGL_species, MGL_notes,
+                                            resolved_stock_id, resolved_stock_origin, stray_status),
                                    diet.results %>%
                                      select(-c(project)),
                                    by=c("lethal_tag_no" = "client_sample_id"),
