@@ -103,7 +103,80 @@ meanPFI_by_month_ALLn <- all.biodat.diet %>%
 ### PLOT All PFI ~ hatchery origin, month, gear -----------------
 meanPFI_by_month_ALL$gear_simple <- factor(meanPFI_by_month_ALL$gear_simple, levels=c("RST", "Beach seine", "Purse seine"), ordered=T)
 
+pdf(file = here::here("outputs", "figures", "diet", "Purse seine Chinook by statweek - condition (facet year).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
 
+ggpubr::ggarrange(
+  ggplot() +
+    geom_bar(data=meanPFI_by_month_ALL %>% 
+               filter(hatchery_origin=="Y"),
+             aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", alpha=0.8,
+             linewidth=1) +
+    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                 "Plant/seaweed",  "Unidentified remains"),
+                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                               "gray80",  "gray20")) +
+    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                   "Plant/seaweed",  "Unidentified remains"),
+                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                                 "gray80",  "gray20")) +
+    labs(title = paste0("Hatchery-origin Chinook (all), n=", meanPFI_by_month_ALLn[meanPFI_by_month_ALLn$hatchery_origin=="Y",]$n), 
+         y="Mean Partial Fullness Index") +  theme_bw() +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.title = element_text(face="bold"), 
+          axis.text = element_text(colour="black") ,
+          strip.background = element_rect(colour="transparent")) +
+    facet_wrap(~gear_simple, nrow=2, strip.position = "right"),
+  
+  
+  ggplot(data=meanPFI_by_month_ALL %>% 
+           filter(hatchery_origin=="N")) +
+    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack") +
+    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                 "Plant/seaweed",  "Unidentified remains"),
+                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                               "gray80",  "gray20")) +
+    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                   "Plant/seaweed",  "Unidentified remains"),
+                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                                 "gray80",  "gray20")) +
+    labs(title = paste0("Natural-origin Chinook (all), n=", meanPFI_by_month_ALLn[meanPFI_by_month_ALLn$hatchery_origin=="N",]$n), 
+         y="Mean Partial Fullness Index") +  theme_bw() +    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.title = element_text(face="bold"), 
+          axis.text = element_text(colour="black") ,
+          strip.background = element_rect(colour="transparent")) +
+    facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
+  
+  nrow = 2, common.legend = T,
+  legend = "right"
+)
 
 
 
@@ -375,10 +448,3 @@ ggpubr::ggarrange(
 )
 
 
-
-
-
-#******** NEXT DAY WORKING ON: 
-# - PFI - refine calculation
-# - want to look at BS taxa graph facet by hat/nat
-# - want to look at PRS taxa graph facet by hat/nat

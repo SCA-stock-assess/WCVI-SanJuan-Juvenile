@@ -21,10 +21,10 @@ rst.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
   janitor::clean_names()  %>%
   mutate(MT_status = case_when(taxonomy_simple=="Empty" ~ "Empty",
                                grepl("trace|bdl|below detectable", diet_comments, ignore.case=T) ~ "Trace",
-                               taxonomy_simple %notin% c("Empty", "Non-food") ~ "Functional prey items",
+                               taxonomy_simple %notin% c("Empty", "Non-food") ~ "Identifiable prey items",
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
-         condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
+         #condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
          month = lubridate::month(date, label=T, abbr=T),
          total_ww_g = case_when(lowest_taxon_final=="Empty" ~ 0,
                                 TRUE ~ total_ww_g)) %>%
@@ -36,8 +36,8 @@ rst.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                     TRUE ~ NA),
          total_ww_contents = sum(total_ww_g)) %>%
   ungroup() %>%
-  mutate(weight_no_contents = as.numeric(weight) - total_ww_contents,
-         PFI = total_ww_g/weight_no_contents) %>%
+  # mutate(weight_no_contents = as.numeric(weight) - total_ww_contents,
+  #        PFI = total_ww_g/weight_no_contents) %>%
   print()
 
 
@@ -98,27 +98,29 @@ rst.fullness <- rst.biodat.diet %>%
   summarize(n = n()) %>%
   group_by(year) %>%
   mutate(year_total=sum(n),
-         propn=n/year_total)
+         propn=n/year_total) %>%
+  print()
 
-rst.fullness$MT_status <- factor(rst.fullness$MT_status, levels=c("Functional prey items", "Trace", "Empty"), ordered=T)
+rst.fullness$MT_status <- factor(rst.fullness$MT_status, levels=c("Identifiable prey items", "Trace", "Empty"), ordered=T)
 
-pdf(file = here::here("outputs", "figures", "RST stomach fullness (pooled).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "RST stomach fullness (pooled).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
 ggplot(data=rst.fullness, aes(x=year, y=propn, fill=MT_status)) +
-  geom_bar(stat="identity", position="stack", alpha=0.8) +
-  geom_text(aes(x=year, y=1.03, label=year_total), inherit.aes=F, size=5) +
-  scale_fill_manual(values=c("Functional prey items"="green", "Trace"="#FDB100", "Empty"="#ff7100")) +
+  geom_bar(stat="identity", position="stack", alpha=0.75, linewidth=0.5, colour="black") +
+  geom_label(aes(x=year, y=-0.03, label=year_total), inherit.aes=F, size=8) +
+  scale_fill_manual(values=c("Identifiable prey items"="#f05d5e", "Trace"="#fdf07f", "Empty"="#96eb70")) +
+  #scale_colour_manual(values=c("Identifiable prey items"="#f05d5e", "Trace"="#e9c46a", "Empty"="#7dce94")) +
   scale_y_continuous(labels=scales::percent_format()) +
-  labs(x="", y="Proportion of stomachs (%)", fill="Fullness status") +
+  labs(x="", y="Proportion of stomachs (%)", fill="Stomach fullness", colour="Fullness status") +
   theme_bw() +
-  theme(axis.title = element_text(face="bold", size=17),
-        axis.text = element_text(colour="black", size=15),
-        legend.title = element_text(face="bold", size=13),
-        legend.text = element_text(size=13),
-        legend.position = c(0.85, 0.6),
-        legend.background = element_rect(fill=alpha('white', 0.9))
+  theme(axis.title = element_text(face="bold", size=25),
+        axis.text = element_text(colour="black", size=23),
+        legend.title = element_text(face="bold", size=22),
+        legend.text = element_text(size=20),
+        legend.position = "right"#,
+        #legend.background = element_rect(fill=alpha('white', 0.9))
         )
 
 dev.off()

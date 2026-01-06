@@ -21,7 +21,7 @@ prs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                taxonomy_simple %notin% c("Empty", "Non-food") ~ "Functional prey items",
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
-         condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
+         #condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
          month = lubridate::month(date, label=T, abbr=T),
          total_ww_g = case_when(lowest_taxon_final=="Empty" ~ 0,
                                 TRUE ~ total_ww_g)) %>%
@@ -33,8 +33,8 @@ prs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                     TRUE ~ NA),
          total_ww_contents = sum(total_ww_g, na.rm=T)) %>%
   ungroup() %>%
-  mutate(weight_no_contents = as.numeric(weight) - total_ww_contents,
-         PFI = total_ww_g/weight_no_contents) %>%
+  #mutate(#weight_no_contents = as.numeric(weight) - total_ww_contents,
+         #PFI = total_ww_g/weight_no_contents) %>%
   left_join(.,
             readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                pattern="^R_OUT - San Juan PSSI master database",
@@ -47,6 +47,10 @@ prs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
   relocate(site_name_clean, .after=usid) %>%
   filter(grepl("chinook", species, ignore.case=T)) %>%
   print()
+
+
+
+
 
 
 
@@ -141,7 +145,7 @@ prs.biodat.diet %>%
 ### Source by YEAR ------------
 prs.biodat.diet$source1 <- factor(prs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", "Human", ordered=T))
 
-pdf(file = here::here("outputs", "figures", "Marine diets (yearly).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (yearly).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -180,7 +184,7 @@ dev.off()
 # Not great because such small sample sizes, but made and will save in case there is interest. 
 prs.biodat.diet$source1 <- factor(prs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", "Human", ordered=T))
 
-pdf(file = here::here("outputs", "figures", "Marine diets (monthly).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (monthly).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -223,7 +227,7 @@ dev.off()
 
 #prs.biodat.diet$source1 <- factor(prs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Human", "Undetermined", ordered=T))
 
-pdf(file = here::here("outputs", "figures", "Marine diets (yearly, averaged).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (yearly, averaged).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -289,7 +293,7 @@ prs.biodat.diet$site_name_clean <- factor(prs.biodat.diet$site_name_clean, level
                                                                                   "BS12", "BS09", "BS08", "BS23", "BS13", "BS21", "PS11-1", "FLBS01",
                                                                                   ordered=T))
 
-pdf(file = here::here("outputs", "figures", "Marine diets (site, averaged - plot).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (site, averaged - plot).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -555,7 +559,7 @@ prs.biodat.diet %>%
 
 ## =============== Prey TAXA - POOLED ===============
 
-pdf(file = here::here("outputs", "figures", "Marine diets (by taxonomy simplified - pooled).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified - pooled).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -596,7 +600,7 @@ dev.off()
 
 ## =============== Prey TAXA - AVERAGED ===============
 
-pdf(file = here::here("outputs", "figures", "Marine diets (by taxonomy simplified - averaged).pdf"),   
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified - averaged).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
@@ -650,6 +654,116 @@ dev.off()
 
 
 
-## =============== Prey TAXA - AVERAGED (hat/nat) ===============
 
-# *** HERE NEXT DAY! 
+### Taxa by SITE - Mapped -------------------
+
+prs_meanTAXA_by_site <- prs.biodat.diet %>%
+  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
+         taxonomy_simple%notin%c("Non-food", "No sample", "Plastic")) %>%
+  mutate(tax_simp_plot = case_when(grepl("flies|beetles|insects|midges|bugs|wasps", taxonomy_simple, ignore.case=T) ~ 
+                                     "Insects",
+                                   grepl("arachnids|lice", taxonomy_simple, ignore.case=T) ~ "Other terrestrial invertebrates",
+                                   TRUE ~ taxonomy_simple)) %>%
+  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
+  group_by(lethal_tag_no, tax_simp_plot) %>%
+  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
+            total_prey_ww = unique(total_ww_contents, na.rm=T),
+            lat=unique(lat_dd),
+            long=unique(long_dd),
+            site_name_clean = unique(site_name_clean))   %>%
+  # calculate the proportion of each prey source for each individual
+  group_by(lethal_tag_no) %>%
+  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
+  ungroup() %>%
+  # Fill in for missing categories and fill the missing values: 
+  complete(., lethal_tag_no, tax_simp_plot, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
+  group_by(lethal_tag_no) %>%
+  fill(c(site_name_clean, total_prey_ww, lat, long), .direction="updown") %>%
+  group_by(site_name_clean, tax_simp_plot) %>%
+  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T),
+            lat=mean(lat),
+            long=mean(long)) %>%
+  ungroup() %>%
+  pivot_wider(names_from = tax_simp_plot, values_from = mean_prey_ww_propn) %>%
+  mutate(site_name_clean = gsub(site_name_clean, pattern=" ", replacement="_")) %>%
+  nest_by(site_name_clean) %>%
+  mutate(data = set_names(list(data), site_name_clean)) %>%
+  pull(data) %>% 
+  list2env(envir = globalenv())
+
+
+# Define colour palette for miniplots: (17)
+colours <- #c("#14c8aa", "#ff006f", "#ff827b", "#2a4b7c", 
+             # "#c0b7f9", "#0000ff", "#a4efff", "#f57407", 
+             # "#3d6643", "#ffc880", "#039be5",  "#fff700", 
+             # ,  "#9fe375", "#7fffd4",  "#444444", 
+             # "#e3faff", "#bcbcbc")
+  c("#14c8aa", "#ce2000", "#ff827b", "#2a4b7c",
+    "#0000ff", "#9acda0", "#c76ee0", "#ffa900", 
+    "#f57407", "#ffcdff", "#3d6643", "#e3faff",  
+    "#039be5", "#fff700", "#bcbcbc",  "#9fe375", 
+    "#7fffd4",  "#444444")
+
+
+palE <- colorNumeric(c("#02006f", "#0028c4", "#3492ff", "#90dcff", "#d2f1ff", '#e7f7ff'), raster::values(bathyE),
+                     na.color = "transparent")
+palW <- colorNumeric(c("#02006f", "#0028c4", "#3492ff", "#90dcff", "#d2f1ff", '#e7f7ff'), raster::values(bathyE),
+                     na.color = "transparent")
+
+
+# MAP: 
+leaflet() %>% 
+  addProviderTiles(providers$Esri.WorldImagery) %>%
+  addRasterImage(bathyW, colors=palW) %>%
+  addRasterImage(bathyE, colors=palE) %>%
+  setView(lng=-124.443899, lat=48.557208, zoom=13) %>%
+  
+  # 2. Add PROPORTIONS
+  leaflet.minicharts::addMinicharts(
+    Gordon_R$long, Gordon_R$lat,
+    type = "pie",
+    chartdata = Gordon_R[, c(3:20)], 
+    colorPalette = colours,                                                                     
+    width = 40, transitionTime = 0) %>%
+  
+  leaflet.minicharts::addMinicharts(
+    Jap_Rock$long, Jap_Rock$lat,
+    type = "pie",
+    chartdata = Jap_Rock[, c(3:20)], 
+    colorPalette = colours, 
+    width = 40, transitionTime = 0) %>% 
+  
+  leaflet.minicharts::addMinicharts(
+    Mill_Bay$long, Mill_Bay$lat,
+    type = "pie",
+    chartdata = Mill_Bay[, c(3:20)], 
+    colorPalette = colours, 
+    width = 40, transitionTime = 0) %>% 
+  
+  leaflet.minicharts::addMinicharts(
+    Offshore_A$long, Offshore_A$lat,
+    type = "pie",
+    chartdata = Offshore_A[, c(3:20)], 
+    colorPalette = colours, 
+    width = 40, transitionTime = 0) %>% 
+  
+  leaflet.minicharts::addMinicharts(
+    Offshore_B$long, Offshore_B$lat,
+    type = "pie",
+    chartdata = Offshore_B[, c(3:20)], 
+    colorPalette = colours, 
+    width = 40, transitionTime = 0) %>% 
+  
+  leaflet.minicharts::addMinicharts(
+    PRCD$long, PRCD$lat,
+    type = "pie",
+    chartdata = PRCD[, c(3:20)], 
+    colorPalette = colours, 
+    width = 40, transitionTime = 0) %>% 
+  
+  leaflet.minicharts::addMinicharts(
+    Thrasher$long, Thrasher$lat,
+    type = "pie",
+    chartdata = Thrasher[, c(3:20)], 
+    colorPalette = colours, 
+    width = 40, transitionTime = 0) 
