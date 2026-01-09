@@ -136,20 +136,30 @@ curve_df_all <- tibble(
   y_hat     = expo_fun(grid_x_all, A = coE["A"], b = coE["b"])
 )
 
-# Color palette: points by origin; curve in blue
-col_values <- c("N" = "#1f77b4", "Y" = "#2ca02c", "U" = "#9467bd")
+# PLOT ALL FISH RELATIONSHIP
+pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - All fish exponential model.pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
 
-ggplot(df_all, aes(x = height_mm, y = obs_weight)) +
-  geom_point(aes(color = hatchery_origin), alpha = 0.9, size = 2.2) +
-  geom_line(data = curve_df_all, aes(y = y_hat), color = "#1f77b4", linewidth = 1.2) +
-  labs(title = "Exponential fit (nls, unweighted): field_weight_g ~ A * exp(b * height_mm)",
-       x = "Height (mm)", y = "Field weight (g)", color = "Hatchery origin") +
-  theme_bw()
+ggplot() +
+  geom_point(data=df_all, aes(x=height_mm, y=obs_weight, fill=hatchery_origin), alpha=0.8, size=4, shape=21, stroke=1) +
+  geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="black", linewidth=1) +
+  scale_y_continuous(breaks=seq(0, 130, by=25), limits=c(0, 130)) +
+  scale_x_continuous(breaks=seq(2, 60, by=10), limits=c(2, 55)) +
+  scale_fill_manual(labels=c("N" = "Natural-origin",
+                             "U" = "Unknown",
+                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  labs(x="Height (mm)", y="Weight (g)", fill="Chinook origin") +
+  theme_bw() +
+  theme(axis.title = element_text(face="bold", size=26),
+        axis.text = element_text(colour="black", size=25),
+        legend.title = element_text(face="bold", size=21),
+        legend.text = element_text(size=20))
+
+dev.off()
 
 
 # >> not convinced this is a good model - at small body size would over-estimate weight, and at large body size would under-estimate.
-
-# ** NEXT DAY: run RST only model and beach/purse seine only models separately 
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -247,19 +257,212 @@ curve_df <- tibble(
 )
 
 # PLOT MODEL OUTPUT: 
+pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - RST exponential model.pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
 ggplot() +
   geom_point(data=rst_biodata, 
              aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
   geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "black", linewidth = 1) +
+  scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
+  scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
   scale_fill_manual(labels=c("N" = "Natural-origin",
                              "U" = "Unknown",
                              "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
-  labs(title = "Exponential fit (nls, unweighted): field_weight_g ~ A * exp(b * height_mm)",
-       x="Height (mm)", y="Field weight (g)", fill="Chinook origin") +
+  labs(x="Height (mm)", y="Field weight (g)", fill="Chinook origin") +
   theme_bw() +
-  theme(axis.title = element_text(face="bold"),
-        axis.text = element_text(colour="black"),
-        legend.title = element_text(face="bold"))
+  theme(axis.title = element_text(face="bold", size=26),
+        axis.text = element_text(colour="black", size=25),
+        legend.title = element_text(face="bold", size=21),
+        legend.text = element_text(size=20))
+
+dev.off()
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
+# Combo plot for report
+# PLOT ALL FISH RELATIONSHIP
+pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - All+RST fish exponential model.pdf"),   
+    width = 16, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggpubr::ggarrange(ggplot() +
+                    geom_point(data=df_all, aes(x=height_mm, y=obs_weight, fill=hatchery_origin), alpha=0.8, size=4, shape=21, stroke=1) +
+                    geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="red", linewidth=1) +
+                    geom_text(aes(x=10, y=130, label="A) All Chinook"), size=7) +
+                    scale_y_continuous(breaks=seq(0, 130, by=25), limits=c(0, 130)) +
+                    scale_x_continuous(breaks=seq(2, 60, by=10), limits=c(2, 55)) +
+                    scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+                    labs(x="Height (mm)", y="Weight (g)", fill="Chinook origin") +
+                    theme_bw() +
+                    theme(axis.title = element_text(face="bold", size=26),
+                          axis.text = element_text(colour="black", size=25),
+                          legend.title = element_text(face="bold", size=21),
+                          legend.text = element_text(size=20)),
+                  
+                  ggplot() +
+                    geom_point(data=rst_biodata, 
+                               aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
+                    geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "red", linewidth = 1) +
+                    geom_text(aes(x=4.2, y=3, label="B) RST Chinook"), size=7) +
+                    scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
+                    scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
+                    scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+                    labs(x="Height (mm)", y="", fill="Chinook origin") +
+                    theme_bw() +
+                    theme(axis.title = element_text(face="bold", size=26),
+                          axis.text = element_text(colour="black", size=25),
+                          legend.title = element_text(face="bold", size=21),
+                          legend.text = element_text(size=20)),
+                  
+                  common.legend = T, legend = "right"
+)
+
+dev.off()
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ============ BEACH + PURSE SEINE FISH ============
+df_bspbs <- biodat.fish %>% 
+  filter(grepl("chinook", species, ignore.case=T), grepl("seine", gear, ignore.case=T)) %>%
+  mutate_at("field_weight_g", as.numeric) %>%
+  mutate(obs_weight = case_when(!is.na(field_weight_g) ~ field_weight_g,
+                                is.na(field_weight_g) ~ lab_weight_g,
+                                TRUE ~ NA))
+
+# Raw:
+ggplot(data=df_bspbs) +
+  geom_point(aes(x=height_mm, y=obs_weight, fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
+  #scale_y_continuous(limits=c(0, 3)) +
+  scale_fill_manual(labels=c("N" = "Natural-origin",
+                             "U" = "Unknown",
+                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
+  theme_bw() 
+
+# Log:
+ggplot(data=df_bspbs) +
+  geom_point(aes(x=log(height_mm), y=log(obs_weight), fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
+  #scale_y_continuous(limits=c(0, 3)) +
+  scale_fill_manual(labels=c("N" = "Natural-origin",
+                             "U" = "Unknown",
+                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
+  theme_bw()  
+
+
+
+## Fit model to data ---------------------
+rst_biodata <- biodat.fish %>% 
+  mutate_at("field_weight_g", as.numeric) %>%
+  filter(grepl("chinook", species, ignore.case=T), gear=="6' RST", !is.na(height_mm) & !is.na(field_weight_g))
+
+
+# ---- Exponential model ----
+expo_fun <- function(x, A, b) {
+  A * exp(b * x)
+}
+
+# ---- Starting values (important for nls convergence) ----
+## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
+## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
+## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
+## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
+start_list <- list(
+  A = max(1e-6, min(rst_biodata$field_weight_g, na.rm = TRUE)),
+  b = 0.1
+)
+
+# ---- Fit (UNWEIGHTED) ----
+fit_expo <- nls(
+  field_weight_g ~ expo_fun(height_mm, A, b),
+  data = rst_biodata,
+  start = start_list,
+  control = nls.control(maxiter=500, warnOnly=TRUE)
+)
+
+print(summary(fit_expo))
+
+# ---- Predictions & residuals ----
+rst_biodata <- rst_biodata %>%
+  mutate(
+    y_hat_expo = predict(fit_expo),
+    resid_expo = field_weight_g - y_hat_expo
+  )
+
+# ---- Metrics ----
+rmse <- function(resid) sqrt(mean(resid^2))
+r2_nl <- function(y, yhat) 1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
+
+metrics <- tibble(
+  Model = "Exponential (nls, unweighted)",
+  RMSE  = rmse(rst_biodata$resid_expo),
+  R2    = r2_nl(rst_biodata$field_weight_g, rst_biodata$y_hat_expo),
+  AIC   = AIC(fit_expo)
+)
+
+print(metrics)
+
+# ---- Plot: points by origin + exponential curve ----
+grid_x <- seq(min(rst_biodata$height_mm), max(rst_biodata$height_mm), length.out = 400)
+
+coE <- coef(fit_expo)
+# A = 0.1418124 
+# b = 0.2288399 
+# Formula:  weight = A*e^(b*height)
+
+
+curve_df <- tibble(
+  height_mm = grid_x,
+  y_hat     = expo_fun(grid_x, A = coE["A"], b = coE["b"])
+)
+
+# PLOT MODEL OUTPUT: 
+pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - RST exponential model.pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_point(data=rst_biodata, 
+             aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
+  geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "black", linewidth = 1) +
+  scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
+  scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
+  scale_fill_manual(labels=c("N" = "Natural-origin",
+                             "U" = "Unknown",
+                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  labs(x="Height (mm)", y="Field weight (g)", fill="Chinook origin") +
+  theme_bw() +
+  theme(axis.title = element_text(face="bold", size=26),
+        axis.text = element_text(colour="black", size=25),
+        legend.title = element_text(face="bold", size=21),
+        legend.text = element_text(size=20))
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
