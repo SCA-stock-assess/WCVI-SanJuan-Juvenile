@@ -19,80 +19,67 @@ biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# =============== Initial exploration ===============  
-# Plot to explore if height is a good proxy for modelling weight for all gear types
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# Raw:
-ggplot(data=biodat.fish %>% 
-         filter(grepl("chinook", species, ignore.case=T))) +
-  geom_point(aes(x=height_mm, y=as.numeric(field_weight_g), fill=hatchery_origin), shape=21, size=3) +
-  theme_bw() +
-  facet_wrap(~gear, scales="free")
+# =============== ALL FISH ===============  
 
-
-## All gear types in one plot ---------------------
-ggplot() +
-  geom_point(data=biodat.fish %>% 
-               filter(gear%in%c("6' RST", "Dip net", "Beach seine"), lethal_tag_no!="SJ25-449"),
-             aes(x=(height_mm), y=as.numeric(field_weight_g), fill=hatchery_origin, shape=gear), size=4, alpha=0.7, stroke=1) +
-   geom_point(data=biodat.fish %>% 
-                filter(gear%in%c("Mini purse seine")),
-              aes(x=(height_mm), y=(lab_weight_g), fill=hatchery_origin, shape=gear),  size=4, alpha=0.7) +
-  scale_shape_manual(values=c(21, 22, 24, 25)) +
-  scale_fill_manual(labels=c("N" = "Natural-origin",
-                             "U" = "Unknown",
-                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +  
-  scale_x_continuous(limits=c(0,60)) +
-  theme_bw() +
-  guides(fill = guide_legend("Chinook origin", override.aes = list(shape = 21))) 
-
-
-### Logged ---
-# Logged
-ggplot() +
-  geom_point(data=biodat.fish %>% 
-               filter(gear%in%c("6' RST", "Dip net", "Beach seine"), lethal_tag_no !="SJ25-449"),
-             aes(x=log(height_mm), y=log(as.numeric(field_weight_g)), fill=hatchery_origin, shape=gear), size=4, alpha=0.7, stroke=1) +
-  geom_point(data=biodat.fish %>% 
-               filter(gear%in%c("Mini purse seine")),
-             aes(x=log(height_mm), y=log(lab_weight_g), fill=hatchery_origin, shape=gear),  size=4, alpha=0.7) +
-  scale_shape_manual(values=c(21, 22,24, 25)) +
-  #scale_x_continuous(limits=c(0,60)) +
-  theme_bw()
-
-
-# >> It appears the relationship between weigh~height is different in the RST samples than in the beach/purse seine, so will explore fitting a model to the RST
-# data separately from the other data. 
-
-
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-## Fit model to data ---------------------
+## Create dataset -------------
 df_all <- biodat.fish %>% 
   mutate_at("field_weight_g", as.numeric) %>%
   filter(grepl("chinook", species, ignore.case=T), gear%in%c("6' RST", "Beach seine", "Dip net", "Mini purse seine"), 
-         !is.na(height_mm) & !is.na(lab_weight_g)) %>%
+         !is.na(height_mm) & !is.na(lab_weight_g), lethal_tag_no!="SJ25-449") %>%
   mutate(obs_weight = case_when(!is.na(field_weight_g) ~ field_weight_g,
                                 is.na(field_weight_g) ~ lab_weight_g,
                                 TRUE ~ NA))
 
+### Plot raw data -----
+ggplot() +
+  geom_point(data=df_all,
+             aes(x=(height_mm), y=as.numeric(obs_weight), fill=hatchery_origin, shape=gear), size=4, alpha=0.7, stroke=1) +
+  scale_shape_manual(values=c(21, 22, 24, 25)) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +  
+  scale_x_continuous(limits=c(0,60)) +
+  labs(x="Height (mm)", y="Weight (g)", shape="Gear") +
+  theme_bw() +
+  guides(fill = guide_legend("Chinook origin", override.aes = list(shape = 21))) 
 
-# ---- Exponential model ----
+
+### Plot raw data -----
+ggplot() +
+  geom_point(data=df_all,
+             aes(x=log(height_mm), y=log(as.numeric(obs_weight)), fill=hatchery_origin, shape=gear), size=4, alpha=0.7, stroke=1) +
+  scale_shape_manual(values=c(21, 22, 24, 25)) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +  
+  #scale_x_continuous(limits=c(0,60)) +
+  labs(x="Height (mm)", y="Weight (g)", shape="Gear") +
+  theme_bw() +
+  guides(fill = guide_legend("Chinook origin", override.aes = list(shape = 21))) 
+
+# >> It appears the relationship between weigh~height is different in the RST samples than in the beach/purse seine, so will explore fitting a model to the RST
+# data separately from the other data. 
+
+# Try fitting exp model to full dataset!
+
+
+
+## Fit exponential model ---------------------
+
+### Exponential model function ----
 expo_fun <- function(x, A, b) {
   A * exp(b * x)
 }
 
-# ---- Starting values (important for nls convergence) ----
-## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
-## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
-## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
-## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
+### Starting values ----
+  ## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
+  ## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
+  ## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
+  ## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
 start_list_all <- list(
   A = max(1e-6, min(df_all$obs_weight, na.rm = TRUE)),
   b = 0.01
 )
 
-# ---- Fit (UNWEIGHTED) ----
+### Fit exponential model (unweighted) ----
 fit_expo_all <- nls(
   obs_weight ~ expo_fun(height_mm, A, b),
   data = df_all,
@@ -102,14 +89,14 @@ fit_expo_all <- nls(
 
 print(summary(fit_expo_all))
 
-# ---- Predictions & residuals ----
+### Predictions & residuals ----
 df_all <- df_all %>%
   mutate(
     y_hat_expo = predict(fit_expo_all),
     resid_expo = obs_weight - y_hat_expo
   )
 
-# ---- Metrics ----
+### Metrics ----
 rmse <- function(resid) sqrt(mean(resid^2))
 r2_nl <- function(y, yhat) 1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
 
@@ -122,7 +109,7 @@ metrics_all <- tibble(
 
 print(metrics_all)
 
-# ---- Plot: points by origin + exponential curve ----
+### Plot raw data with predicted model fits ----
 grid_x_all <- seq(min(df_all$height_mm), max(df_all$height_mm), length.out = 400)
 
 coE <- coef(fit_expo_all)
@@ -130,13 +117,12 @@ coE <- coef(fit_expo_all)
 # b = 0.1256155  
 # Formula:  weight = A*e^(b*height)
 
-
 curve_df_all <- tibble(
   height_mm = grid_x_all,
   y_hat     = expo_fun(grid_x_all, A = coE["A"], b = coE["b"])
 )
 
-# PLOT ALL FISH RELATIONSHIP
+# Plot:
 pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - All fish exponential model.pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -146,9 +132,7 @@ ggplot() +
   geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="black", linewidth=1) +
   scale_y_continuous(breaks=seq(0, 130, by=25), limits=c(0, 130)) +
   scale_x_continuous(breaks=seq(2, 60, by=10), limits=c(2, 55)) +
-  scale_fill_manual(labels=c("N" = "Natural-origin",
-                             "U" = "Unknown",
-                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
   labs(x="Height (mm)", y="Weight (g)", fill="Chinook origin") +
   theme_bw() +
   theme(axis.title = element_text(face="bold", size=26),
@@ -159,60 +143,56 @@ ggplot() +
 dev.off()
 
 
-# >> not convinced this is a good model - at small body size would over-estimate weight, and at large body size would under-estimate.
+# >> not convinced this is a good model - at small body size looks like it would over-estimate weight, and at large body size 
+#    would under-estimate.
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # =============== RST ===============  
 
-# Raw:
-ggplot(data=biodat.fish %>% 
-         filter(grepl("chinook", species, ignore.case=T), gear=="6' RST")) +
+## Create dataset -------------
+rst_biodata <- biodat.fish %>% 
+  mutate_at("field_weight_g", as.numeric) %>%
+  filter(grepl("chinook", species, ignore.case=T), gear=="6' RST", !is.na(height_mm) & !is.na(field_weight_g))
+
+### Plot raw data -----
+ggplot(data=rst_biodata) +
   geom_point(aes(x=height_mm, y=as.numeric(field_weight_g), fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
   scale_y_continuous(limits=c(0, 3)) +
-  scale_fill_manual(labels=c("N" = "Natural-origin",
-                             "U" = "Unknown",
-                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
   labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
   theme_bw() 
 
-# Log:
-ggplot(data=biodat.fish %>% 
-         filter(grepl("chinook", species, ignore.case=T), gear=="6' RST")) +
+### Plot log-log data -----
+ggplot(data=rst_biodata) +
   geom_point(aes(x=log(height_mm), y=log(as.numeric(field_weight_g)), fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
-  #scale_y_continuous(limits=c(0, 3)) +
-  scale_fill_manual(labels=c("N" = "Natural-origin",
-                             "U" = "Unknown",
-                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
   labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
   theme_bw() 
 
 # >> Does not log transform well
 
 
-## Fit model to data ---------------------
-rst_biodata <- biodat.fish %>% 
-  mutate_at("field_weight_g", as.numeric) %>%
-  filter(grepl("chinook", species, ignore.case=T), gear=="6' RST", !is.na(height_mm) & !is.na(field_weight_g))
 
+## Fit exponential model ---------------------
 
-# ---- Exponential model ----
+### Exponential model function ----
 expo_fun <- function(x, A, b) {
   A * exp(b * x)
 }
 
-# ---- Starting values (important for nls convergence) ----
-## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
+### Starting values ----
+  ## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
   ## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
-## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
+  ## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
   ## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
 start_list <- list(
   A = max(1e-6, min(rst_biodata$field_weight_g, na.rm = TRUE)),
   b = 0.1
 )
 
-# ---- Fit (UNWEIGHTED) ----
+### Fit exp model (unweighted) ----
 fit_expo <- nls(
   field_weight_g ~ expo_fun(height_mm, A, b),
   data = rst_biodata,
@@ -222,14 +202,14 @@ fit_expo <- nls(
 
 print(summary(fit_expo))
 
-# ---- Predictions & residuals ----
+### Predictions & residuals ----
 rst_biodata <- rst_biodata %>%
   mutate(
     y_hat_expo = predict(fit_expo),
     resid_expo = field_weight_g - y_hat_expo
   )
 
-# ---- Metrics ----
+### Metrics ----
 rmse <- function(resid) sqrt(mean(resid^2))
 r2_nl <- function(y, yhat) 1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
 
@@ -242,7 +222,7 @@ metrics <- tibble(
 
 print(metrics)
 
-# ---- Plot: points by origin + exponential curve ----
+### Plot raw data with predicted model fits ----
 grid_x <- seq(min(rst_biodata$height_mm), max(rst_biodata$height_mm), length.out = 400)
 
 coE <- coef(fit_expo)
@@ -250,13 +230,12 @@ coE <- coef(fit_expo)
 # b = 0.2288399 
 # Formula:  weight = A*e^(b*height)
 
-
 curve_df <- tibble(
   height_mm = grid_x,
   y_hat     = expo_fun(grid_x, A = coE["A"], b = coE["b"])
 )
 
-# PLOT MODEL OUTPUT: 
+# Plot: 
 pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - RST exponential model.pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -327,57 +306,54 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # ============ BEACH + PURSE SEINE FISH ============
+
+## Create dataset -------------
 df_bspbs <- df_all %>%
   filter(grepl("seine", gear, ignore.case=T))
 
-# Raw:
+### Plot raw data -----
 ggplot(data=df_bspbs) +
   geom_point(aes(x=height_mm, y=obs_weight, fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
-  #scale_y_continuous(limits=c(0, 3)) +
-  scale_fill_manual(labels=c("N" = "Natural-origin",
-                             "U" = "Unknown",
-                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
   labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
   theme_bw() 
 
-
-# Log:
+### Plot log-log data -----
 ggplot(data=df_bspbs) +
   geom_point(aes(x=log(height_mm), y=log(obs_weight), fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
-  #scale_y_continuous(limits=c(0, 3)) +
   geom_smooth(aes(x=log(height_mm), y=log(obs_weight)), method = "lm", se = F, colour="red") +
   ggpubr::stat_regline_equation(aes(x=log(height_mm), y=log(obs_weight), label=paste(..eq.label.., sep = "~~~")),
                                 label.x.npc=0.04, label.y.npc = 1) +
   ggpubr::stat_regline_equation(aes(x=log(height_mm), y=log(obs_weight), label=paste(..rr.label.., sep = "~~~")),
                                 label.x.npc=0.07, label.y.npc=0.9) +
-  scale_fill_manual(labels=c("N" = "Natural-origin",
-                             "U" = "Unknown",
-                             "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+  scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
   labs(x="log-height (mm)", y="log-weight (g)", fill="Hatchery origin?") +
   theme_bw()  
 
-# Log-log model: 
+
+## Fit log-log linear model ---------------------
 summary(lm(log(df_bspbs$obs_weight) ~ log(df_bspbs$height_mm)))
 
 
-## Fit model to data ---------------------
 
-# ---- Exponential model ----
+## Fit exponential model ---------------------
+
+### Exponential model function ----
 expo_fun <- function(x, A, b) {
   A * exp(b * x)
 }
 
-# ---- Starting values (important for nls convergence) ----
-## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
-## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
-## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
-## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
+### Starting values ----
+  ## Starting value for A: A is the scale factor—the value of y when x=0 (if the model extrapolates back to zero height). 
+  ## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
+  ## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
+  ## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
 start_list_bsps <- list(
   A = max(1e-6, min(df_bspbs$obs_weight, na.rm = TRUE)),
   b = 0.1
 )
 
-# ---- Fit (UNWEIGHTED) ----
+### Fit model (unweighted) ----
 fit_expo_bsps <- nls(
   obs_weight ~ expo_fun(height_mm, A, b),
   data = df_bspbs,
@@ -387,14 +363,14 @@ fit_expo_bsps <- nls(
 
 print(summary(fit_expo_bsps))
 
-# ---- Predictions & residuals ----
+### Predictions & residuals ----
 df_bspbs <- df_bspbs %>%
   mutate(
     y_hat_expo = predict(fit_expo_bsps),
     resid_expo = obs_weight - y_hat_expo
   )
 
-# ---- Metrics ----
+### Metrics ----
 rmse <- function(resid) sqrt(mean(resid^2))
 r2_nl <- function(y, yhat) 1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
 
@@ -407,7 +383,7 @@ metrics_bsps <- tibble(
 
 print(metrics)
 
-# ---- Plot: points by origin + exponential curve ----
+### Plot raw data with predicted model fit ----
 grid_x_bsps <- seq(min(df_bspbs$height_mm), max(df_bspbs$height_mm), length.out = 400)
 
 coE <- coef(fit_expo_bsps)
@@ -415,13 +391,12 @@ coE <- coef(fit_expo_bsps)
 # b = 0.07564079  
 # Formula:  weight = A*e^(b*height)
 
-
 curve_df_bsps <- tibble(
   height_mm = grid_x_bsps,
   y_hat     = expo_fun(grid_x_bsps, A = coE["A"], b = coE["b"])
 )
 
-# PLOT MODEL OUTPUT: 
+# Plot: 
 pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - RST exponential model.pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -490,7 +465,7 @@ dev.off()
 
 
 
-# ---- Gompertz model code from Copilot ----
+# =============== Gompertz model code from Copilot ===============
 # Retaining this code for learning purposes, but it came from copilot and I am not able to verify it so will not be using it. 
 
 # Gompertz function (same form as Python run)
@@ -571,51 +546,6 @@ print(p)
 
 
 ### 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Create dataset to fit model
-prs.HW.data <- prs.biodat.fish %>% 
-  filter(!is.na(lab_weight_g), species=="chinook", lab_weight_g>1, !is.na(height))
-
-linear_log_HW_model <- lm(log(prs.HW.data$lab_weight_g) ~ log(prs.HW.data$height))
-
-log_a <- coef(linear_log_HW_model)[1] # Intercept corresponds to log(a)
-b <- coef(linear_log_HW_model)[2]    # Slope corresponds to b
-a <- exp(log_a)
-
-
-
-
 
 
 
