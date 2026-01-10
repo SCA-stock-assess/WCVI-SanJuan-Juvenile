@@ -327,12 +327,8 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # ============ BEACH + PURSE SEINE FISH ============
-df_bspbs <- biodat.fish %>% 
-  filter(grepl("chinook", species, ignore.case=T), grepl("seine", gear, ignore.case=T)) %>%
-  mutate_at("field_weight_g", as.numeric) %>%
-  mutate(obs_weight = case_when(!is.na(field_weight_g) ~ field_weight_g,
-                                is.na(field_weight_g) ~ lab_weight_g,
-                                TRUE ~ NA))
+df_bspbs <- df_all %>%
+  filter(grepl("seine", gear, ignore.case=T))
 
 # Raw:
 ggplot(data=df_bspbs) +
@@ -344,23 +340,27 @@ ggplot(data=df_bspbs) +
   labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
   theme_bw() 
 
+
 # Log:
 ggplot(data=df_bspbs) +
   geom_point(aes(x=log(height_mm), y=log(obs_weight), fill=hatchery_origin), shape=21, size=4, stroke=1, alpha=0.8) +
   #scale_y_continuous(limits=c(0, 3)) +
+  geom_smooth(aes(x=log(height_mm), y=log(obs_weight)), method = "lm", se = F, colour="red") +
+  ggpubr::stat_regline_equation(aes(x=log(height_mm), y=log(obs_weight), label=paste(..eq.label.., sep = "~~~")),
+                                label.x.npc=0.04, label.y.npc = 1) +
+  ggpubr::stat_regline_equation(aes(x=log(height_mm), y=log(obs_weight), label=paste(..rr.label.., sep = "~~~")),
+                                label.x.npc=0.07, label.y.npc=0.9) +
   scale_fill_manual(labels=c("N" = "Natural-origin",
                              "U" = "Unknown",
                              "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
-  labs(x="Height (mm)", y="Field wet weight (g)", fill="Hatchery origin?") +
+  labs(x="log-height (mm)", y="log-weight (g)", fill="Hatchery origin?") +
   theme_bw()  
 
+# Log-log model: 
+summary(lm(log(df_bspbs$obs_weight) ~ log(df_bspbs$height_mm)))
 
 
 ## Fit model to data ---------------------
-rst_biodata <- biodat.fish %>% 
-  mutate_at("field_weight_g", as.numeric) %>%
-  filter(grepl("chinook", species, ignore.case=T), gear=="6' RST", !is.na(height_mm) & !is.na(field_weight_g))
-
 
 # ---- Exponential model ----
 expo_fun <- function(x, A, b) {
@@ -372,53 +372,53 @@ expo_fun <- function(x, A, b) {
 ## I don't have values for x=0, but the smallest observed weight is a reasonable proxy for the lower end. So arbitrarily set to 10-6 so A>0 but still much smaller than smallest observation.
 ## Starting value for b: b is the growth (or decay) rate. So b>0 means curve increases exponentially with x
 ## To start with a guess, use small positive slope like b=0.1. You can also estimate b from the data (log(ymax)-log(ymin))/(xmax - xmin) but not sure about relying on the log-linear relationship in this case. 
-start_list <- list(
-  A = max(1e-6, min(rst_biodata$field_weight_g, na.rm = TRUE)),
+start_list_bsps <- list(
+  A = max(1e-6, min(df_bspbs$obs_weight, na.rm = TRUE)),
   b = 0.1
 )
 
 # ---- Fit (UNWEIGHTED) ----
-fit_expo <- nls(
-  field_weight_g ~ expo_fun(height_mm, A, b),
-  data = rst_biodata,
-  start = start_list,
+fit_expo_bsps <- nls(
+  obs_weight ~ expo_fun(height_mm, A, b),
+  data = df_bspbs,
+  start = start_list_bsps,
   control = nls.control(maxiter=500, warnOnly=TRUE)
 )
 
-print(summary(fit_expo))
+print(summary(fit_expo_bsps))
 
 # ---- Predictions & residuals ----
-rst_biodata <- rst_biodata %>%
+df_bspbs <- df_bspbs %>%
   mutate(
-    y_hat_expo = predict(fit_expo),
-    resid_expo = field_weight_g - y_hat_expo
+    y_hat_expo = predict(fit_expo_bsps),
+    resid_expo = obs_weight - y_hat_expo
   )
 
 # ---- Metrics ----
 rmse <- function(resid) sqrt(mean(resid^2))
 r2_nl <- function(y, yhat) 1 - sum((y - yhat)^2) / sum((y - mean(y))^2)
 
-metrics <- tibble(
+metrics_bsps <- tibble(
   Model = "Exponential (nls, unweighted)",
-  RMSE  = rmse(rst_biodata$resid_expo),
-  R2    = r2_nl(rst_biodata$field_weight_g, rst_biodata$y_hat_expo),
-  AIC   = AIC(fit_expo)
+  RMSE  = rmse(df_bspbs$resid_expo),
+  R2    = r2_nl(df_bspbs$obs_weight, df_bspbs$y_hat_expo),
+  AIC   = AIC(fit_expo_bsps)
 )
 
 print(metrics)
 
 # ---- Plot: points by origin + exponential curve ----
-grid_x <- seq(min(rst_biodata$height_mm), max(rst_biodata$height_mm), length.out = 400)
+grid_x_bsps <- seq(min(df_bspbs$height_mm), max(df_bspbs$height_mm), length.out = 400)
 
-coE <- coef(fit_expo)
-# A = 0.1418124 
-# b = 0.2288399 
+coE <- coef(fit_expo_bsps)
+# A = 2.31907905  
+# b = 0.07564079  
 # Formula:  weight = A*e^(b*height)
 
 
-curve_df <- tibble(
-  height_mm = grid_x,
-  y_hat     = expo_fun(grid_x, A = coE["A"], b = coE["b"])
+curve_df_bsps <- tibble(
+  height_mm = grid_x_bsps,
+  y_hat     = expo_fun(grid_x_bsps, A = coE["A"], b = coE["b"])
 )
 
 # PLOT MODEL OUTPUT: 
@@ -427,11 +427,11 @@ pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - RS
     height = 8.5) # The height of the plot in inches
 
 ggplot() +
-  geom_point(data=rst_biodata, 
-             aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
-  geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "black", linewidth = 1) +
-  scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
-  scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
+  geom_point(data=df_bspbs, 
+             aes(x=height_mm, y=obs_weight, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
+  geom_line(data=curve_df_bsps, aes(x=height_mm, y=y_hat), color = "red", linewidth = 1) +
+  #scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
+  #scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
   scale_fill_manual(labels=c("N" = "Natural-origin",
                              "U" = "Unknown",
                              "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
@@ -443,6 +443,22 @@ ggplot() +
         legend.text = element_text(size=20))
 
 dev.off()
+
+
+# >> the log-log transformed relationship was slightly better R2 than the exp relationship and easier to implement, but show both in report
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -581,22 +597,6 @@ print(p)
 
 
 
-
-
-geom_smooth(aes(x=log(height), y=log(lab_weight_g)), method = "lm", se = T, colour="black") +
-  ggpubr::stat_regline_equation(aes(x=log(height), y=log(lab_weight_g), label=paste(..eq.label.., sep = "~~~")),
-                                label.x.npc=0.04, label.y.npc = 1) +
-  ggpubr::stat_regline_equation(aes(x=log(height), y=log(lab_weight_g), label=paste(..rr.label.., sep = "~~~")),
-                                label.x.npc=0.07, label.y.npc=0.9) +
-  labs(x="Log ( Fish field height )", y="Log ( Fish lab weight )", fill="Hatchery origin") +
-  theme_bw() +
-  theme(axis.text.x = element_text(angle=45, hjust=1),
-        axis.text = element_text(colour="black", size=15),
-        axis.title = element_text(face="bold", size=17),
-        legend.position=c(0.8,0.2),
-        legend.title = element_text(face="bold", size=17),
-        legend.text = element_text(size=15),
-        legend.background = element_rect(colour="black", fill=alpha("white", 0.7)))  
 
 
 
