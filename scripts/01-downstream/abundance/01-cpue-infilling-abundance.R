@@ -244,9 +244,8 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
 
 # I will explore a few methods of infilling. I'm going to start with 2024 as it was a much more comprehensive season and then
 # determine how to approach 2023 pilot season afterwards (likely won't be expanded). 
-  # 1. Using methods within imputeTS (https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf)
-  # 2. Weighted "either side" days (LGL method).  
-  # 3. Rolling window average centered around the missed day (window size TBD) xxxDONE WITH IMPUTETS
+  # Using methods within imputeTS (https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf)
+
 
 
 # Notes from https://cran.r-project.org/web/packages/imputeTS/vignettes/imputeTS-Time-Series-Missing-Value-Imputation-in-R.pdf: 

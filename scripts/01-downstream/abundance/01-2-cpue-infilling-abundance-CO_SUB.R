@@ -38,69 +38,73 @@ COSUB_impVal <- eventMeta_totals_impValFull %>%
 
 # ----- VISUALIZE ------------
 
-plot_cohsub_imputation_validation <- 
-  ggplot() +
-  geom_point(data=COSUB_impVal %>% 
-               filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
-             aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
-  geom_point(data=COSUB_impVal %>% 
-               filter(!is.na(value), estimate_type=="infill"),
-             aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
-  geom_jitter(data=COSUB_impVal %>% 
-                filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
-              aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
-  scale_x_date(date_breaks="2 day", date_labels="%b %d") +
-  scale_size_manual(breaks=waiver(), values=c(2, 3)) +
-  scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-  labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
-  theme_bw() +
-  theme(axis.text = element_text(colour="black"),
-        axis.text.x = element_text(angle=45, hjust=1, size=10),
-        axis.title = element_text(face="bold", size=13),
-        panel.grid.major.x = element_line(colour="gray80", size=0.5),
-        panel.grid.major.y = element_line(colour="gray80", size=0.5),
-        panel.grid.minor.x = element_blank(),
-        legend.title = element_text(face="bold", size=11),
-        legend.text = element_text(size=10),
-        strip.text = element_text(size=12, face="bold")) +
-  facet_wrap(~year, nrow=2, scales="free_y") +
-  guides(color = guide_legend(override.aes = list(alpha = 1)),
-         size = guide_legend(override.aes = element_blank()))
+# plot_cohsub_imputation_validation <- 
+#   ggplot() +
+#   geom_point(data=COSUB_impVal %>% 
+#                filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
+#              aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
+#   geom_point(data=COSUB_impVal %>% 
+#                filter(!is.na(value), estimate_type=="infill"),
+#              aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
+#   geom_jitter(data=COSUB_impVal %>% 
+#                 filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
+#               aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
+#   scale_x_date(date_breaks="2 day", date_labels="%b %d") +
+#   scale_size_manual(breaks=waiver(), values=c(2, 3)) +
+#   scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
+#   labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
+#   theme_bw() +
+#   theme(axis.text = element_text(colour="black"),
+#         axis.text.x = element_text(angle=45, hjust=1, size=10),
+#         axis.title = element_text(face="bold", size=13),
+#         panel.grid.major.x = element_line(colour="gray80", size=0.5),
+#         panel.grid.major.y = element_line(colour="gray80", size=0.5),
+#         panel.grid.minor.x = element_blank(),
+#         legend.title = element_text(face="bold", size=11),
+#         legend.text = element_text(size=10),
+#         strip.text = element_text(size=12, face="bold")) +
+#   facet_wrap(~year, nrow=2, scales="free_y") +
+#   guides(color = guide_legend(override.aes = list(alpha = 1)),
+#          size = guide_legend(override.aes = element_blank()))
 
 
 
 # Save as PDF: 
-pdf(file = here::here("outputs", "figures", "Imputation diagnostic plot - Coho subyearling.pdf"),   # The directory you want to save the file in
-    width = 14, # The width of the plot in inches
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Imputation diagnostic plot - Coho subyearling.pdf"),   # The directory you want to save the file in
+    width = 16, # The width of the plot in inches
     height = 10) # The height of the plot in inches
 
-print(  ggplot() +
-          geom_point(data=COSUB_impVal %>% 
-                       filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
-                     aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
-          geom_point(data=COSUB_impVal %>% 
-                       filter(!is.na(value), estimate_type=="infill"),
-                     aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
-          geom_jitter(data=COSUB_impVal %>% 
-                        filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
-                      aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
-          scale_x_date(date_breaks="2 day", date_labels="%b %d") +
-          scale_size_manual(breaks=waiver(), values=c(2, 3)) +
-          scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-          labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
-          theme_bw() +
-          theme(axis.text = element_text(colour="black"),
-                axis.text.x = element_text(angle=45, hjust=1, size=10),
-                axis.title = element_text(face="bold", size=13),
-                panel.grid.major.x = element_line(colour="gray80", size=0.5),
-                panel.grid.major.y = element_line(colour="gray80", size=0.5),
-                panel.grid.minor.x = element_blank(),
-                legend.title = element_text(face="bold", size=11),
-                legend.text = element_text(size=10),
-                strip.text = element_text(size=12, face="bold")) +
-          facet_wrap(~year, nrow=2, scales="free_y") +
-          guides(color = guide_legend(override.aes = list(alpha = 1)),
-                 size = guide_legend(override.aes = element_blank())))
+print(  
+  ggplot() +
+    geom_point(data=COSUB_impVal %>% 
+                 filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
+               aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), 
+               colour="black", fill="black", alpha=1, stroke=1.2, size=2.5) +  #
+    geom_point(data=COSUB_impVal %>% 
+                 filter(!is.na(value), estimate_type=="infill"),
+               aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=4, alpha=0.3) +
+    geom_jitter(data=COSUB_impVal %>% 
+                  filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
+                aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=4, stroke=1.2, alpha=0.7, shape=4, width=0.1) +
+    scale_x_date(date_breaks="3 day", date_labels="%b %d") +
+    scale_size_manual(breaks=waiver(), values=c(3, 4)) +
+    scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
+    labs(x="", y="Sub-yearling Coho catch", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
+    theme_bw() +
+    theme(axis.text = element_text(colour="black", size=18),
+          axis.text.x = element_text(angle=45, hjust=1),
+          axis.title = element_text(face="bold", size=20),
+          panel.grid.major.x = element_line(colour="gray80", size=0.5),
+          panel.grid.major.y = element_line(colour="gray80", size=0.5),
+          panel.grid.minor.x = element_blank(),
+          legend.title = element_text(face="bold", size=18),
+          legend.text = element_text(size=16),
+          strip.text = element_text(size=20, face="bold")) +
+    facet_wrap(~year, nrow=2, scales="free_y") +
+    guides(color = guide_legend(override.aes = list(alpha = 1))#,
+           #size = guide_legend(override.aes = element_blank())
+    )
+)
 
 dev.off()
 
