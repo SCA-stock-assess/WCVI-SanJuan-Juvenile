@@ -75,11 +75,17 @@ release <- readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO
                               sheet="mark-release")
 
 
+# Hatchery release dates ----------------- 
+hatchery_releases <- readxl::read_excel(path = here::here("data", "hatchery-releases", "upperSJ_hatchery_releases_2024-2025.xlsx"),
+                                        sheet=1) %>%
+  mutate(doy = lubridate::yday(date))
+
+
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
-# =============== VISUALIZE FISHING EVENTS ===============
+# =============== VISUALIZE FISHING EVENTS/EFFORT ===============
 
 # For 2023 ------------
 ggplot() +
@@ -97,8 +103,66 @@ ggplot() +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1))
 
+# For 2025 ------------
+ggplot() +
+  geom_segment(data=eventMeta %>% 
+                 filter(year==2025), aes(x=datetime_start, xend=datetime_stop, y=NA, yend=NA, fill=set_type), size=10, alpha=0.7) +
+  scale_x_datetime(date_breaks="1 day", date_labels = "%b %d %H:%M") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
 
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# RAW DATA PLOTS FOR REPORT
+
+# ===================== OBSERVED CATCH DATA =====================
+
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST observed catches - all years, species.pdf"),   
+    width = 16, # The width of the plot in inches
+    height = 14) # The height of the plot in inches
+
+# All species/years bar plot
+ggplot() +
+  geom_bar(data=eventMeta_totals %>% 
+             pivot_longer(cols=c(chinook_natural_obs:chinook_hatchery_obs), names_to = "species_life_stage", values_to = "count") %>%
+             mutate(species_life_stage = case_when(grepl("chinook_hatchery", species_life_stage) ~ "Chinook (hatchery)",
+                                                   grepl("chinook_natural", species_life_stage) ~ "Chinook (natural)",
+                                                   grepl("chum", species_life_stage) ~ "Chum",
+                                                   grepl("coho_alevin", species_life_stage) ~ "Coho alevin",
+                                                   grepl("coho_subyearling", species_life_stage) ~ "Coho fry (sub-yearling)",
+                                                   grepl("coho_yearling", species_life_stage) ~ "Coho smolt (yearling)")) %>%
+             filter(count>0),
+           aes(x=as.Date(doy, origin="2022-12-31"), y=count, fill=species_life_stage, colour=species_life_stage), 
+           stat="identity", position="stack", alpha=0.9, width=1) +
+  geom_point(data=hatchery_releases, 
+             aes(x=as.Date(doy, origin="2022-12-31"), y=0), colour="black", fill="black", size=2.5, shape=24, alpha=0.7) +
+  scale_x_date(date_labels="%b %d", date_breaks="3 day") +
+  scale_fill_manual(values=c("Chinook (hatchery)" = "#8dd3c7",
+                             "Chinook (natural)" = "#7caed1",
+                             "Chum" = "#b3de69",
+                             "Coho alevin" = "#ffffb3",
+                             "Coho fry (sub-yearling)" = "#fdb462",
+                             "Coho smolt (yearling)" = "#fb8072")) +
+  scale_colour_manual(values=c("Chinook (hatchery)" = "#8dd3c7",
+                             "Chinook (natural)" = "#7caed1",
+                             "Chum" = "#b3de69",
+                             "Coho alevin" = "#ffffb3",
+                             "Coho fry (sub-yearling)" = "#fdb462",
+                             "Coho smolt (yearling)" = "#fb8072")) +
+  labs(y="Observed catch", fill="Species/life history", colour="Species/life history") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=19),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(face="bold", size=23),
+        axis.title.x = element_blank(),
+        legend.title = element_text(face="bold", size=20),
+        legend.text = element_text(size=19),
+        strip.text = element_text(size=20, face="bold")) +
+  facet_wrap(~year, scales="free", nrow=3)
+
+dev.off()
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
