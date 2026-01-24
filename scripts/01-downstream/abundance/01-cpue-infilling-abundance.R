@@ -81,6 +81,36 @@ hatchery_releases <- readxl::read_excel(path = here::here("data", "hatchery-rele
   mutate(doy = lubridate::yday(date))
 
 
+# ========================= LOAD HYDROMET DATA =========================
+hydro <- full_join(
+  read.csv(file=list.files(path = here::here("data", "enviro"),
+                           pattern = "SANJUAN_historical*",
+                           full.names = TRUE),
+           skip=1) %>%
+    mutate(PARAM = case_when(PARAM==1 ~ "discharge (cms)",
+                             PARAM==2 ~ "level (m)"),
+           Date = lubridate::ymd(Date),
+           year = lubridate::year(Date),
+           month = lubridate::month(Date, label=T, abbr=T),
+           DOY = lubridate::yday(Date)),
+  
+  read.csv(file=list.files(path = here::here("data", "enviro"),
+                           pattern = "SANJUAN_realtime*",
+                           full.names = TRUE),
+           skip=9) %>%
+    mutate(Parameter = case_when(Parameter==46 ~ "level (m)",
+                                 Parameter==6 ~ "discharge (cms)"),
+           Date = lubridate::ymd(stringr::str_sub(string=Date..PST., start=1, end=10)),
+           time = stringr::str_sub(string=Date..PST., start=12, end=19),
+           year = lubridate::year(Date..PST.),
+           month = lubridate::month(Date..PST., label=T, abbr=T),
+           DOY = lubridate::yday(Date..PST.)) %>% 
+    rename(PARAM=Parameter,
+           Value=Value..m..s.)
+) %>%
+  janitor::clean_names()
+
+
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
