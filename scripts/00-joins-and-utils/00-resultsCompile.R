@@ -4,7 +4,7 @@
 
 
 
-# Load libraries ------------------------------------
+# Load libraries/set up ------------------------------------
 library(tidyverse)
 options(scipen = 99999999999999)
 "%notin%" <- Negate("%in%")
@@ -15,19 +15,17 @@ options(scipen = 99999999999999)
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# ================================================================= DATA LOAD =================================================================
 
+# ========================= LOAD FIELD BIODATA =========================
 
-## ========================= LOAD FIELD BIODATA =========================
-
-### Load field biodata and add in some variables ------------------------------------
+## Load field biodata and add in some variables ------------------------------------
 # (Doing this here so it is carried through the subsequent biodata tabs later)
   # See height_weight script for rationale on equation used to convert height to modelled weight
 biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                               pattern="^San Juan PSSI master database",
                                               full.names=T),
                               sheet="biosampling", guess_max = 5000) %>%
-  mutate(resolved_weight_source = case_when(!is.na(weight) & is.na(lab_weight_g) ~ "field",
+  mutate(resolved_weight_source = case_when(!is.na(weight) ~ "field",
                                             is.na(weight) & !is.na(lab_weight_g) ~ "lab",
                                             is.na(weight) & is.na(lab_weight_g) ~ "modelled"),
          modelled_weight_g = as.numeric(exp(-6.5 + (2.9*log(height)))),
@@ -37,7 +35,7 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
          condK = resolved_weight_g/(as.numeric(length)^3)*100000) %>%
   relocate(c(lab_weight_g, modelled_weight_g), .after=weight) %>%
   relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
-  rename(length_mm = length,
+  rename(fork_length_mm = length,
          height_mm = height,
          field_weight_g = weight) %>%
   print()
@@ -45,9 +43,9 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
 
 
 
-## ========================= LOAD MGL FILES =========================
+# ========================= LOAD MGL RESULTS =========================
 
-### Load and compile repunit_table_ids tabs all years ------------------------------------
+## Load and compile repunit_table_ids tabs all years ------------------------------------
 gsi.repunits_table_ids.LL <- c(
   # --- 2023:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
@@ -78,7 +76,7 @@ remove(gsi.repunits_table_ids.LL)
 
 
 
-### Load and compile extraction_sheet tabs all years ------------------------------------
+## Load and compile extraction_sheet tabs all years ------------------------------------
 gsi.extraction_sheets.LL <- c(
   # --- 2023:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
@@ -108,7 +106,7 @@ remove(gsi.extraction_sheets.LL)
 
 
 
-### Load and compile species_ID tabs all years ------------------------------------
+## Load and compile species_ID tabs all years ------------------------------------
 gsi.species_ID.LL <- c(
   # --- 2023:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
@@ -139,9 +137,7 @@ remove(gsi.species_ID.LL)
 
 
 
-## ========================= JOIN MGL INTO 1 MASTER FILE =========================
-
-### Join into a master GSI dataframe ------------------------------------
+## JOIN into a master GSI dataframe ------------------------------------
 gsi.master <- full_join(
   gsi.repunits_table_ids %>% 
     select(-c(file_source, collection, mixture_collection)),
@@ -163,7 +159,7 @@ gsi.master <- full_join(
   print()
 
 
-### Export in case needed ------------------------------------
+### Export master GSI file in case needed ------------------------------------
 writexl::write_xlsx(gsi.master, path=paste0("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/", 
                                             "/San Juan MGL master file ",
                                             Sys.Date(),
@@ -174,76 +170,180 @@ writexl::write_xlsx(gsi.master, path=paste0("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
-#                                                           LINK GSI MASTER TO BIODATA 
+# ================================================================= JOIN: FIELD BIODATA + GSI RESULTS =================================================================
 
-
-# Load Biosampling sheet of juvenile database, Join to MGL Master file ----------------- 
+# Joining biosample sheet of field ata to the GSI master file created above 
+# Add some new variables/clean up existing ones 
 biosamp.gsi.linked <-  left_join(biodata,
                                  gsi.master,
                                  by=c("DNA_vial" = "MGL_Vial"),
                                  na_matches = "never") %>%
-  mutate(hatchery_origin = case_when(ad_clip=="Y" ~ "Y",
-                                     MGL_ID_Source=="PBT" ~ "Y",
-                                     grepl("HATTK", usid) ~ "Y",
-                                     year=="2023" & gear %in% c("IPT", "6'RST") ~ "N",
-                                     year=="2024" & date < as.Date("2024-04-29") ~ "N",  # hatchery river release date 2024
-                                     year=="2025" & ad_clip=="N" ~ "N",
-                                     year=="2025" & date < as.Date("2025-04-27") ~ "N",  # earliest hatchery river release date 2025
-                                     MGL_ID_Source=="GSI" ~ "N",
-                                     gear %in% c("IPT", "6'RST") & species %in% c("chum", "coho", "trout") ~ "N",
-                                     gear=="IPT" ~ "N", 
-                                     TRUE ~ "U"),
+  mutate(origin_method = case_when(ad_clip=="Y" ~ "Ad clip (presence)",
+                                   cwt=="Y" | !is.na(cwt_code) ~ "CWT",
+                                   MGL_ID_Source=="PBT" ~ "PBT (presence/absence)",
+                                   grepl("HATTK|HATSP|HATLP", usid) ~ "Hatchery sample",
+                                   year=="2023" & gear %in% c("IPT", "6' RST") ~ "F/W sample, no hatchery releases",
+                                   year=="2023" & gear%in%c("Beach seine", "Mini purse seine") & date < as.Date("2023-05-25") ~ "F/W sample before hatchery releases",
+                                   year=="2024" & date < as.Date("2024-04-29") ~ "F/W sample before hatchery releases",
+                                   year=="2025" & ad_clip=="N" ~ "Ad clip (absence in f/w)",
+                                   year=="2025" & date < as.Date("2025-04-27") ~ "F/W sample before hatchery releases",
+                                   MGL_ID_Source=="GSI" ~ "PBT (presence/absence)",
+                                   gear %in% c("IPT", "6' RST") & species %in% c("chum", "coho", "trout") ~ "F/W sample of non-enhanced species",
+                                   gear=="IPT" ~ "F/W sample before hatchery releases",
+                                   TRUE ~ NA),
+         hatchery_origin = case_when(ad_clip=="Y" ~ "Hatchery",
+                                     cwt=="Y" | !is.na(cwt_code) ~ "Hatchery",
+                                     MGL_ID_Source=="PBT" ~ "Hatchery",
+                                     grepl("HATTK|HATSP|HATLP", usid) ~ "Hatchery",
+                                     year=="2023" & gear %in% c("IPT", "6' RST") ~ "Natural",
+                                     year=="2023" & gear%in%c("Beach seine", "Mini purse seine") & date < as.Date("2023-05-25") ~ "Natural",        # earliest hatchery release date 2023 (lakepen)
+                                     year=="2024" & date < as.Date("2024-04-29") ~ "Natural",  # earliest hatchery release date 2024 (river)
+                                     year=="2025" & ad_clip=="N" ~ "Natural",
+                                     year=="2025" & date < as.Date("2025-04-27") ~ "Natural",  # earliest hatchery release date 2025 (river)
+                                     MGL_ID_Source=="GSI" ~ "Natural (assumed)",
+                                     gear %in% c("IPT", "6' RST") & species %in% c("chum", "coho", "trout") ~ "Natural",
+                                     gear=="IPT" ~ "Natural", 
+                                     TRUE ~ "Unknown"),
+         resolved_stock_id_method = case_when(MGL_ID_Source=="PBT" ~ "PBT",
+                                              !is.na(cwt_code) ~ "CWT",
+                                              MGL_ID_Source=="GSI" & MGL_associated_collection_prob>80 ~ "GSI (>80%)",
+                                              MGL_ID_Source=="GSI" & MGL_associated_collection_prob>70 & MGL_associated_collection_prob<80 ~ 
+                                                "GSI (70-80%)",
+                                              gear %in% c("IPT", "6' RST") ~ "F/W sample",
+                                              TRUE ~ NA
+                                              ),
          resolved_stock_id = case_when(MGL_ID_Source=="PBT" & !is.na(MGL_PBT_brood_group) ~ 
                                          paste0(stringr::str_to_title(gsub(MGL_PBT_brood_collection, pattern="_", replacement=" ")), 
                                                 " (", 
                                                 stringr::str_to_title(gsub(MGL_PBT_brood_group, pattern="_", replacement=" ")),
                                                 ")"),
+                                       
                                        MGL_ID_Source=="PBT" & is.na(MGL_PBT_brood_group) ~ 
                                          stringr::str_to_title(gsub(MGL_PBT_brood_collection, pattern="_", replacement=" ")),
+                                       
+                                       !is.na(cwt_code) ~ paste0(cwt_stock_ID, " (", cwt_release_group, ")"),
+                                       
                                        MGL_ID_Source=="GSI" & MGL_associated_collection_prob>80 ~ 
                                          stringr::str_to_title(gsub(MGL_top_collection, pattern="_", replacement=" ")),
+                                       
                                        MGL_ID_Source=="GSI" & MGL_associated_collection_prob>70 & MGL_associated_collection_prob<80  ~ 
                                          stringr::str_to_upper(gsub(MGL_repunit.1, pattern="_", replacement=" ")),
-                                       gear %in% c("IPT", "6'RST") ~ "San Juan River*",
-                                       TRUE ~ NA),
-         resolved_stock_origin = case_when(hatchery_origin=="Y" & !is.na(resolved_stock_id) ~ paste0("Hatchery ", resolved_stock_id),
-                                           hatchery_origin=="N" & !is.na(resolved_stock_id) ~ paste0("Natural ", resolved_stock_id),
-                                           hatchery_origin=="U" & !is.na(resolved_stock_id) ~ paste0("Unknown ", resolved_stock_id),
-                                           hatchery_origin=="U" & is.na(resolved_stock_id) ~ NA,
-                                           TRUE ~ NA),
-         resolved_stock_origin_rollup = case_when(hatchery_origin=="Y" & 
-                                                    grepl("queets|forks creek|abernathy|HOOD|CWA|Nooksack", resolved_stock_id, 
-                                                          ignore.case=T) ~ "Hatchery US",
-                                                  hatchery_origin=="N" & 
-                                                    grepl("queets|forks creek|abernathy|HOOD|CWA|Nooksack", resolved_stock_id, 
-                                                          ignore.case=T) ~ "Natural US",
-                                                  grepl("san juan|nitinat", resolved_stock_id, ignore.case=T) ~ resolved_stock_origin,
-                                                  hatchery_origin=="N" & grepl("sooke", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural Sooke/Nitinat",
-                                                  hatchery_origin=="Y" & grepl("toquart", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Hatchery Outer Barkley",
-                                                  hatchery_origin=="N" & grepl("toquart", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural Outer Barkley",
-                                                  hatchery_origin=="N" & grepl("bedwell", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural Clayoquot",
-                                                  hatchery_origin=="N" & grepl("stamp|robertson", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural Inner Barkley",
-                                                  hatchery_origin=="N" & grepl("megin", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural Nootka-Kyuquot",
-                                                  hatchery_origin=="Y" & grepl("SWVI", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Hatchery SWVI",
-                                                  hatchery_origin=="N" & grepl("SWVI", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural SWVI",
-                                                  hatchery_origin=="N" & grepl("harrison", resolved_stock_id, ignore.case=T) ~ 
-                                                    "Natural Lower Fraser River",
+                                       
+                                       gear %in% c("IPT", "6' RST") ~ "San Juan River",
+                                       TRUE ~ "Unknown"),
+         
+         resolved_stock_origin = paste0(hatchery_origin, " ", resolved_stock_id),
+         
+         resolved_stock_origin_rollup = case_when(grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc", 
+                                                        resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " US"),
+                                                  
+                                                  grepl("harrison|fraser", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Fraser River"),
+
+                                                  hatchery_origin=="Hatchery" & !grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc", 
+                                                                                       resolved_stock_id, ignore.case=T) ~ 
+                                                    resolved_stock_origin,
+                                                  
+                                                  hatchery_origin=="Natural" & !grepl("GSI", resolved_stock_id_method) ~ resolved_stock_origin,
+                                                  
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("san juan", resolved_stock_id, ignore.case=T) ~ resolved_stock_origin,
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("nitinat|sooke", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Sooke/Nitinat"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("sarita", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Sarita"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("toquart|thornton", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Outer Barkley"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("Nahmint", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Nahmint"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("stamp|robertson|gold", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Inner Barkley"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("tranquil|kennedy|cypre|bedwell", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Clayoquot"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("zeballos|tlupana|tahsis|tahsish|moyeha|megin|leiner|kaouk|conuma|burman|marble", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Nootka/Kyuquot"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("marble|colonial", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Quatsino"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("woss|salmon|quinsam|nimpkish", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Northeast VI"),
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("cowichan|nanaimo|qualicum|puntledge|englishman", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Strait of Georgia"),
+                                                  
+                                                  resolved_stock_id=="Unknown" ~ paste0(hatchery_origin, " Unknown"),
+
                                                   TRUE ~ "FLAG"), 
-         stray_status = case_when(!is.na(resolved_stock_id) & grepl("san juan", resolved_stock_id, ignore.case=T) ~ "local",
-                                  !is.na(resolved_stock_id) & !grepl("san juan", resolved_stock_id, ignore.case=T) ~ "stray",
+         stray_status = case_when(grepl("san juan", resolved_stock_id, ignore.case=T) ~ "local",
+                                  !grepl("san juan", resolved_stock_id, ignore.case=T) ~ "stray",
                                   TRUE ~ NA)) %>%
   print()
 
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
+# ================================================================= LOAD MICROCHEM DATA =================================================================
+
+## Load microchemistry raw results -------------------
+otochem <- readxl::read_excel(path=here::here("data", "biosamples", "San Juan Otolith Microchemistry Data report.xlsx"),
+                              sheet="radii") %>%
+  mutate(otolith_box_vial = paste0(otolith_box, sep="-", otolith_vial)) 
+
+
+## Load EPRO All Adult Biosampling -------------------
+# Might git an std::bad_alloc error message - close some windows to free up memory if this happens (esp Google Chrome)
+sj.aab <- readxl::read_excel(path=list.files(path=here::here("data", "biosamples"),
+                                             pattern="R_OUT - All Adult Biosampling ALL FACILITIES WITH RESULTS",
+                                             full.names = T),
+                             sheet=2) %>%
+  janitor::clean_names() %>%
+  filter(facility_name=="San Juan River H") %>%
+  select(start_date, spawning_year, species, sex, poh_length_mm, external_marks,
+         r_otolith_box_vial_concat, otolith_hatch_code, scale_part_age:scale_total_age_yrs,
+         scale_gilbert_age, scale_european_age, r_resolved_total_age, r_resolved_total_age_method, r_resolved_brood_year,
+         r_resolved_origin, r_resolved_origin_method, r_resolved_stock_id, r_resolved_stock_id_method, r_resolved_stock_origin)
+
+
+## JOIN: Field biodata+GSI + microchem (juveniles) -------------------
+biosamp.gsi.otochem.linked <- left_join(biosamp.gsi.linked,
+                                        otochem %>%
+                                          select(c(`Sample ID`, `Estuary Days`, `Marine Duration time (s)`, `Zinc age (European Notation)`,
+                                                   `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, Comments)) %>%
+                                          rename(otochem_comments = Comments),
+                                        by=c("lethal_tag_no"="Sample ID"))
+
+
+## JOIN: All Adult Biosampling + microchem (adults) -------------------
+biosamp.gsi.otochem.linked <- left_join(sj.aab,
+                                        otochem %>%
+                                          select(c(`Sample ID`, otolith_box, otolith_vial, `Estuary Days`, `Marine Duration time (s)`, 
+                                                   `Zinc age (European Notation)`, `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, 
+                                                   Comments, otolith_box_vial)) %>%
+                                          rename(otochem_comments = Comments),
+                                        by=c("r_otolith_box_vial_concat" = "otolith_box_vial"))
+
+
+## Reverse join for data sharing with MQ/NL -------------------
+otochem.w.biodata <- left_join(otochem,
+                               sj.aab %>%
+                                 select(-c(spawning_year)),
+                               by=c("otolith_box_vial" = "r_otolith_box_vial_concat")) %>%
+  left_join(.,
+            biosamp.gsi.linked %>%
+              select(gear, usid, date, species, fork_length_mm, height_mm, field_weight_g, ad_clip, hatchery_origin,
+                     lethal_tag_no, comments, condK, MGL_ID_Source, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
+                     MGL_associated_collection_prob, MGL_species, origin_method:stray_status),
+            by=c("Sample ID" = "lethal_tag_no")) %>% 
+  mutate(species = coalesce(species.x, species.y),
+         sample_date = coalesce(start_date, date),
+         adipose_clipped = coalesce(external_marks, ad_clip),
+         resolved_origin = coalesce(r_resolved_origin, hatchery_origin),      
+         resolved_origin_method = coalesce(r_resolved_origin_method, origin_method),
+         resolved_stock_ID = coalesce(r_resolved_stock_id, resolved_stock_id),
+         resolved_stock_ID_method = coalesce(r_resolved_stock_id_method, resolved_stock_id_method),
+         resolved_stock_ID_origin = coalesce(r_resolved_stock_origin, resolved_stock_origin)
+         ) %>%
+  select(-c(species.x, species.y, start_date, date, external_marks, ad_clip, r_resolved_origin, hatchery_origin, r_resolved_origin_method,
+            origin_method, r_resolved_stock_id, resolved_stock_id, r_resolved_stock_id_method, resolved_stock_id_method, 
+            r_resolved_stock_origin, resolved_stock_origin, MGL_ID_Source, comments, MGL_PBT_brood_group)) %>%
+  relocate(c(sample_date, gear, usid, species, MGL_species, sex, adipose_clipped, poh_length_mm, fork_length_mm, height_mm, field_weight_g, condK), 
+           .before=otolith_box_vial) %>%
+  relocate(c(resolved_origin, resolved_origin_method, resolved_stock_ID, resolved_stock_ID_method, resolved_stock_ID_origin,
+             resolved_stock_origin_rollup, stray_status), .after = r_resolved_brood_year)
+
+
+
+### Export for MQ/NL --------
+writexl::write_xlsx(otochem.w.biodata, here::here("outputs", "R_OUT - Otolith microchemstry results with biodata.xlsx"))
 
 
 
@@ -251,9 +351,10 @@ biosamp.gsi.linked <-  left_join(biodata,
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#                                                           LOAD & JOIN DIET DATA
 
-# ================= MASTER DIET DATA ================= 
+# ================================================================= LOAD DIET DATA =================================================================
+
+# Add some new groupings, clean up old ones
 diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/",
                                                    pattern="^Stomach_Analyis_Master_cleaned.xlsx",
                                                    full.names=T, recursive=T),
@@ -317,13 +418,10 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
 
 
 
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+                                                         
+## JOIN: field biodata+GSI + diet results ----------------- 
 
-
-#                                                           LINK GSI + BIODATA TO STOMACH RESULTS
-
-
-core.biosample.linked <- full_join(biosamp.gsi.linked %>%
+biosample.long.diet <- full_join(biosamp.gsi.linked %>%
                                      select(year, gear, usid, date, DOY, species, length_mm, height_mm, field_weight_g, lab_weight_g,
                                             modelled_weight_g, resolved_weight_g, resolved_weight_source, 
                                             ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
@@ -334,6 +432,9 @@ core.biosample.linked <- full_join(biosamp.gsi.linked %>%
                                      select(-c(project)),
                                    by=c("lethal_tag_no" = "client_sample_id"),
                                    multiple = "all")
+
+
+
 
 
 
@@ -351,8 +452,9 @@ openxlsx::addWorksheet(R_OUT_SJjuviDB, "sample_event_meta")
 openxlsx::addWorksheet(R_OUT_SJjuviDB, "enviro")
 openxlsx::addWorksheet(R_OUT_SJjuviDB, "set_totals")
 openxlsx::addWorksheet(R_OUT_SJjuviDB, "mark-release")
-openxlsx::addWorksheet(R_OUT_SJjuviDB, "biosampling detailed w GSI")
-openxlsx::addWorksheet(R_OUT_SJjuviDB, "biosampling core results")
+openxlsx::addWorksheet(R_OUT_SJjuviDB, "biosampling")
+openxlsx::addWorksheet(R_OUT_SJjuviDB, "biosampling long w diet")
+openxlsx::addWorksheet(R_OUT_SJjuviDB, "otolith microchem raw")
 
 
 # Write data to tabs (read in data and then re-save to tabs in new workbook) ---------------------------
@@ -381,12 +483,16 @@ openxlsx::writeData(R_OUT_SJjuviDB,
                                                            full.names=T),
                                            sheet="mark-release"))
 openxlsx::writeData(R_OUT_SJjuviDB, 
-                    sheet="biosampling detailed w GSI", 
+                    sheet="biosampling", 
                     x = biosamp.gsi.linked)
 
 openxlsx::writeData(R_OUT_SJjuviDB, 
-                    sheet="biosampling core results", 
-                    x = core.biosample.linked)
+                    sheet="biosampling long w diet", 
+                    x = biosample.long.diet)
+
+openxlsx::writeData(R_OUT_SJjuviDB, 
+                    sheet="otolith microchem raw", 
+                    x = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
 
 
 
