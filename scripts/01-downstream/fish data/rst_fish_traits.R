@@ -59,6 +59,41 @@ write.csv(
   row.names=F)
 
 
+# Average hatchery CN weight following releases --------------- 
+View(rst.biodat.fish %>%
+  filter(grepl("chinook", species, ignore.case=T), ad_clip=="Y") %>%
+  group_by(year, date) %>%
+  summarize(avg_weight = mean(resolved_weight_g, na.rm=T)))
+
+
+## Hatchery weight stats --------------- 
+rst.hatCN <- rst.biodat.fish %>%
+  filter(grepl("chinook", species, ignore.case=T), ad_clip=="Y")
+
+### Check assumptions -----
+# CHeck for normality, equal variance
+qqnorm(as.numeric(rst.hatCN$length_mm))
+qqline(as.numeric(rst.hatCN$length_mm), col="red")
+# points do not follow line at tails, suggests non-normal
+
+shapiro.test(as.numeric(rst.hatCN$length_mm))
+# w=0.96971, p=9.213e-06
+# significance implies non-normality
+
+fligner.test(as.numeric(rst.hatCN$length_mm) ~ as.factor(rst.hatCN$year))
+# Fligner-Killeen:med chi-squared = 0.024169, df = 1, p-value = 0.8765
+# p > 0.05 indicates equal variances 
+# Used this test because it's robust to non-normality 
+
+lm.hatFL <- lm(as.numeric(rst.hatCN$length_mm) ~ as.factor(rst.hatCN$year))
+resid.hatFL <- resid(lm.hatFL)
+plot(resid.hatFL)
+# Potententially a pattern
+
+
+### Run the test -----
+wilcox.test(as.numeric(rst.hatCN$length_mm) ~ as.factor(rst.hatCN$year), paired = FALSE) 
+
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
