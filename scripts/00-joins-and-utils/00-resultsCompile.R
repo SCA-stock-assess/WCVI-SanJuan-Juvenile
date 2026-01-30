@@ -25,14 +25,16 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
                                               pattern="^San Juan PSSI master database",
                                               full.names=T),
                               sheet="biosampling", guess_max = 5000) %>%
+  mutate_at(c("weight", "length"), as.numeric) %>%
   mutate(resolved_weight_source = case_when(!is.na(weight) ~ "field",
                                             is.na(weight) & !is.na(lab_weight_g) ~ "lab",
                                             is.na(weight) & is.na(lab_weight_g) ~ "modelled"),
-         modelled_weight_g = as.numeric(exp(-6.5 + (2.9*log(height)))),
+         modelled_weight_g = case_when(grepl("RST|IPT", gear, ignore.case=T) ~ 0.142*exp(0.229*weight),   #  weight models as of Jan 26
+                                       grepl("seine", gear, ignore.case=T) ~ ((2.59*weight)-5.58)),
          resolved_weight_g = case_when(resolved_weight_source=="field" ~ as.numeric(weight),
                                        resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
                                        resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
-         condK = resolved_weight_g/(as.numeric(length)^3)*100000) %>%
+         condK = resolved_weight_g/(length^3)*100000) %>%
   relocate(c(lab_weight_g, modelled_weight_g), .after=weight) %>%
   relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
   rename(fork_length_mm = length,
@@ -279,6 +281,16 @@ otochem <- readxl::read_excel(path=here::here("data", "biosamples", "San Juan Ot
   mutate(otolith_box_vial = paste0(otolith_box, sep="-", otolith_vial)) 
 
 
+### JOIN: Juvi field biodata+GSI + microchem (juveniles) -------------------
+biosamp.gsi.otochem.linked <- left_join(biosamp.gsi.linked,
+                                        otochem %>%
+                                          select(c(`Sample ID`, `Estuary Days`, `Marine Duration time (s)`, `Zinc age (European Notation)`,
+                                                   `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, Comments)) %>%
+                                          rename(otochem_comments = Comments),
+                                        by=c("lethal_tag_no"="Sample ID"))
+
+
+
 ## Load EPRO All Adult Biosampling -------------------
 # Might git an std::bad_alloc error message - close some windows to free up memory if this happens (esp Google Chrome)
 sj.aab <- readxl::read_excel(path=list.files(path=here::here("data", "biosamples"),
@@ -293,23 +305,14 @@ sj.aab <- readxl::read_excel(path=list.files(path=here::here("data", "biosamples
          r_resolved_origin, r_resolved_origin_method, r_resolved_stock_id, r_resolved_stock_id_method, r_resolved_stock_origin)
 
 
-## JOIN: Field biodata+GSI + microchem (juveniles) -------------------
-biosamp.gsi.otochem.linked <- left_join(biosamp.gsi.linked,
-                                        otochem %>%
-                                          select(c(`Sample ID`, `Estuary Days`, `Marine Duration time (s)`, `Zinc age (European Notation)`,
-                                                   `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, Comments)) %>%
-                                          rename(otochem_comments = Comments),
-                                        by=c("lethal_tag_no"="Sample ID"))
-
-
-## JOIN: All Adult Biosampling + microchem (adults) -------------------
-biosamp.gsi.otochem.linked <- left_join(sj.aab,
-                                        otochem %>%
-                                          select(c(`Sample ID`, otolith_box, otolith_vial, `Estuary Days`, `Marine Duration time (s)`, 
-                                                   `Zinc age (European Notation)`, `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, 
-                                                   Comments, otolith_box_vial)) %>%
-                                          rename(otochem_comments = Comments),
-                                        by=c("r_otolith_box_vial_concat" = "otolith_box_vial"))
+### JOIN: All Adult Biosampling + microchem (adults) -------------------
+aab.otochem.linked <- left_join(sj.aab,
+                                otochem %>%
+                                  select(c(`Sample ID`, otolith_box, otolith_vial, `Estuary Days`, `Marine Duration time (s)`, 
+                                           `Zinc age (European Notation)`, `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, 
+                                           Comments, otolith_box_vial)) %>%
+                                  rename(otochem_comments = Comments),
+                                by=c("r_otolith_box_vial_concat" = "otolith_box_vial"))
 
 
 ## Reverse join for data sharing with MQ/NL -------------------
@@ -350,6 +353,7 @@ writexl::write_xlsx(otochem.w.biodata, here::here("outputs", "R_OUT - Otolith mi
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
 
 
 # ================================================================= LOAD DIET DATA =================================================================
@@ -421,13 +425,14 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                                          
 ## JOIN: field biodata+GSI + diet results ----------------- 
 
-biosample.long.diet <- full_join(biosamp.gsi.linked %>%
-                                     select(year, gear, usid, date, DOY, species, length_mm, height_mm, field_weight_g, lab_weight_g,
+biosample.long.diet <- full_join(biosamp.gsi.otochem.linked %>% 
+                                     select(year, gear, usid, date, DOY, species, fork_length_mm, height_mm, field_weight_g, lab_weight_g,
                                             modelled_weight_g, resolved_weight_g, resolved_weight_source, 
                                             ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
                                             MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
                                             MGL_associated_collection_prob, MGL_species, MGL_notes,
-                                            resolved_stock_id, resolved_stock_origin, resolved_stock_origin_rollup, stray_status),
+                                            resolved_stock_id, resolved_stock_origin, resolved_stock_origin_rollup, stray_status,
+                                            `Estuary Days`, `Fairy Lake OR Estuary entry Back-calculated FL(mm)`, otochem_comments),
                                    diet.results %>%
                                      select(-c(project)),
                                    by=c("lethal_tag_no" = "client_sample_id"),
@@ -435,11 +440,34 @@ biosample.long.diet <- full_join(biosamp.gsi.linked %>%
 
 
 
-
-
-
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ================= Create readme ================= 
+readme <- data.frame(x1=c("last update:",
+                       "",
+                       "SHEET NAME",
+                       "sample_event_meta",
+                       "enviro",
+                       "set_totals",
+                       "mark-release",
+                       "biosampling",
+                       "biosampling long with diet",
+                       "otolith microchem"
+                       ),
+                     
+                     x2=c(as.character(Sys.Date()),
+                       "",
+                       "SHEET DESCRIPTION",
+                       "Sampling events with associated capture metadata including lat/longs, effort, weather and other relevant notes.",
+                       "Environmental data associated with field sampling events. For RST sampling this includes YSI DSS readings, RST RPMs, etc. but does not include HOBO data logger readings (see data files beginning 'SJHOBO' in https://github.com/SCA-stock-assess/WCVI-SanJuan-Juvenile/tree/main/data/enviro). Beach seine water quality data were collected by Pacheedaht First Nations and stored in their database. Purse seine YSI readings are included.",
+                       "Total enumeration of all sampling events, for example each day of RST sampling or each seine set. Includes Bismarck Brown recaptures in the RST",
+                       "Release dates and abundances for all fish marked with Bismarck Brown for RST trap efficiency trials.",
+                       "All juvenile fish biosampling data collected from 2023-2025 along with associated lab dissection details. This sheet should be used for analysis such as calculating average fish length, weight, etc. Each row is a unique fish. Included here too are genetic stock ID results for those fish (predominantly Chinook) analyzed for genetics.",
+                       "This is all fish biosampled, but joined to stomach contents results. As one fish can have >1 prey group in its stomach, data are in long-form, where each row represents a unique dietary group within an individual fish. Fish traits (e.g., length, weight) are duplicated across multiple rows, depending on how many diet items a fish had. Therefore this sheet is not appropriate for calculating pooled, average lengths, weights, etc. It is meant for analyzing diet results along with context on hatchery-origin, stock ID, size, etc.",
+                       "Otolith microchemistry results joined to capture metadata for both adults and juveniles. Adult microchemistry results are used to report on size-specific survival while juvenile microchemistry informs estuary residency time."
+                       )
+)
 
 
 # ================= EXPORT ================= 
@@ -448,6 +476,7 @@ R_OUT_SJjuviDB <- openxlsx::createWorkbook()
 
 
 # Add empty tabs to the workbook ---------------------------
+openxlsx::addWorksheet(R_OUT_SJjuviDB, "readme")
 openxlsx::addWorksheet(R_OUT_SJjuviDB, "sample_event_meta")
 openxlsx::addWorksheet(R_OUT_SJjuviDB, "enviro")
 openxlsx::addWorksheet(R_OUT_SJjuviDB, "set_totals")
@@ -458,6 +487,10 @@ openxlsx::addWorksheet(R_OUT_SJjuviDB, "otolith microchem raw")
 
 
 # Write data to tabs (read in data and then re-save to tabs in new workbook) ---------------------------
+openxlsx::writeData(R_OUT_SJjuviDB, 
+                    sheet="readme", 
+                    x = readme)
+
 openxlsx::writeData(R_OUT_SJjuviDB, 
                     sheet="sample_event_meta", 
                     x = readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
@@ -484,7 +517,7 @@ openxlsx::writeData(R_OUT_SJjuviDB,
                                            sheet="mark-release"))
 openxlsx::writeData(R_OUT_SJjuviDB, 
                     sheet="biosampling", 
-                    x = biosamp.gsi.linked)
+                    x = biosamp.gsi.otochem.linked)
 
 openxlsx::writeData(R_OUT_SJjuviDB, 
                     sheet="biosampling long w diet", 
@@ -492,7 +525,7 @@ openxlsx::writeData(R_OUT_SJjuviDB,
 
 openxlsx::writeData(R_OUT_SJjuviDB, 
                     sheet="otolith microchem raw", 
-                    x = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+                    x = otochem.w.biodata)
 
 
 
