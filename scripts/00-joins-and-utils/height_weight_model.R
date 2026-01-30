@@ -127,7 +127,7 @@ pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - Al
 
 ggplot() +
   geom_point(data=df_all, aes(x=height_mm, y=obs_weight, fill=hatchery_origin), alpha=0.8, size=4, shape=21, stroke=1) +
-  geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="black", linewidth=1) +
+  geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="red", linewidth=1) +
   scale_y_continuous(breaks=seq(0, 130, by=25), limits=c(0, 130)) +
   scale_x_continuous(breaks=seq(2, 60, by=10), limits=c(2, 55)) +
   scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
@@ -241,7 +241,7 @@ pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - RS
 ggplot() +
   geom_point(data=rst_biodata, 
              aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
-  geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "black", linewidth = 1) +
+  geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "red", linewidth = 1) +
   scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
   scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
   scale_fill_manual(labels=c("N" = "Natural-origin",
@@ -257,48 +257,6 @@ ggplot() +
 dev.off()
 
 
-# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-
-# Combo plot for report
-# PLOT ALL FISH RELATIONSHIP
-pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - All+RST fish exponential model.pdf"),   
-    width = 16, # The width of the plot in inches
-    height = 8.5) # The height of the plot in inches
-
-ggpubr::ggarrange(ggplot() +
-                    geom_point(data=df_all, aes(x=height_mm, y=obs_weight, fill=hatchery_origin), alpha=0.8, size=4, shape=21, stroke=1) +
-                    geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="red", linewidth=1) +
-                    geom_text(aes(x=10, y=130, label="A) All Chinook"), size=7) +
-                    scale_y_continuous(breaks=seq(0, 130, by=25), limits=c(0, 130)) +
-                    scale_x_continuous(breaks=seq(2, 60, by=10), limits=c(2, 55)) +
-                    scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
-                    labs(x="Height (mm)", y="Weight (g)", fill="Chinook origin") +
-                    theme_bw() +
-                    theme(axis.title = element_text(face="bold", size=26),
-                          axis.text = element_text(colour="black", size=25),
-                          legend.title = element_text(face="bold", size=21),
-                          legend.text = element_text(size=20)),
-                  
-                  ggplot() +
-                    geom_point(data=rst_biodata, 
-                               aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
-                    geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "red", linewidth = 1) +
-                    geom_text(aes(x=4.2, y=3, label="B) RST Chinook"), size=7) +
-                    scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
-                    scale_x_continuous(breaks=seq(2,14,by=1), limits=c(2,14)) +
-                    scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
-                    labs(x="Height (mm)", y="", fill="Chinook origin") +
-                    theme_bw() +
-                    theme(axis.title = element_text(face="bold", size=26),
-                          axis.text = element_text(colour="black", size=25),
-                          legend.title = element_text(face="bold", size=21),
-                          legend.text = element_text(size=20)),
-                  
-                  common.legend = T, legend = "right"
-)
-
-dev.off()
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -332,6 +290,9 @@ ggplot(data=df_bspbs) +
 
 ## Fit log-log linear model ---------------------
 summary(lm(log(df_bspbs$obs_weight) ~ log(df_bspbs$height_mm)))
+bspbs.lm <- lm(log(df_bspbs$obs_weight) ~ log(df_bspbs$height_mm))
+
+sqrt(mean(bspbs.lm$residuals^2))
 
 
 
@@ -423,6 +384,83 @@ dev.off()
 
 
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
+# ================= Combo plot for report ================
+# PLOT ALL FISH RELATIONSHIP
+pdf(file = here::here("outputs", "figures", "fish traits", "Weight ~ height - All fish exponential model facet by gear.pdf"),   
+    width = 16, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
+
+ggpubr::ggarrange(ggplot() +
+                    geom_point(data=df_all, aes(x=height_mm, y=obs_weight, fill=hatchery_origin), alpha=0.8, size=4, shape=21, stroke=1) +
+                    geom_line(data=curve_df_all, aes(x=height_mm, y=y_hat), color="red", linewidth=1) +
+                    geom_text(aes(x=2, y=130, label="A) All Chinook"), hjust=0, size=7) +
+                    scale_y_continuous(breaks=seq(0, 130, by=25), limits=c(0, 130)) +
+                    scale_x_continuous(breaks=seq(0, 60, by=10), 
+                                       limits=c(2, 60)) +
+                    scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+                    labs(x="Height (mm)", y="Weight (g)", fill="Chinook origin") +
+                    theme_bw() +
+                    theme(axis.title = element_text(face="bold", size=26),
+                          axis.text = element_text(colour="black", size=25),
+                          legend.title = element_text(face="bold", size=21),
+                          legend.text = element_text(size=20)),
+                  
+                  ggplot() +
+                    geom_point(data=rst_biodata, 
+                               aes(x=height_mm, y=field_weight_g, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
+                    geom_line(data=curve_df, aes(x=height_mm, y=y_hat), color = "red", linewidth = 1) +
+                    geom_text(aes(x=2, y=3, label="B) RST"), hjust=0, size=7) +
+                    scale_y_continuous(breaks=seq(0,3,by=0.5), limits=c(0,3)) +
+                    scale_x_continuous(breaks=seq(2,14,by=2), limits=c(2,14)) +
+                    scale_fill_manual(labels=c("N" = "Natural-origin", "U" = "Unknown", "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+                    labs(x="Height (mm)", y="", fill="Chinook origin") +
+                    theme_bw() +
+                    theme(axis.title = element_text(face="bold", size=26),
+                          axis.text = element_text(colour="black", size=25),
+                          legend.title = element_text(face="bold", size=21),
+                          legend.text = element_text(size=20)),
+                  
+                  ggplot() +
+                    geom_point(data=df_bspbs, 
+                               aes(x=height_mm, y=obs_weight, fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
+                    geom_line(data=curve_df_bsps, aes(x=height_mm, y=y_hat), color = "red", linewidth = 1) +
+                    geom_text(aes(x=8, y=150, label="C) Beach and purse seine (exp)"), hjust=0, size=7) +
+                    scale_y_continuous(breaks=seq(0,150,by=25)) +
+                    scale_x_continuous(breaks=seq(10,60,by=10), limits=c(8,60)) +
+                    scale_fill_manual(labels=c("N" = "Natural-origin",
+                                               "U" = "Unknown",
+                                               "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+                    labs(x="Height (mm)", y="Weight (g)", fill="Chinook origin") +
+                    theme_bw() +
+                    theme(axis.title = element_text(face="bold", size=26),
+                          axis.text = element_text(colour="black", size=25),
+                          legend.title = element_text(face="bold", size=21),
+                          legend.text = element_text(size=20)),
+                  
+                  ggplot() +
+                    geom_point(data=df_bspbs, 
+                               aes(x=log(height_mm), y=log(obs_weight), fill=hatchery_origin), shape=21, alpha=0.8, size=4, stroke=1) +
+                    geom_smooth(data=df_bspbs, aes(x=log(height_mm), y=log(obs_weight)), method = "lm", se = F, colour="red") +
+                    geom_text(aes(x=2, y=4.75, label="D) Beach and purse seine (log)"), hjust=0, size=7) +
+                    #scale_y_continuous(breaks=seq(0,150,by=25)) +
+                    #scale_x_continuous(breaks=seq(10,60,by=10), limits=c(8,60)) +
+                    scale_fill_manual(labels=c("N" = "Natural-origin",
+                                               "U" = "Unknown",
+                                               "Y" = "Hatchery-origin"), values=c("dodger blue", "gray70", "orange")) +
+                    labs(x="log(height)", y="log(weight)", fill="Chinook origin") +
+                    theme_bw() +
+                    theme(axis.title = element_text(face="bold", size=26),
+                          axis.text = element_text(colour="black", size=25),
+                          legend.title = element_text(face="bold", size=21),
+                          legend.text = element_text(size=20)),
+                  
+                  common.legend = T, legend = "right", nrow=2, ncol=2
+)
+
+dev.off()
 
 
 
