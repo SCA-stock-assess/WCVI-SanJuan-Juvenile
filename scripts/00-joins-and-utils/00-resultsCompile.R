@@ -61,18 +61,29 @@ gsi.repunits_table_ids.LL <- c(
                     pattern=".xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="repunits_table_ids")
+         }),
+  
+  # --- 2025:
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                    pattern=".xlsx", full.names=T), 
+         function(x) {
+           readxl::read_excel(x, sheet="repunits_table_ids")
          })
 )
 
 # Rename, convert to data frame: 
 names(gsi.repunits_table_ids.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
-                                            pattern="new-format.xlsx", full.names=F),
-                                   list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
-                                              pattern=".xlsx", full.names=F))
+                                                 pattern="new-format.xlsx", full.names=F),
+                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
+                                                 pattern=".xlsx", full.names=F),
+                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                                                 pattern=".xlsx", full.names=F))
 
 # Convert the Large List into a useable R dataframe:
-gsi.repunits_table_ids <- do.call("rbind", gsi.repunits_table_ids.LL) %>%
-  tibble::rownames_to_column(var="file_source")
+gsi.repunits_table_ids <- gsi.repunits_table_ids.LL %>%
+  #do.call("rbind", gsi.repunits_table_ids.LL) %>%
+  #tibble::rownames_to_column(var="file_source")
+  reduce(full_join) 
 remove(gsi.repunits_table_ids.LL)
 
 
@@ -84,26 +95,38 @@ gsi.extraction_sheets.LL <- c(
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
                     pattern="new-format.xlsx", full.names=T), 
          function(x) {
-           readxl::read_excel(x, sheet="extraction_sheet")
+           readxl::read_excel(x, sheet="extraction_sheet", col_types = "text")
          }),
   
   # --- 2024:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                     pattern=".xlsx", full.names=T), 
          function(x) {
-           readxl::read_excel(x, sheet="extraction_sheet")
-         })
+           readxl::read_excel(x, sheet="extraction_sheet", col_types = "text")
+         }) #,
+  
+  # --- 2025:
+  #  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+            #pattern=".xlsx", full.names=T), 
+      #function(x) {
+        #readxl::read_excel(x, sheet="extraction_sheet", col_types = "text")
+        #})
 )
 
 # Rename, convert to data frame: 
 names(gsi.extraction_sheets.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
-                                                 pattern="new-format.xlsx", full.names=F),
-                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
-                                                 pattern=".xlsx", full.names=F))
+                                                pattern="new-format.xlsx", full.names=F),
+                                     list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
+                                                pattern=".xlsx", full.names=F) #,
+                                     #list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                                     #    pattern=".xlsx", full.names=F)
+)
 
 # Convert the Large List into a useable R dataframe:
-gsi.extraction_sheets <- do.call("rbind", gsi.extraction_sheets.LL) %>%
-  tibble::rownames_to_column(var="file_source")
+gsi.extraction_sheets <- gsi.extraction_sheets.LL %>%
+  reduce(full_join) 
+  #do.call("rbind", gsi.extraction_sheets.LL) %>%
+  #tibble::rownames_to_column(var="file_source")
 remove(gsi.extraction_sheets.LL)
 
 
@@ -114,26 +137,38 @@ gsi.species_ID.LL <- c(
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
                     pattern="new-format.xlsx", full.names=T), 
          function(x) {
-           readxl::read_excel(x, sheet="species_ID")
+           readxl::read_excel(x, sheet="species_ID", col_types = "text")
          }),
   
   # --- 2024:
   lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
                     pattern=".xlsx", full.names=T), 
          function(x) {
-           readxl::read_excel(x, sheet="species_ID")
-         })
+           readxl::read_excel(x, sheet="species_ID", col_types = "text")
+         }) #,
+  
+  # --- 2025:
+  #lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+   #                 pattern=".xlsx", full.names=T), 
+    #     function(x) {
+     #      readxl::read_excel(x, sheet="species_ID", col_types = "text")
+      #   })  
 )
 
 # Rename, convert to data frame: 
 names(gsi.species_ID.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
-                                                 pattern="new-format.xlsx", full.names=F),
-                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
-                                                 pattern=".xlsx", full.names=F))
+                                         pattern="new-format.xlsx", full.names=F),
+                              list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
+                                         pattern=".xlsx", full.names=F) #,
+                              #list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                               #          pattern=".xlsx", full.names=F)  
+)
 
 # Convert the Large List into a useable R dataframe:
-gsi.species_ID <- do.call("rbind", gsi.species_ID.LL) %>%
-  tibble::rownames_to_column(var="file_source")
+gsi.species_ID <- gsi.species_ID.LL %>%
+  reduce(full_join) 
+  #do.call("rbind", gsi.species_ID.LL) %>%
+  #tibble::rownames_to_column(var="file_source")
 remove(gsi.species_ID.LL)
 
 
@@ -142,16 +177,15 @@ remove(gsi.species_ID.LL)
 ## JOIN into a master GSI dataframe ------------------------------------
 gsi.master <- full_join(
   gsi.repunits_table_ids %>% 
-    select(-c(file_source, collection, mixture_collection)),
+    select(-c(collection, mixture_collection)),
   gsi.extraction_sheets %>% 
-    select(-c(file_source, SampleID, StockCode, Adipose.Status, Lane, Fish, Tray, PID, DigestionDate..YYYY.MM.DD., ExtractionTech, X16, X17)),
+    select(-c( SampleID, StockCode, Adipose.Status, Lane, Fish, Tray, PID, DigestionDate..YYYY.MM.DD., ExtractionTech, X16, X17)),
   by=c("indiv", "ID_Source")
 ) %>%
   relocate(c(Vial, CatchYear, CatchJulDate, CatchDate..YYYY.MM.DD.), .after=indiv) %>%
   relocate(SampleName, .before=indiv) %>%
   full_join(.,
-            gsi.species_ID %>%
-              select(-c(file_source)),
+            gsi.species_ID,
             by=c("indiv")) %>%
   rename_with(.cols=everything(), ~paste0("MGL_", .x)) %>%
   mutate(MGL_CatchDate = case_when(grepl("-", MGL_CatchDate..YYYY.MM.DD.) ~ lubridate::ymd(MGL_CatchDate..YYYY.MM.DD.),
