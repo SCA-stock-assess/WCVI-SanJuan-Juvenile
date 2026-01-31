@@ -6,24 +6,27 @@
 # Set up -----------------
 library(tidyverse)
 "%notin%" <- Negate("%in%")
+options(scipen=9999)
 
 
 # Read in data -----------------
 rst.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                  pattern="^R_OUT - San Juan PSSI master database",
                                                  full.names = T),
-                                 sheet="biosampling detailed w GSI") %>%
+                                 sheet="biosampling", guess_max=3000) %>%
   filter(grepl("RST|IPT", gear, ignore.case=T)) %>%
   janitor::clean_names()  %>%
-  #mutate(condK = (as.numeric(weight)/(as.numeric(length)^3))*100000) %>%
   left_join(.,
-            read.csv(here::here("data", "stat_weeks.csv"))) %>%
+            read.csv(here::here("data", "stat_weeks.csv")) %>%
+              mutate_at("statWeek", as.character)) %>%
   mutate(species_stage_simple = case_when(grepl("coho", species, ignore.case=T) ~ stringr::str_to_title(paste0(species, " ", life_stage)),
                                           grepl("chum", species, ignore.case=T) ~ "Chum",
                                           grepl("chinook", species, ignore.case=T) ~ stringr::str_to_title(paste0(ad_clip, " ", species)),
                                           TRUE ~ species)) %>%
   print()
 
+#rst.biodat.fish$statWeek <- factor(rst.biodat.fish$statWeek, levels=c("2-4", "3-1", "3-2", "3-3", "3-4", "4-1", "4-2", "4-3", "4-4",
+#                                                                     "5-1", "5-2", "5-3", "5-4", "6-1", "6-2", "6-3", "6-4"), ordered=T)
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -130,7 +133,7 @@ ggplot(data=rst.biodat.fish %>%
 dev.off()
 
 
-## Length ---------------  
+## Length plot ---------------  
 pdf(file = here::here("outputs", "figures", "fish traits", "RST Chinook by statweek - length.pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -166,8 +169,44 @@ ggplot(data=rst.biodat.fish %>%
 dev.off()
 
 
+## Length stats ---------------  
+rst.natCN <- rst.biodat.fish %>%
+  filter(grepl("chinook", species, ignore.case=T), hatchery_origin=="Natural", !is.na(fork_length_mm)) %>%
+  mutate_at("statWeek", as.character) %>%
+  mutate(statWeek = gsub(pattern="-", replacement="", statWeek),
+         statWeek = trimws(statWeek)) %>%
+  mutate_at("statWeek", as.numeric)
 
-## Condition factor ---------------  
+
+### Check assumptions -----
+# CHeck for normality, equal variance
+qqnorm(as.numeric(rst.natCN$fork_length_mm))
+qqline(as.numeric(rst.natCN$fork_length_mm), col="red")
+# points do not follow line at tails, suggests non-normal
+
+shapiro.test(as.numeric(rst.natCN$fork_length_mm))
+# w=0.70843, p<2.2e-16
+# significance implies non-normality
+
+fligner.test(rst.natCN$fork_length_mm ~ as.factor(rst.natCN$statWeek))
+# Fligner-Killeen:med chi-squared = 88.299, df = 13, p-value = 2.953e-13
+# p < 0.05 indicates unequal variances 
+# Used this test because it's robust to non-normality 
+
+lm.natFL <- lm(rst.natCN$fork_length_mm ~ as.factor(rst.natCN$statWeek))
+resid.natFL <- resid(lm.natFL)
+plot(resid.natFL)
+# Potententially a pattern - flare at end
+
+
+### Run the test -----
+# Had to install coin package as base stats kruskal.test wouldn't work 
+coin::kruskal_test(as.numeric(fork_length_mm) ~ as.factor(statWeek), data=rst.natCN)
+dunntest <- FSA::dunnTest(as.numeric(fork_length_mm) ~ as.factor(statWeek), data=rst.natCN)
+
+
+
+## Condition factor plot ---------------  
 pdf(file = here::here("outputs", "figures", "RST Chinook by statweek - condition.pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -195,6 +234,43 @@ ggplot(data=rst.biodat.fish %>%
         legend.key.spacing.x = unit(2, "cm"))
 
 dev.off()
+
+
+## Condition factor stats ---------------  
+rst.natCN <- rst.biodat.fish %>%
+  filter(grepl("chinook", species, ignore.case=T), hatchery_origin=="Natural", !is.na(cond_k)) %>%
+  mutate_at("statWeek", as.character) %>%
+  mutate(statWeek = gsub(pattern="-", replacement="", statWeek),
+         statWeek = trimws(statWeek)) %>%
+  mutate_at("statWeek", as.numeric)
+
+
+### Check assumptions -----
+# CHeck for normality, equal variance
+qqnorm(as.numeric(rst.natCN$cond_k))
+qqline(as.numeric(rst.natCN$cond_k), col="red")
+# points do not follow line at tails, suggests non-normal
+
+shapiro.test(as.numeric(rst.natCN$cond_k))
+# w=0.93812, p=0.0000000000000002349
+# significance implies non-normality
+
+fligner.test(rst.natCN$cond_k ~ as.factor(rst.natCN$statWeek))
+# Fligner-Killeen:med chi-squared = 35.51, df = 13, p-value = 0.0006988
+# p < 0.05 indicates unequal variances 
+# Used this test because it's robust to non-normality 
+
+lm.natK <- lm(rst.natCN$cond_k ~ as.factor(rst.natCN$statWeek))
+resid.natK <- resid(lm.natK)
+plot(resid.natK)
+# Kind of a pattern... 
+
+
+### Run the test -----
+# Had to install coin package as base stats kruskal.test wouldn't work 
+coin::kruskal_test(as.numeric(cond_k) ~ as.factor(statWeek), data=rst.natCN)
+dunntest <- FSA::dunnTest(as.numeric(cond_k) ~ as.factor(statWeek), data=rst.natCN)
+
 
 
 ## Length + Condition factor combo plot ---------------  
