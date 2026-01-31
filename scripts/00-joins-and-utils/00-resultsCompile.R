@@ -396,7 +396,7 @@ writexl::write_xlsx(otochem.w.biodata, here::here("outputs", "R_OUT - Otolith mi
 diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/",
                                                    pattern="^Stomach_Analyis_Master_cleaned.xlsx",
                                                    full.names=T, recursive=T),
-                                   sheet=2, skip=5) %>%
+                                   sheet="CLEANED_data", skip=2) %>%
   select(-c(Company_Doing_Analysis, Year, Date_Sampled, Biologica_Sample_ID)) %>% 
   rename(diet_comments = Comments) %>% 
   janitor::clean_names() %>%
@@ -419,19 +419,20 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("myriapod", lowest_taxon_final, ignore.case=T) ~ "Centipedes",
                                      grepl("annelid", lowest_taxon_final, ignore.case=T) ~ "Worms",
                                      grepl("chironomid", lowest_taxon_final, ignore.case=T) ~ "Midges",
-                                     grepl("Diptera", lowest_taxon_final, ignore.case=T) ~ "'True' flies",
+                                     grepl("Diptera", lowest_taxon_final, ignore.case=T) ~ "'True' flies (unspecified)",
                                      grepl("caddisfly|trichoptera", lowest_taxon_final, ignore.case=T) ~ "Aquatic flies",
                                      grepl("Hymenoptera", lowest_taxon_final, ignore.case=T) ~ "Wasps/bees",
                                      grepl("Neuroptera", lowest_taxon_final, ignore.case=T) ~ "Lacewing flies",
                                      grepl("Lepidoptera", lowest_taxon_final, ignore.case=T) ~ "Butterflies/moths",
 
                                      grepl("Balanomorpha|Cirripedia", lowest_taxon_final, ignore.case=T) ~ "Barnacles",
-                                     grepl("Copepod|Eucalanus|harpactacoid|harpacticoid", lowest_taxon_final, ignore.case=T) ~ "Copepods",
+                                     grepl("Copepod|Eucalanus|harpactacoid|harpacticoid", lowest_taxon_final, ignore.case=T) ~ "Copepods (non-parasitic)",
                                      grepl("Ostracod", lowest_taxon_final, ignore.case=T) ~ "Ostracods",
                                      grepl("Isopod|Gnorimosphaeroma", lowest_taxon_final, ignore.case=T) ~ "Isopods",
                                      grepl("Amphipod|Corophium|Gammaridae", lowest_taxon_final, ignore.case=T) ~ "Amphipods",
                                      grepl("Decapod|Anomura|porcellanidae", lowest_taxon_final, ignore.case=T) ~ "Decapods",
-                                     grepl("campylaspis|podon|cumacea|euphausiacea", lowest_taxon_final, ignore.case=T) ~ "Shrimps",
+                                     grepl("campylaspis|cumacea|euphausiacea", lowest_taxon_final, ignore.case=T) ~ "Shrimps",
+                                     grepl("podon", lowest_taxon_final, ignore.case=T) ~ "Branchiopods",
                                      grepl("Phyllodocida|Polychaet", lowest_taxon_final, ignore.case=T) ~ "Polychaete worms",
                                      grepl("cephalopod", lowest_taxon_final, ignore.case=T) ~ "Octopus (larvae)",
                                      
@@ -444,8 +445,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Invertebrates (unspecified)",
                                      grepl("insect|formicidae", lowest_taxon_final, ignore.case=T) ~ "Insects (unspecified)",
                                      
-                                     grepl("Rock|feather", lowest_taxon_final, ignore.case=T) ~ "Non-food",
-                                     grepl("plant|Seaweed", lowest_taxon_final, ignore.case=T) ~ "Plant/seaweed",
+                                     grepl("Non-food", source1, ignore.case=T) ~ "Non-food (plant, wood, rocks, feathers)",
                                      
                                      TRUE ~ lowest_taxon_final),
          
