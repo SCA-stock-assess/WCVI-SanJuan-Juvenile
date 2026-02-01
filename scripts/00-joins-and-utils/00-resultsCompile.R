@@ -445,7 +445,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Invertebrates (unspecified)",
                                      grepl("insect|formicidae", lowest_taxon_final, ignore.case=T) ~ "Insects (unspecified)",
                                      
-                                     grepl("Non-food", source1, ignore.case=T) ~ "Non-food (plant, wood, rocks, feathers)",
+                                     grepl("Non-food", source1, ignore.case=T) ~ "Non-food (plants, seaweed, rocks, feathers)",
                                      
                                      TRUE ~ lowest_taxon_final),
          
