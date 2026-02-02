@@ -8,7 +8,7 @@ library(tidyverse)
 biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                       pattern="^R_OUT - San Juan PSSI master database",
                                                       full.names = T),
-                                      sheet="biosampling detailed w GSI") %>%
+                                      sheet="biosampling") %>%
   janitor::clean_names()  %>%
   mutate(species_stage_simple = case_when(grepl("coho", species, ignore.case=T) ~ stringr::str_to_title(paste0(species, " ", life_stage)),
                                           grepl("chum", species, ignore.case=T) ~ "Chum",
