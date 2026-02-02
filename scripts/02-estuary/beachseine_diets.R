@@ -575,6 +575,41 @@ dev.off()
 
 ## =============== Prey TAXA - AVERAGED ===============
 
+bs_meanTAXA_by_site <- bs.biodat.diet %>%
+  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), taxonomy_simple!="Non-food") %>%
+  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
+  group_by(lethal_tag_no, taxonomy_simple) %>%
+  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
+            total_prey_ww = unique(total_ww_contents, na.rm=T),
+            lat=unique(lat_dd),
+            long=unique(long_dd),
+            site_name_clean = unique(site_name_clean))   %>%
+  # calculate the proportion of each prey source for each individual
+  group_by(lethal_tag_no) %>%
+  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
+  ungroup() %>%
+  # Fill in for missing categories and fill the missing values: 
+  complete(., lethal_tag_no, taxonomy_simple, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
+  #filter(source1!='TRUE') %>%
+  group_by(lethal_tag_no) %>%
+  fill(c(site_name_clean, total_prey_ww, lat, long), .direction="updown") %>%
+  # Calculate the average prey source for each year
+  # group_by(site_name_clean) %>%
+  # mutate(n=n(unique(lethal_tag_no))) %>%
+  group_by(site_name_clean, taxonomy_simple) %>%
+  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T),
+            lat=unique(lat),
+            long=unique(long)  #,
+            #n=unique(n)
+  ) %>%
+  #mutate(check = sum(mean_prey_ww_propn)) 
+  ungroup() %>%
+  mutate(taxonomy_simple = case_when(grepl("non-food", taxonomy_simple, ignore.case=T) ~ "Non-food",
+                                     TRUE ~ taxonomy_simple))
+
+
+
+### All taxa, coloured by source -------------
 pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy simplified - no stage).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -630,39 +665,6 @@ dev.off()
 
 ### Taxa by SITE (mapped) ----------------
 
-bs_meanTAXA_by_site <- bs.biodat.diet %>%
-  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), taxonomy_simple!="Non-food") %>%
-  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
-  group_by(lethal_tag_no, taxonomy_simple) %>%
-  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
-            total_prey_ww = unique(total_ww_contents, na.rm=T),
-            lat=unique(lat_dd),
-            long=unique(long_dd),
-            site_name_clean = unique(site_name_clean))   %>%
-  # calculate the proportion of each prey source for each individual
-  group_by(lethal_tag_no) %>%
-  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
-  ungroup() %>%
-  # Fill in for missing categories and fill the missing values: 
-  complete(., lethal_tag_no, taxonomy_simple, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
-  #filter(source1!='TRUE') %>%
-  group_by(lethal_tag_no) %>%
-  fill(c(site_name_clean, total_prey_ww, lat, long), .direction="updown") %>%
-  # Calculate the average prey source for each year
-  # group_by(site_name_clean) %>%
-  # mutate(n=n(unique(lethal_tag_no))) %>%
-  group_by(site_name_clean, taxonomy_simple) %>%
-  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T),
-            lat=unique(lat),
-            long=unique(long)  #,
-            #n=unique(n)
-  ) %>%
-  #mutate(check = sum(mean_prey_ww_propn)) 
-  ungroup() %>%
-  mutate(taxonomy_simple = case_when(grepl("non-food", taxonomy_simple, ignore.case=T) ~ "Non-food",
-                                     TRUE ~ taxonomy_simple))
-
-
 bs_meanTAXA_by_site_mapping <- bs_meanTAXA_by_site %>%
   #select(-c(sd_prey_ww_propn)) %>%
   pivot_wider(names_from = taxonomy_simple, values_from = mean_prey_ww_propn) %>%
@@ -677,7 +679,7 @@ bs_meanTAXA_by_site_mapping <- bs_meanTAXA_by_site %>%
 colours <- c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
              "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
              "#1ba831", "#ffc880", "#bcbcbc",  "#fff700", 
-             "#f57407",  "#ad00ff", "#7fffd4",  "#bcbcbc"
+             "#f57407",  "#ad00ff", "#997950",  "#bcbcbc"
               
                #"#ce2000",  "#ffcdff", "#ffa900",
               )
@@ -812,12 +814,12 @@ ggplot() +
                     values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
                              "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
                              "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
-                             "#f57407",  "#ad00ff", "#7fffd4",  "#cecfd3")) +
+                             "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
    scale_colour_manual(breaks=waiver(), 
                        values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
                                 "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
                                 "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
-                                "#f57407",  "#ad00ff", "#7fffd4",  "#cecfd3")) +
+                                "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
   labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
   theme_bw() +
