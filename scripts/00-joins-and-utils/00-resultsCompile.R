@@ -29,8 +29,9 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
   mutate(resolved_weight_source = case_when(!is.na(weight) ~ "field",
                                             is.na(weight) & !is.na(lab_weight_g) ~ "lab",
                                             is.na(weight) & is.na(lab_weight_g) ~ "modelled"),
-         modelled_weight_g = case_when(grepl("RST|IPT", gear, ignore.case=T) ~ 0.142*exp(0.229*weight),   #  weight models as of Jan 26
-                                       grepl("seine", gear, ignore.case=T) ~ ((2.59*weight)-5.58)),
+         modelled_weight_g = case_when(grepl("RST|IPT", gear, ignore.case=T) ~ 0.142*exp(0.229*height),   #  weight models as of Jan 26
+                                       #grepl("seine", gear, ignore.case=T) ~ ((2.59*height)-5.58)),
+                                       grepl("seine", gear, ignore.case=T) ~ exp((2.59*log(height))-5.58)),
          resolved_weight_g = case_when(resolved_weight_source=="field" ~ as.numeric(weight),
                                        resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
                                        resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
@@ -103,23 +104,23 @@ gsi.extraction_sheets.LL <- c(
                     pattern=".xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="extraction_sheet", col_types = "text")
-         }) #,
+         }) ,
   
   # --- 2025:
-  #  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
-            #pattern=".xlsx", full.names=T), 
-      #function(x) {
-        #readxl::read_excel(x, sheet="extraction_sheet", col_types = "text")
-        #})
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                    pattern=".xlsx", full.names=T), 
+         function(x) {
+           readxl::read_excel(x, sheet="extraction_sheet", col_types = "text")
+         })
 )
 
 # Rename, convert to data frame: 
 names(gsi.extraction_sheets.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
                                                 pattern="new-format.xlsx", full.names=F),
                                      list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
-                                                pattern=".xlsx", full.names=F) #,
-                                     #list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
-                                     #    pattern=".xlsx", full.names=F)
+                                                pattern=".xlsx", full.names=F),
+                                     list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                                                pattern=".xlsx", full.names=F)
 )
 
 # Convert the Large List into a useable R dataframe:
@@ -145,23 +146,23 @@ gsi.species_ID.LL <- c(
                     pattern=".xlsx", full.names=T), 
          function(x) {
            readxl::read_excel(x, sheet="species_ID", col_types = "text")
-         }) #,
+         }),
   
   # --- 2025:
-  #lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
-   #                 pattern=".xlsx", full.names=T), 
-    #     function(x) {
-     #      readxl::read_excel(x, sheet="species_ID", col_types = "text")
-      #   })  
+  lapply(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                    pattern=".xlsx", full.names=T), 
+         function(x) {
+           readxl::read_excel(x, sheet="species_ID", col_types = "text")
+         })  
 )
 
 # Rename, convert to data frame: 
 names(gsi.species_ID.LL) <- c(list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2023", 
                                          pattern="new-format.xlsx", full.names=F),
                               list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2024", 
-                                         pattern=".xlsx", full.names=F) #,
-                              #list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
-                               #          pattern=".xlsx", full.names=F)  
+                                         pattern=".xlsx", full.names=F) ,
+                              list.files("//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/GSI to join/2025", 
+                                         pattern=".xlsx", full.names=F)  
 )
 
 # Convert the Large List into a useable R dataframe:
@@ -259,10 +260,10 @@ biosamp.gsi.linked <-  left_join(biodata,
                                        
                                        !is.na(cwt_code) ~ paste0(cwt_stock_ID, " (", cwt_release_group, ")"),
                                        
-                                       MGL_ID_Source=="GSI" & MGL_associated_collection_prob>80 ~ 
+                                       MGL_ID_Source=="GSI" & MGL_associated_collection_prob > 80 ~ 
                                          stringr::str_to_title(gsub(MGL_top_collection, pattern="_", replacement=" ")),
                                        
-                                       MGL_ID_Source=="GSI" & MGL_associated_collection_prob>70 & MGL_associated_collection_prob<80  ~ 
+                                       MGL_ID_Source=="GSI" & MGL_associated_collection_prob >= 70 & MGL_associated_collection_prob < 80 ~ 
                                          stringr::str_to_upper(gsub(MGL_repunit.1, pattern="_", replacement=" ")),
                                        
                                        gear %in% c("IPT", "6' RST") ~ "San Juan River",
@@ -270,7 +271,7 @@ biosamp.gsi.linked <-  left_join(biodata,
          
          resolved_stock_origin = paste0(hatchery_origin, " ", resolved_stock_id),
          
-         resolved_stock_origin_rollup = case_when(grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc", 
+         resolved_stock_origin_rollup = case_when(grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc|soos|umpqua|puget|columbia", 
                                                         resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " US"),
                                                   
                                                   grepl("harrison|fraser", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Fraser River"),
@@ -278,6 +279,8 @@ biosamp.gsi.linked <-  left_join(biodata,
                                                   hatchery_origin=="Hatchery" & !grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc", 
                                                                                        resolved_stock_id, ignore.case=T) ~ 
                                                     resolved_stock_origin,
+                                                  
+                                                  resolved_stock_id_method=="F/W sample" ~ resolved_stock_origin,
                                                   
                                                   hatchery_origin=="Natural" & !grepl("GSI", resolved_stock_id_method) ~ resolved_stock_origin,
                                                   
@@ -292,7 +295,8 @@ biosamp.gsi.linked <-  left_join(biodata,
                                                   grepl("GSI", resolved_stock_id_method) & grepl("marble|colonial", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Quatsino"),
                                                   grepl("GSI", resolved_stock_id_method) & grepl("woss|salmon|quinsam|nimpkish", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Northeast VI"),
                                                   grepl("GSI", resolved_stock_id_method) & grepl("cowichan|nanaimo|qualicum|puntledge|englishman", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Strait of Georgia"),
-                                                  
+                                                  grepl("GSI", resolved_stock_id_method) & grepl("swvi|nwvi", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " ", resolved_stock_id),
+
                                                   resolved_stock_id=="Unknown" ~ paste0(hatchery_origin, " Unknown"),
 
                                                   TRUE ~ "FLAG"), 
@@ -411,15 +415,16 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                         is.na(taxon) & is.na(order) & is.na(class) & !is.na(phylum) ~ paste0("Ph. ", phylum),
                                         is.na(phylum) & !is.na(category) ~ paste0("Unknown ", category),
                                         TRUE ~ "FLAG"),
-         taxonomy_simple = case_when(grepl("Acari|arachnid|Araneae|pseudoscorpion", lowest_taxon_final, ignore.case=T) ~ "Arachnids",
+         taxonomy_simple = case_when(grepl("Acari|arachnid|Araneae|pseudoscorpion|oribatida", lowest_taxon_final, ignore.case=T) ~ "Arachnids",
                                      grepl("Psocodea", lowest_taxon_final, ignore.case=T) ~ "Lice (non-parasitic)",
+                                     grepl("hypogasturidae|sminthuridae", lowest_taxon_final, ignore.case=T) ~ "Collembola",
                                      #grepl("formicidae", lowest_taxon_final, ignore.case=T) ~ "Ants", 
                                      grepl("staphylinid|Coleoptera", lowest_taxon_final, ignore.case=T) ~ "Beetles",
-                                     grepl("hemiptera", lowest_taxon_final, ignore.case=T) ~ "True bugs",
+                                     grepl("hemiptera|cercopoidea", lowest_taxon_final, ignore.case=T) ~ "True bugs",
                                      grepl("myriapod", lowest_taxon_final, ignore.case=T) ~ "Centipedes",
                                      grepl("annelid", lowest_taxon_final, ignore.case=T) ~ "Worms",
                                      grepl("chironomid", lowest_taxon_final, ignore.case=T) ~ "Midges",
-                                     grepl("Diptera", lowest_taxon_final, ignore.case=T) ~ "'True' flies (unspecified)",
+                                     grepl("Diptera|nematocera", lowest_taxon_final, ignore.case=T) ~ "'True' flies (unspecified)",
                                      grepl("caddisfly|trichoptera", lowest_taxon_final, ignore.case=T) ~ "Aquatic flies",
                                      grepl("Hymenoptera", lowest_taxon_final, ignore.case=T) ~ "Wasps/bees",
                                      grepl("Neuroptera", lowest_taxon_final, ignore.case=T) ~ "Lacewing flies",
@@ -429,18 +434,18 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
                                      grepl("Copepod|Eucalanus|harpactacoid|harpacticoid", lowest_taxon_final, ignore.case=T) ~ "Copepods (non-parasitic)",
                                      grepl("Ostracod", lowest_taxon_final, ignore.case=T) ~ "Ostracods",
                                      grepl("Isopod|Gnorimosphaeroma", lowest_taxon_final, ignore.case=T) ~ "Isopods",
-                                     grepl("Amphipod|Corophium|Gammaridae", lowest_taxon_final, ignore.case=T) ~ "Amphipods",
+                                     grepl("Amphipod|Corophium|Gammaridae|hyperiid|pontogeneiidae", lowest_taxon_final, ignore.case=T) ~ "Amphipods",
                                      grepl("Decapod|Anomura|porcellanidae", lowest_taxon_final, ignore.case=T) ~ "Decapods",
-                                     grepl("campylaspis|cumacea|euphausiacea", lowest_taxon_final, ignore.case=T) ~ "Shrimps",
+                                     grepl("campylaspis|cumacea|euphausiacea|thoridae", lowest_taxon_final, ignore.case=T) ~ "Shrimps",
                                      grepl("podon", lowest_taxon_final, ignore.case=T) ~ "Branchiopods",
-                                     grepl("Phyllodocida|Polychaet", lowest_taxon_final, ignore.case=T) ~ "Polychaete worms",
+                                     grepl("Phyllodocida|Polychaet|nereididae", lowest_taxon_final, ignore.case=T) ~ "Polychaete worms",
                                      grepl("cephalopod", lowest_taxon_final, ignore.case=T) ~ "Octopus (larvae)",
                                      
-                                     grepl("Actinopterygii|Teleost|Osmeriformes|Clupeiformes|Ammodytidae|Perciformes", lowest_taxon_final, ignore.case=T) ~ "Fish",
+                                     grepl("Actinopterygii|Teleost|Osmeriformes|Clupeiformes|Ammodytidae|Perciformes|osmeridae", lowest_taxon_final, ignore.case=T) ~ "Fish",
                                      
                                      grepl("parasite|sea louse|nematod|trematod", lowest_taxon_final, ignore.case=T) ~ "Parasites*",
                                      
-                                     grepl("Crustacea", lowest_taxon_final, ignore.case=T) ~ "Crustaceans (unspecified)",
+                                     grepl("Crustacea|chondrochelia", lowest_taxon_final, ignore.case=T) ~ "Crustaceans (unspecified)",
                                      grepl("Arthropod", lowest_taxon_final, ignore.case=T) ~ "Arthropods (unspecified)",
                                      grepl("invertebrate", lowest_taxon_final, ignore.case=T) ~ "Invertebrates (unspecified)",
                                      grepl("insect|formicidae", lowest_taxon_final, ignore.case=T) ~ "Insects (unspecified)",
@@ -592,4 +597,4 @@ openxlsx::saveWorkbook(wb = R_OUT_SJjuviDB,
 
 
 # Clear library for sake of running as source()
-remove(list = ls())
+#remove(list = ls())
