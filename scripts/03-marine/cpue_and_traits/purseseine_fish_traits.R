@@ -12,8 +12,8 @@ library(tidyverse)
 prs.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                       pattern="^R_OUT - San Juan PSSI master database",
                                                       full.names = T),
-                                      sheet="biosampling detailed w GSI") %>%
-  filter(grepl("purse", gear, ignore.case=T)) %>%
+                                      sheet="biosampling") %>%
+  filter(grepl("Mini purse seine", gear, ignore.case=T)) %>%
   janitor::clean_names()  %>%
   full_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
@@ -22,65 +22,139 @@ prs.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 
 
 
-
-# # Plot: Weight ~ Height ---------------  
-# # Plot to prove that height is a good proxy for modelling weight 
-# 
-# # Raw:
-# ggplot(data=prs.biodat.fish %>% 
-#          filter(!is.na(lab_weight_g), species=="chinook", lab_weight_g>1)) +
-#   geom_point(aes(x=height, y=lab_weight_g, fill=hatchery_origin), shape=21, size=3) +
-#   theme_bw()
-# 
-# 
-# 
-# # Log-transformed
-# ggplot(data=prs.biodat.fish %>% 
-#          filter(!is.na(lab_weight_g), species=="chinook", lab_weight_g>1)) +
-#   geom_point(aes(x=log(height), y=log(lab_weight_g), fill=hatchery_origin), shape=21, size=3) +
-#   geom_smooth(aes(x=log(height), y=log(lab_weight_g)), method = "lm", se = T, colour="black") +
-#   ggpubr::stat_regline_equation(aes(x=log(height), y=log(lab_weight_g), label=paste(..eq.label.., sep = "~~~")),
-#                                 label.x.npc=0.04, label.y.npc = 1) +
-#   ggpubr::stat_regline_equation(aes(x=log(height), y=log(lab_weight_g), label=paste(..rr.label.., sep = "~~~")),
-#                                 label.x.npc=0.07, label.y.npc=0.9) +
-#   labs(x="Log ( Fish field height )", y="Log ( Fish lab weight )", fill="Hatchery origin") +
-#   theme_bw() +
-#   theme(axis.text.x = element_text(angle=45, hjust=1),
-#         axis.text = element_text(colour="black", size=15),
-#         axis.title = element_text(face="bold", size=17),
-#         legend.position=c(0.8,0.2),
-#         legend.title = element_text(face="bold", size=17),
-#         legend.text = element_text(size=15),
-#         legend.background = element_rect(colour="black", fill=alpha("white", 0.7)))  
-# 
-# 
-# # Create dataset to fit model
-# prs.HW.data <- prs.biodat.fish %>% 
-#   filter(!is.na(lab_weight_g), species=="chinook", lab_weight_g>1, !is.na(height))
-# 
-# linear_log_HW_model <- lm(log(prs.HW.data$lab_weight_g) ~ log(prs.HW.data$height))
-# 
-# log_a <- coef(linear_log_HW_model)[1] # Intercept corresponds to log(a)
-# b <- coef(linear_log_HW_model)[2]    # Slope corresponds to b
-# a <- exp(log_a)
+prs.biodat.fish <- prs.biodat.fish %>% 
+  left_join(.,
+            readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
+                                               pattern="^R_OUT - San Juan PSSI master database",
+                                               full.names = T),
+                               sheet="sample_event_meta") %>%
+              janitor::clean_names() %>%
+              filter(grepl("purse", gear, ignore.case=T)) %>%
+              select(site_name_clean, lat_dd, long_dd, usid),
+            by="usid") %>%
+  relocate(site_name_clean, .after=usid) %>%
+  print()
 
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
+# =============== SAMPLE SUMMARY ===============
+
+## Number of Chinook touched --------------
+# prs.biodat.fish %>%
+#   filter(grepl("chinook", resolved_species, ignore.case=T)) %>%
+#   group_by(year) %>%
+#   summarize(n=n())
+
+## Number of genetic samples --------------
+# Collected
+prs.biodat.fish %>%
+  filter(!is.na(dna_vial)) %>%
+  group_by(year) %>%
+  summarize(n())
+
+prs.biodat.fish %>%
+  filter(!is.na(dna_vial)) %>%
+  group_by(species) %>%
+  summarize(n())
+
+
+# Analyzed with results
+prs.biodat.fish %>%
+  filter(#grepl("chinook", resolved_species, ignore.case=T), 
+    !is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
+  group_by(year) %>%
+  summarize(n())
+
+prs.biodat.fish %>%
+  filter(#grepl("chinook", resolved_species, ignore.case=T), 
+    !is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
+  group_by(species) %>%
+  summarize(n())
+
+
+prs.biodat.fish %>%
+  filter(#grepl("chinook", resolved_species, ignore.case=T), 
+         !is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
+  group_by(mgl_id_source) %>%
+  summarize(n())
+
+
+# =============== % AGREEMENT SPECIES ID ===============
+prs.biodat.fish %>%
+  filter(!is.na(dna_vial), !is.na(mgl_species)) %>%
+  # mutate(mgl_species2 = case_when(mgl_species=="chinook" | grepl("assume chinook", mgl_notes, ignore.case=T) ~ "chinook",
+  #                                 mgl_species == "coho" ~ "Coho",
+  #                                 mgl_species == "coho; chinook" | mgl_notes == "Species ID ambiguous, use caution with result" ~ paste0(mgl_species, " (genetics ambiguous)"),
+  #                                 mgl_species == "chinook; pink" & mgl_notes == "Species ID ambiguous, use caution with result" ~ "Chinook (assumed)",
+  #                                 TRUE ~ "FLAG")) %>%
+  group_by(species, resolved_species) %>%
+  summarize(n=n())
+
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+
 # ======================================================== DATA SUMMARY ==========================================================
 
-## All average body traits --------------- 
-prs.biodat.fish %>% 
-  filter(grepl("chinook", species, ignore.case=T)) %>%
-  mutate_at(c("resolved_weight_g", "length_mm"), as.numeric) %>%
-  group_by(hatchery_origin) %>%
-  summarize(meanL = mean(length_mm, na.rm=T),
-            seL = sd(length_mm, na.rm=T) / sqrt(length(length_mm)),
-            meanLabW = mean(resolved_weight_g, na.rm=T),
-            seLabW = sd(resolved_weight_g, na.rm=T) / sqrt(length(resolved_weight_g)),
-            meanH = mean(height_mm, na.rm=T),
-            seH = sd(height_mm, na.rm=T) / sqrt(length(height_mm)))
+# =============== AVG BODY TRAITS ===============
+# All salmon
+write.csv(
+  x=prs.biodat.fish %>% 
+    filter(grepl("chinook|coho|chum|sockeye|pink", resolved_species, ignore.case=T)) %>%
+    mutate_at(c("resolved_weight_g", "fork_length_mm"), as.numeric) %>%
+    group_by(year, hatchery_origin, resolved_species) %>%
+    summarize(meanL = round(mean(fork_length_mm, na.rm=T),2),
+              seL = round(sd(fork_length_mm, na.rm=T) / sqrt(length(fork_length_mm)),2),
+              mseL = paste0(meanL, " (", seL, ")"),
+              
+              meanH = round(mean(height_mm, na.rm=T),2),
+              seH = round(sd(height_mm, na.rm=T) / sqrt(length(height_mm)),2),
+              mseH = paste0(meanH, " (", seH, ")"),
+              
+              meanW = round(mean(resolved_weight_g, na.rm=T),2),
+              seW = round(sd(resolved_weight_g, na.rm=T) / sqrt(length(resolved_weight_g)),2),
+              mseW = paste0(meanW, " (", seW, ")"),
+              
+              meanK = round(mean(cond_k, na.rm=T),2),
+              seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),2),
+              mseK = paste0(meanK, " (", seK, ")"),
+              
+              N = n()) %>%
+    arrange(year, resolved_species, hatchery_origin),
+  
+  file=here::here("outputs", "R_OUT - Purse seine length, weight, height, condition table (SALMON).csv"),
+  row.names=F)
+
+
+# By-catch
+write.csv(
+  x=prs.biodat.fish %>% 
+    filter(!grepl("chinook|coho|chum|sockeye|pink|unknown", resolved_species, ignore.case=T), !is.na(resolved_species)) %>%
+    mutate_at(c("resolved_weight_g", "fork_length_mm"), as.numeric) %>%
+    group_by(year, resolved_species) %>%
+    summarize(meanL = round(mean(fork_length_mm, na.rm=T),2),
+              seL = round(sd(fork_length_mm, na.rm=T) / sqrt(length(fork_length_mm)),2),
+              mseL = paste0(meanL, " (", seL, ")"),
+              
+              meanH = round(mean(height_mm, na.rm=T),2),
+              seH = round(sd(height_mm, na.rm=T) / sqrt(length(height_mm)),2),
+              mseH = paste0(meanH, " (", seH, ")"),
+              
+              meanW = round(mean(resolved_weight_g, na.rm=T),2),
+              seW = round(sd(resolved_weight_g, na.rm=T) / sqrt(length(resolved_weight_g)),2),
+              mseW = paste0(meanW, " (", seW, ")"),
+              
+              meanK = round(mean(cond_k, na.rm=T),2),
+              seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),2),
+              mseK = paste0(meanK, " (", seK, ")"),
+              
+              N = n()),
+  
+  file=here::here("outputs", "R_OUT - Purse seine length, weight, height, condition table (NON-SALMON).csv"),
+  row.names=F)
 
 
 
@@ -182,10 +256,103 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
-# ======================================================== STRAYS/HATCHERY/NATURAL ==========================================================
+# ======================================================== STOCK COMPOSITION ==========================================================
 
-prs.biodat.fish %>% 
-  group_by(year, site)
+
+## All ------------ 
+prs.biodat.fish %>%
+  group_by(resolved_stock_id) %>%
+  summarize(n=n()) %>%
+  ungroup() %>%
+  mutate(total=sum(n))
+
+## Identifiable ------------ 
+prs.biodat.fish %>%
+  filter(resolved_stock_id!="Unknown") %>%
+  group_by(resolved_stock_id) %>%
+  summarize(n=n()) %>%
+  ungroup() %>%
+  mutate(total=sum(n))
+
+## Identifiable ROLLUP ------------ 
+prs.biodat.fish %>%
+  filter(resolved_species=="Chinook") %>%
+  group_by(year, resolved_stock_origin_rollup) %>%
+  summarize(n=n()) %>%
+  ungroup() %>%
+  group_by(year) %>%
+  mutate(total=sum(n))
+
+
+
+### Plot ---- 
+prs.biodat.fish$site_name_clean <- factor(prs.biodat.fish$site_name_clean, levels=c("Gordon R", "PGM", "PGM \"Mouth\"", "Nearshore",
+                                                                                    "PRCD", "Offshore A", 
+                                                                                    "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                    "Numukamis Bay North",
+                                                                                    ordered=T))
+
+pdf(file = here::here("outputs", "figures", "stock comps", "Marine stock composition (by SITE).pdf"),   
+    width = 14, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data = prs.biodat.fish %>%
+             filter(resolved_stock_id!="Unknown", resolved_species=="Chinook", !grepl("GPS", site_name_clean),
+                    site_name_clean != "Numukamis Bay North") %>%
+              mutate(resolved_stock_origin_rollup2 = gsub(" River", "", resolved_stock_origin_rollup)) %>%
+             group_by(year, site_name_clean, resolved_stock_origin_rollup2) %>%
+             summarize(n=n()) %>% 
+             group_by(year, site_name_clean) %>% 
+             mutate(total=sum(n),
+                    propn = n/total), 
+           aes(x=site_name_clean, y=propn, fill=resolved_stock_origin_rollup2, colour=resolved_stock_origin_rollup2), 
+           stat="identity", alpha=0.8, linewidth=1, position="stack") +
+  geom_label(data = prs.biodat.fish %>%
+               filter(resolved_stock_id!="Unknown", resolved_species=="Chinook", !grepl("GPS", site_name_clean), 
+                      site_name_clean != "Numukamis Bay North") %>%
+               group_by(year, site_name_clean) %>%
+               summarize(n=n()),
+             aes(x=site_name_clean, y=-0.03, label=n), size=4.5) +
+  scale_fill_manual(breaks = c("Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan",
+                               "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
+                               "Hatchery US", "Natural US",
+                               "Natural Inner Barkley", "Natural Outer Barkley",
+                               "Natural Clayoquot", "Natural SWVI" ),
+
+                    values=c("#3d6c3d", "#66b466", "#99f299",
+                             "#a759a7", "#ef80ef", "#f8ccf8",
+                             "#b27b2e", "#ffb142",
+                             "#8080ef", "#80b8ef",
+                             "#9b3a5e", "#174950")) +
+  scale_colour_manual(breaks = c("Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan",
+                                 "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
+                                 "Hatchery US", "Natural US",
+                                 "Natural Inner Barkley", "Natural Outer Barkley",
+                                 "Natural Clayoquot", "Natural SWVI" ),
+                      
+                      values=c("#3d6c3d", "#66b466", "#99f299",
+                               "#a759a7", "#ef80ef", "#f8ccf8",
+                               "#b27b2e", "#ffb142",
+                               "#8080ef", "#80b8ef",
+                               "#9b3a5e", "#174950")) +
+  
+  scale_y_continuous(labels=scales::percent_format()) +
+  labs(x="Site name", y="Proportion of genetic samples", fill="Stock ID", colour="Stock ID") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(colour="black", size=15),
+        axis.title = element_text(face="bold", size=17),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+        #legend.position = c(0.75,0.2),
+        plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
+        strip.text = element_text(size=18))  +
+  facet_wrap(~year, scales="free_x", nrow=1)
+
+dev.off()
+  
 
 
 
