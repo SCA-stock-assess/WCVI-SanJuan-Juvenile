@@ -35,13 +35,12 @@ rst.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 # Average body traits (all salmon) --------------- 
 write.csv(
   x=rst.biodat.fish %>% 
-    #mutate(spp_stage = ) %>%
-    filter(grepl("chinook|chum|coho|pink|sockeye", species, ignore.case=T), !is.na(ad_clip)) %>%
-    mutate_at(c("resolved_weight_g", "length_mm"), as.numeric) %>%
+    filter(grepl("chinook|chum|coho|pink|sockeye", species, ignore.case=T), !is.na(ad_clip), resolved_weight_source=="field") %>%
+    mutate_at(c("resolved_weight_g", "fork_length_mm"), as.numeric) %>%
     group_by(year, species_stage_simple) %>%
     #group_by(year) %>%
-    summarize(meanL = round(mean(length_mm, na.rm=T),2),
-              seL = round(sd(length_mm, na.rm=T) / sqrt(length(length_mm)),2),
+    summarize(meanL = round(mean(fork_length_mm, na.rm=T),2),
+              seL = round(sd(fork_length_mm, na.rm=T) / sqrt(length(fork_length_mm)),2),
               mseL = paste0(meanL, " (", seL, ")"),
               
               meanH = round(mean(height_mm, na.rm=T),2),
