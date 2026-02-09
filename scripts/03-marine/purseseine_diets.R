@@ -13,15 +13,14 @@ library(leaflet)
 prs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                      pattern="^R_OUT - San Juan PSSI master database",
                                                      full.names = T),
-                                     sheet="biosampling core results") %>%
-  filter(grepl("purse", gear, ignore.case=T)) %>%
+                                     sheet="biosampling long w diet") %>%
+  filter(grepl("mini purse seine", gear, ignore.case=T)) %>%
   janitor::clean_names()  %>%
   mutate(MT_status = case_when(taxonomy_simple=="Empty" ~ "Empty",
                                grepl("trace|bdl|below detectable", diet_comments, ignore.case=T) ~ "Trace",
                                taxonomy_simple %notin% c("Empty", "Non-food") ~ "Functional prey items",
                                taxonomy_simple == "Non-food" ~ "Not prey",
                                TRUE ~ "FLAG"),
-         #condK = (as.numeric(weight)/(as.numeric(length)^3))*100000,
          month = lubridate::month(date, label=T, abbr=T),
          total_ww_g = case_when(lowest_taxon_final=="Empty" ~ 0,
                                 TRUE ~ total_ww_g)) %>%
@@ -33,8 +32,6 @@ prs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                     TRUE ~ NA),
          total_ww_contents = sum(total_ww_g, na.rm=T)) %>%
   ungroup() %>%
-  #mutate(#weight_no_contents = as.numeric(weight) - total_ww_contents,
-         #PFI = total_ww_g/weight_no_contents) %>%
   left_join(.,
             readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                pattern="^R_OUT - San Juan PSSI master database",
@@ -42,10 +39,10 @@ prs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
                                sheet="sample_event_meta") %>%
               janitor::clean_names() %>%
               filter(grepl("purse seine", gear, ignore.case=T)) %>%
-              select(site_name_clean, lat_dd, long_dd, usid),
+              select(site_name_clean, lat_dd, long_dd, usid, pfma),
             by="usid") %>%
   relocate(site_name_clean, .after=usid) %>%
-  filter(grepl("chinook", species, ignore.case=T)) %>%
+  filter(grepl("chinook", species, ignore.case=T), pfma==20) %>%
   print()
 
 
@@ -74,7 +71,7 @@ colnames(bathy_dfW)[3] = "bathyW"
 
 # ========================================================= SAMPLE SUMMARY ========================================================== 
 
-# Lethal sample sizes by year --------------
+## Lethal sample sizes by year --------------
 prs.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple)) %>%
   group_by(year, lethal_tag_no) %>%
@@ -83,13 +80,48 @@ prs.biodat.diet %>%
   summarize(n=n())
 
 
-# stomach content groups --------------
+## Stomach content groups --------------
 prs.biodat.diet %>%
   filter(!is.na(lethal_tag_no)) %>%
   group_by(taxonomy_simple) %>% 
   summarize(n=n())
 
 View(prs.biodat.diet %>% filter(!is.na(lethal_tag_no), is.na(taxonomy_simple)))
+
+
+## Young of year check --------------
+# Size distribtuion of all fish considered (regardless of whether diet analysis was done)
+ggplot() +
+  geom_point(data=prs.biodat.diet %>%
+               group_by(lethal_tag_no, doy) %>%
+               summarize(fork_length_mm = unique(fork_length_mm, na.rm=T)), 
+             aes(x=as.Date(doy, origin="2022-12-31"), y=fork_length_mm)) +
+  scale_x_date(date_breaks="7 day", date_labels="%b %d") +
+  theme (axis.text.x = element_text(angle=45, hjust=1))
+
+
+# Examine origin of outlier size fish:
+View(prs.biodat.diet %>%
+       filter(fork_length_mm > 200) %>%
+       select(date, resolved_stock_origin_rollup, fork_length_mm))
+# mix, some SJ, 1 US, some Nit/Sooke. SJ are up to 220mm so if excluding fish, would need to be higher than that. 
+
+
+# Look for outlier fish with diet results (none):
+View(prs.biodat.diet %>%
+       filter(!is.na(taxonomy_simple), fork_length_mm > 225) %>%
+       select(date, resolved_stock_origin_rollup, fork_length_mm))
+
+
+# What is the size distribution of diet analysis fish:
+ggplot() +
+  geom_point(data=prs.biodat.diet %>%
+               filter(!is.na(taxonomy_simple)) %>%
+               group_by(lethal_tag_no, doy) %>%
+               summarize(fork_length_mm = unique(fork_length_mm, na.rm=T)), 
+             aes(x=as.Date(doy, origin="2022-12-31"), y=fork_length_mm)) +
+  scale_x_date(date_breaks="7 day", date_labels="%b %d") +
+  theme (axis.text.x = element_text(angle=45, hjust=1))
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -106,7 +138,7 @@ prs.biodat.diet %>%
 
 # Exclude non-food and calculate % empty/not empty --------------
 prs.biodat.diet %>%
-  filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
+  filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample") %>%
   group_by(year, lethal_tag_no) %>% 
   summarize(MT_status_fish=unique(MT_status_fish)) %>% 
   group_by(year, MT_status_fish) %>%
@@ -114,6 +146,8 @@ prs.biodat.diet %>%
   group_by(year) %>%
   mutate(year_total=sum(n),
          propn=n/year_total)
+# Checked too - all stomachs with parasites and/or non-food had at least some other dietary components so would not be called "empty" - these ^ represent true empty stomachs
+
 
 
 # Do we know anything about the fish with empty stomachs --------------
@@ -124,6 +158,8 @@ prs.biodat.diet %>%
 
 # PLOTS
 # Not going to bother plotting because there were almost no empty stomachs and obviously the rest will have a mix of detectable and non-detectable parts. 
+
+#so we are basically summarizing empty stomachs as + true empty + stomachs with only parasites + stomachs with only non-food (wood, algae debris)
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -233,6 +269,8 @@ pdf(file = here::here("outputs", "figures", "diet", "Marine diets (yearly, avera
 
 ggplot(data = prs.biodat.diet %>%
          filter(!is.na(source1), MT_status!="Empty") %>%
+         mutate(source1 = case_when(source1=="Human" ~ "Non-food",
+                                    TRUE ~ source1)) %>%
          # Add up prey source weights for each individual, and the total mass of all matter in the stomach
          group_by(lethal_tag_no, source1) %>%
          summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
@@ -252,9 +290,7 @@ ggplot(data = prs.biodat.diet %>%
          # Calculate the average prey source for each year
          group_by(year, source1) %>%
          summarize(mean_source_ww_propn = mean(propn_prey_source, na.rm=T)) %>%
-         mutate(check = sum(mean_source_ww_propn))# %>%
-        # filter(mean_source_ww_propn>0)
-) +
+         mutate(check = sum(mean_source_ww_propn))) +
   geom_bar(aes(x=as.factor(year), y=mean_source_ww_propn, fill=source1, colour=source1), stat="identity", position="dodge", 
            alpha=0.8, linewidth=1, width=0.5) +
   geom_label(data=prs.biodat.diet %>% 
@@ -264,11 +300,9 @@ ggplot(data = prs.biodat.diet %>%
                group_by(year) %>%
                summarize(n = n()), 
              aes(x=as.factor(year), y=-0.02, label=n), size=5) +
-  #scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "gray80",  "gray40")) +
-  scale_fill_manual(breaks=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Human", "Undetermined"), 
+  scale_fill_manual(breaks=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Non-food", "Undetermined"), 
                     values=c("#0424D9", "#98dd0b", "#00ffc8", "gray20",  "gray80")) +
-  #scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "#569351", "#5db18b", "gray80",  "gray40")) +.
-  scale_colour_manual(breaks=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Human", "Undetermined"), 
+  scale_colour_manual(breaks=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Non-food", "Undetermined"), 
                       values=c("#0424D9", "#98dd0b", "#00ffc8", "gray20", "gray80")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0, 1, by=0.1), limits=c(-0.02, 1)) +
   labs(y="Mean proportion in diet (g/g)", fill="Prey source", colour="Prey source") +
@@ -289,9 +323,9 @@ dev.off()
 # Same as above but incorporate site as a variable - may explain diet choices especially with taxa below 
 
 prs.biodat.diet$source1 <- factor(prs.biodat.diet$source1, levels=c("Marine", "Terrestrial", "Terrestrial/Freshwater", "Freshwater", "Non-food", "Undetermined", ordered=T))
-prs.biodat.diet$site_name_clean <- factor(prs.biodat.diet$site_name_clean, levels=c("BS18", "BS14", "BS03", "BS03B", "BS17", "BS06", "BS07", "BS24",
-                                                                                  "BS12", "BS09", "BS08", "BS23", "BS13", "BS21", "PS11-1", "FLBS01",
-                                                                                  ordered=T))
+# prs.biodat.diet$site_name_clean <- factor(prs.biodat.diet$site_name_clean, levels=c("BS18", "BS14", "BS03", "BS03B", "BS17", "BS06", "BS07", "BS24",
+#                                                                                   "BS12", "BS09", "BS08", "BS23", "BS13", "BS21", "PS11-1", "FLBS01",
+#                                                                                   ordered=T))
 
 pdf(file = here::here("outputs", "figures", "diet", "Marine diets (site, averaged - plot).pdf"),   
     width = 11, # The width of the plot in inches
@@ -599,6 +633,34 @@ dev.off()
 
 
 ## =============== Prey TAXA - AVERAGED ===============
+# Summarize data: 
+prs_meanTAXA_by_site <- prs.biodat.diet %>%
+  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
+         taxonomy_simple%notin%c("Non-food", "No sample", "Plastic")) %>%
+  mutate(tax_simp_plot = case_when(grepl("flies|beetles|insects|midges|bugs|wasps", taxonomy_simple, ignore.case=T) ~ 
+                                     "Insects",
+                                   grepl("arachnids|lice", taxonomy_simple, ignore.case=T) ~ "Other terrestrial arthropods",
+                                   TRUE ~ taxonomy_simple)) %>%
+  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
+  group_by(lethal_tag_no, tax_simp_plot) %>%
+  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
+            total_prey_ww = unique(total_ww_contents, na.rm=T),
+            lat=unique(lat_dd),
+            long=unique(long_dd),
+            site_name_clean = unique(site_name_clean))   %>%
+  # calculate the proportion of each prey source for each individual
+  group_by(lethal_tag_no) %>%
+  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
+  ungroup() %>%
+  # Fill in for missing categories and fill the missing values: 
+  complete(., lethal_tag_no, tax_simp_plot, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
+  group_by(lethal_tag_no) %>%
+  fill(c(site_name_clean, total_prey_ww, lat, long), .direction="updown") %>%
+  group_by(site_name_clean, tax_simp_plot) %>%
+  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T),
+            lat=mean(lat),
+            long=mean(long))
+
 
 pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified - averaged).pdf"),   
     width = 11, # The width of the plot in inches
@@ -623,21 +685,19 @@ ggplot() +
              group_by(taxonomy_simple) %>%
              summarize(mean_taxa_ww_propn = mean(propn_prey_taxa, na.rm=T)) %>%
              mutate(check = sum(mean_taxa_ww_propn))  %>%
-              mutate(source_simple = case_when(grepl("amphipods|barnacles|octopus|copepods|crustacean|decapods|fish|isopods|ostracods|parasites|polychaete", taxonomy_simple, ignore.case=T) ~ "Marine",
-                                               grepl("flies|arachnid|beetle|moth|insect|lice|midges|bug|wasp", taxonomy_simple, ignore.case=T) ~ "Terrestrial/Freshwater",
-                                               grepl("plant|seaweed", taxonomy_simple, ignore.case=T) ~ "Plant/seaweed",
-                                               taxonomy_simple=="Non-food" ~ "Non-food",
-                                               taxonomy_simple=="Plastic" ~ "Human",
-                                               grepl("Arthropod|Unidentified remains|invert", taxonomy_simple, ignore.case=T) ~ "Undetermined",
-                                               TRUE ~ "FLAG")),
+             mutate(source_simple = case_when(grepl("amphipods|branchiopod|barnacles|octopus|copepods|crustacean|decapods|fish|isopods|ostracods|parasites|polychaete", taxonomy_simple, ignore.case=T) ~ "Marine",
+                                              grepl("flies|arachnid|beetle|moth|insect|lice|midges|bug|wasp", taxonomy_simple, ignore.case=T) ~ "Terrestrial/Freshwater",
+                                              grepl("Non-food|plastic",  taxonomy_simple, ignore.case=T) ~ "Non-food",
+                                              grepl("Arthropod|Unidentified remains|invert", taxonomy_simple, ignore.case=T) ~ "Undetermined",
+                                              TRUE ~ "FLAG"),
+                    taxonomy_simple = case_when(grepl("non-food", taxonomy_simple, ignore.case=T) ~ "Non-food",
+                                                TRUE ~ taxonomy_simple)),
            aes(x=fct_reorder(taxonomy_simple, mean_taxa_ww_propn, .desc = TRUE), y=mean_taxa_ww_propn, fill=source_simple, colour=source_simple), 
            stat="identity", position="dodge", alpha=0.7, linewidth=1) +
-  # scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "gray80", "#569351", "gray40")) +
-  # scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "gray80", "#569351", "gray40")) +
-  scale_fill_manual(breaks=c("Marine", "Terrestrial/Freshwater", "Plant/seaweed", "Human", "Undetermined"), 
-                     values=c("#0424D9", "#6be980", "#277f00", "gray20", "gray80")) +
-  scale_colour_manual(breaks=c("Marine", "Terrestrial/Freshwater", "Plant/seaweed", "Human", "Undetermined"), 
-                      values=c("#0424D9", "#6be980", "#277f00", "gray20", "gray80")) +
+  scale_fill_manual(breaks=c("Marine", "Terrestrial/Freshwater", "Non-food", "Undetermined"), 
+                     values=c("#0424D9", "#6be980", "gray20", "gray80")) +
+  scale_colour_manual(breaks=c("Marine", "Terrestrial/Freshwater", "Non-food", "Undetermined"), 
+                      values=c("#0424D9", "#6be980", "gray20", "gray80")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0, 1, by=0.1), limits=c(0, 0.5)) +
   labs(x="", y="Mean proportion in diet (g/g)", fill="Prey source", colour="Prey source") +
   theme_bw() +
@@ -655,34 +715,9 @@ dev.off()
 
 
 
-### Taxa by SITE - Mapped -------------------
+### Taxa by SITE (mapped) -------------------
 
-prs_meanTAXA_by_site <- prs.biodat.diet %>%
-  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
-         taxonomy_simple%notin%c("Non-food", "No sample", "Plastic")) %>%
-  mutate(tax_simp_plot = case_when(grepl("flies|beetles|insects|midges|bugs|wasps", taxonomy_simple, ignore.case=T) ~ 
-                                     "Insects",
-                                   grepl("arachnids|lice", taxonomy_simple, ignore.case=T) ~ "Other terrestrial invertebrates",
-                                   TRUE ~ taxonomy_simple)) %>%
-  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
-  group_by(lethal_tag_no, tax_simp_plot) %>%
-  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
-            total_prey_ww = unique(total_ww_contents, na.rm=T),
-            lat=unique(lat_dd),
-            long=unique(long_dd),
-            site_name_clean = unique(site_name_clean))   %>%
-  # calculate the proportion of each prey source for each individual
-  group_by(lethal_tag_no) %>%
-  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
-  ungroup() %>%
-  # Fill in for missing categories and fill the missing values: 
-  complete(., lethal_tag_no, tax_simp_plot, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
-  group_by(lethal_tag_no) %>%
-  fill(c(site_name_clean, total_prey_ww, lat, long), .direction="updown") %>%
-  group_by(site_name_clean, tax_simp_plot) %>%
-  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T),
-            lat=mean(lat),
-            long=mean(long)) %>%
+prs_meanTAXA_by_site_mapped <- prs_meanTAXA_by_site %>%
   ungroup() %>%
   pivot_wider(names_from = tax_simp_plot, values_from = mean_prey_ww_propn) %>%
   mutate(site_name_clean = gsub(site_name_clean, pattern=" ", replacement="_")) %>%
@@ -698,13 +733,15 @@ colours <- #c("#14c8aa", "#ff006f", "#ff827b", "#2a4b7c",
              # "#3d6643", "#ffc880", "#039be5",  "#fff700", 
              # ,  "#9fe375", "#7fffd4",  "#444444", 
              # "#e3faff", "#bcbcbc")
-  c("#14c8aa", "#ce2000", "#ff827b", "#2a4b7c",
-    "#0000ff", "#9acda0", "#c76ee0", "#ffa900", 
-    "#f57407", "#ffcdff", "#3d6643", "#e3faff",  
-    "#039be5", "#fff700", "#bcbcbc",  "#9fe375", 
-    "#7fffd4",  "#444444")
+  c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+    "#0000ff", "#9acda0", "#ffd9ea", "#7fffd4",
+    "#9fe375", "#ffa900", "#1ba831", "#bcbcbc",
+    "#e3faff", "#fff700", "#ff006f", "#f57407", "#ad00ff",
+    "#444444")
+    
+   
 
-
+""#ce2000
 palE <- colorNumeric(c("#02006f", "#0028c4", "#3492ff", "#90dcff", "#d2f1ff", '#e7f7ff'), raster::values(bathyE),
                      na.color = "transparent")
 palW <- colorNumeric(c("#02006f", "#0028c4", "#3492ff", "#90dcff", "#d2f1ff", '#e7f7ff'), raster::values(bathyE),
@@ -767,3 +804,58 @@ leaflet() %>%
     chartdata = Thrasher[, c(3:20)], 
     colorPalette = colours, 
     width = 40, transitionTime = 0) 
+
+
+
+
+
+### Taxa by SITE (plot) ----------------
+prs_meanTAXA_by_site$site_name_clean <- factor(prs_meanTAXA_by_site$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
+                                                                                              "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                              ordered=T))
+prs.biodat.diet$site_name_clean <- factor(prs.biodat.diet$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
+                                                                                    "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                    ordered=T))
+
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified and SITE).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data = prs_meanTAXA_by_site %>%
+             mutate(tax_simp_plot = case_when(grepl("non-food", tax_simp_plot, ignore.case=T) ~ "Non-food",
+                                              TRUE ~ tax_simp_plot)),
+           aes(x=site_name_clean, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), 
+           stat="identity", position="stack", alpha=0.7, linewidth=1) +
+  geom_label(data=prs.biodat.diet %>%
+               filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean)) %>%
+               group_by(lethal_tag_no, site_name_clean) %>%
+               summarize(n=n()) %>%
+               group_by(site_name_clean) %>%
+               summarize(n=n()),
+             aes(x=site_name_clean, y=-0.03, label=n), size=4.5) +
+  scale_fill_manual(breaks=waiver(), 
+                    values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                             "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                             "#9fe375", "#f57407", "#1ba831", "#bcbcbc",
+                             "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                             "#444444")) +
+  scale_colour_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#bcbcbc",
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                               "#444444")) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+  labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(colour="black", size=15),
+        axis.title = element_text(face="bold", size=17),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+        plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
+        strip.text = element_text(size=18))  
+
+dev.off()
