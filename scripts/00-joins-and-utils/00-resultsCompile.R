@@ -35,7 +35,10 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
          resolved_weight_g = case_when(resolved_weight_source=="field" ~ as.numeric(weight),
                                        resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
                                        resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
-         condK = resolved_weight_g/(length^3)*100000) %>%
+         condK = resolved_weight_g/(length^3)*100000,
+         species = stringr::str_to_lower(species),
+         species = case_when(grepl("perch", species, ignore.case=T) ~ "Perch",
+                             grepl("smelt", species, ignore.case=T) ~ "Smelt")) %>%
   relocate(c(lab_weight_g, modelled_weight_g), .after=weight) %>%
   relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
   rename(fork_length_mm = length,
@@ -215,36 +218,66 @@ biosamp.gsi.linked <-  left_join(biodata,
                                  gsi.master,
                                  by=c("DNA_vial" = "MGL_Vial"),
                                  na_matches = "never") %>%
-  mutate(origin_method = case_when(ad_clip=="Y" ~ "Ad clip (presence)",
+  mutate(resolved_species = case_when(MGL_species == "chinook" & grepl("assume chinook", MGL_notes, ignore.case=T) ~ "Chinook",
+                                      !is.na(cwt_code) ~ "Chinook",
+                                      MGL_ID_Source == "PBT" ~ "Chinook",
+                                      MGL_ID_Source == "GSI" & grepl("chinook", MGL_species) ~ "Chinook",
+                                      MGL_species == "coho" ~ "Coho",
+                                      MGL_ID_Source != "GSI" & MGL_species == "coho; chinook" & MGL_notes == "Species ID ambiguous, use caution with result" ~ paste0(MGL_species, " (genetics ambiguous)"),
+                                      MGL_species == "chinook; pink" & MGL_notes == "Species ID ambiguous, use caution with result" ~ "Chinook (assumed)",
+                                      MGL_species %in% c("chum", "pink") ~ stringr::str_to_title(MGL_species),
+                                      
+                                      grepl("perch", species, ignore.case=T) ~ "Perch",
+                                      grepl("smelt", species, ignore.case=T) ~ "Smelt",
+                                      
+                                      TRUE ~ stringr::str_to_title(species)),
+         
+         origin_method = case_when(ad_clip=="Y" ~ "Ad clip (presence)",
                                    cwt=="Y" | !is.na(cwt_code) ~ "CWT",
-                                   MGL_ID_Source=="PBT" ~ "PBT (presence/absence)",
+                                   MGL_ID_Source == "PBT" ~ "PBT (presence/absence)",
+                                   
+                                   # Freshwater rules: 
                                    grepl("HATTK|HATSP|HATLP", usid) ~ "Hatchery sample",
-                                   year=="2023" & gear %in% c("IPT", "6' RST") ~ "F/W sample, no hatchery releases",
-                                   year=="2023" & gear%in%c("Beach seine", "Mini purse seine") & date < as.Date("2023-05-25") ~ "F/W sample before hatchery releases",
-                                   year=="2024" & date < as.Date("2024-04-29") ~ "F/W sample before hatchery releases",
-                                   year=="2025" & ad_clip=="N" ~ "Ad clip (absence in f/w)",
-                                   year=="2025" & date < as.Date("2025-04-27") ~ "F/W sample before hatchery releases",
-                                   MGL_ID_Source=="GSI" ~ "PBT (presence/absence)",
-                                   gear %in% c("IPT", "6' RST") & species %in% c("chum", "coho", "trout") ~ "F/W sample of non-enhanced species",
-                                   gear=="IPT" ~ "F/W sample before hatchery releases",
+                                   gear == "IPT" & resolved_species=="Chinook" ~ "F/W sample before hatchery releases",
+                                   year=="2023" & gear %in% c("IPT", "6' RST") & resolved_species == "Chinook" ~ "F/W sample, no hatchery releases",
+                                   year=="2024" & gear %in% c("IPT", "6' RST") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "F/W sample before hatchery releases",
+                                   year=="2025" & gear %in% c("IPT", "6' RST") & ad_clip=="N" & resolved_species == "Chinook" ~ "Ad clip (absence in f/w)",
+                                   year=="2025" & gear %in% c("IPT", "6' RST") & date < as.Date("2025-04-27") & resolved_species == "Chinook" ~ "F/W sample before hatchery releases",
+                                   gear %in% c("IPT", "6' RST") & resolved_species != "Chinook" ~ "Freshwater non-enhanced species",
+                                   
+                                   # Marine/estuary rules: 
+                                  # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
+                                   #year == "2024" & gear %in% c("Beach seine", "Mini purse seine") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Sample before hatchery releases",
+                                   gear %in% c("Beach seine", "Mini purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "PBT (presence/absence)",
+                                   grepl("seine", gear, ignore.case=T) & resolved_species == "Coho" & ad_clip != "Y" ~ "Ad clip (absence, coho)", 
+                                   grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ NA,
+
                                    TRUE ~ NA),
          hatchery_origin = case_when(ad_clip=="Y" ~ "Hatchery",
                                      cwt=="Y" | !is.na(cwt_code) ~ "Hatchery",
-                                     MGL_ID_Source=="PBT" ~ "Hatchery",
+                                     MGL_ID_Source == "PBT" ~ "Hatchery",
+                                     
+                                     # Freshwater rules: 
                                      grepl("HATTK|HATSP|HATLP", usid) ~ "Hatchery",
-                                     year=="2023" & gear %in% c("IPT", "6' RST") ~ "Natural",
-                                     year=="2023" & gear%in%c("Beach seine", "Mini purse seine") & date < as.Date("2023-05-25") ~ "Natural",        # earliest hatchery release date 2023 (lakepen)
-                                     year=="2024" & date < as.Date("2024-04-29") ~ "Natural",  # earliest hatchery release date 2024 (river)
-                                     year=="2025" & ad_clip=="N" ~ "Natural",
-                                     year=="2025" & date < as.Date("2025-04-27") ~ "Natural",  # earliest hatchery release date 2025 (river)
-                                     MGL_ID_Source=="GSI" ~ "Natural (assumed)",
-                                     gear %in% c("IPT", "6' RST") & species %in% c("chum", "coho", "trout") ~ "Natural",
-                                     gear=="IPT" ~ "Natural", 
+                                     gear == "IPT" & resolved_species=="Chinook" ~ "Natural",
+                                     year=="2023" & gear %in% c("IPT", "6' RST") & resolved_species == "Chinook" ~ "Natural",
+                                     year=="2024" & gear %in% c("IPT", "6' RST") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Natural",
+                                     year=="2025" & gear %in% c("IPT", "6' RST") & ad_clip=="N" & resolved_species == "Chinook" ~ "Natural",
+                                     year=="2025" & gear %in% c("IPT", "6' RST") & date < as.Date("2025-04-27") & resolved_species == "Chinook" ~ "Natural",
+                                     gear %in% c("IPT", "6' RST") & resolved_species != "Chinook" ~ "Natural",
+                                     
+                                     # Marine/estuary rules: 
+                                     # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
+                                     #year == "2024" & gear %in% c("Beach seine", "Mini purse seine") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Sample before hatchery releases",
+                                     gear %in% c("Beach seine", "Mini purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "Natural",
+                                     gear %in% c("Beach seine", "Mini purse seine") & resolved_species == "Coho" & ad_clip != "Y" ~ "Natural", 
+                                     grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ "Unknown",
+                                     
                                      TRUE ~ "Unknown"),
          resolved_stock_id_method = case_when(MGL_ID_Source=="PBT" ~ "PBT",
                                               !is.na(cwt_code) ~ "CWT",
                                               MGL_ID_Source=="GSI" & MGL_associated_collection_prob>80 ~ "GSI (>80%)",
-                                              MGL_ID_Source=="GSI" & MGL_associated_collection_prob>70 & MGL_associated_collection_prob<80 ~ 
+                                              MGL_ID_Source=="GSI" & MGL_associated_collection_prob>=70 & MGL_associated_collection_prob<80 ~ 
                                                 "GSI (70-80%)",
                                               gear %in% c("IPT", "6' RST") ~ "F/W sample",
                                               TRUE ~ NA
@@ -271,14 +304,13 @@ biosamp.gsi.linked <-  left_join(biodata,
          
          resolved_stock_origin = paste0(hatchery_origin, " ", resolved_stock_id),
          
-         resolved_stock_origin_rollup = case_when(grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc|soos|umpqua|puget|columbia", 
+         resolved_stock_origin_rollup = case_when(grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc|soos|umpqua|puget|columbia|snohomish", 
                                                         resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " US"),
                                                   
                                                   grepl("harrison|fraser", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Fraser River"),
 
-                                                  hatchery_origin=="Hatchery" & !grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc", 
-                                                                                       resolved_stock_id, ignore.case=T) ~ 
-                                                    resolved_stock_origin,
+                                                  hatchery_origin=="Hatchery" & !grepl("queets|forks creek|abernathy|hood|cwa|nooksack|hoh|quinault|sol|duc|soos|umpqua|puget|columbia|snohomish", 
+                                                                                       resolved_stock_id, ignore.case=T) ~ resolved_stock_origin,
                                                   
                                                   resolved_stock_id_method=="F/W sample" ~ resolved_stock_origin,
                                                   
@@ -295,7 +327,7 @@ biosamp.gsi.linked <-  left_join(biodata,
                                                   grepl("GSI", resolved_stock_id_method) & grepl("marble|colonial", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Quatsino"),
                                                   grepl("GSI", resolved_stock_id_method) & grepl("woss|salmon|quinsam|nimpkish", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Northeast VI"),
                                                   grepl("GSI", resolved_stock_id_method) & grepl("cowichan|nanaimo|qualicum|puntledge|englishman", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " Strait of Georgia"),
-                                                  grepl("GSI", resolved_stock_id_method) & grepl("swvi|nwvi", resolved_stock_id, ignore.case=T) ~ paste0(hatchery_origin, " ", resolved_stock_id),
+                                                  resolved_stock_id_method=="GSI (70-80%)" & grepl("swvi|nwvi", resolved_stock_origin, ignore.case=T) ~ resolved_stock_origin,
 
                                                   resolved_stock_id=="Unknown" ~ paste0(hatchery_origin, " Unknown"),
 
@@ -304,6 +336,7 @@ biosamp.gsi.linked <-  left_join(biodata,
                                   !grepl("san juan", resolved_stock_id, ignore.case=T) ~ "stray",
                                   TRUE ~ NA)) %>%
   print()
+
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
