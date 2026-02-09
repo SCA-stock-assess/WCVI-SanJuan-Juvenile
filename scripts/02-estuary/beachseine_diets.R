@@ -32,8 +32,6 @@ bs.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-
                                     TRUE ~ NA),
          total_ww_contents = sum(total_ww_g, na.rm=T)) %>%
   ungroup() %>%
- # mutate(weight_no_contents = as.numeric(weight) - total_ww_contents,
-         #PFI = total_ww_g/weight_no_contents) %>%
   left_join(.,
             readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                pattern="^R_OUT - San Juan PSSI master database",
@@ -65,8 +63,9 @@ bs.biodat.diet %>%
   group_by(taxonomy_simple) %>% 
   summarize(n=n())
 
-View(bs.biodat.diet %>% filter(!is.na(lethal_tag_no), is.na(taxonomy_simple)))
 
+
+#so we are basically summarizing empty stomachs as + true empty + stomachs with only parasites + stomachs with only non-food (wood, algae debris)
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -80,9 +79,10 @@ bs.biodat.diet %>%
   summarize(MT_status = unique(MT_status))  
 
 
-# Exclude non-food and calculate % empty/not empty --------------
+# Calculate % empty/not empty --------------
 bs.biodat.diet %>%
-  filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
+  filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", 
+         ) %>%
   group_by(year, lethal_tag_no) %>% 
   summarize(MT_status_fish=unique(MT_status_fish)) %>% 
   group_by(year, MT_status_fish) %>%
@@ -90,10 +90,12 @@ bs.biodat.diet %>%
   group_by(year) %>%
     mutate(year_total=sum(n),
            propn=n/year_total)
+# Checked too - all stomachs with parasites and/or non-food had at least some other dietary components so would not be called "empty" - these ^ represent true empty stomachs
 
 
 # Do we know anything about the fish with empty stomachs --------------
 bs.biodat.diet %>%
+  group_by(lethal_tag_no) %>%
   filter(MT_status_fish=="Empty") %>%
   select(year, mgl_id_source, mgl_top_collection)
 
