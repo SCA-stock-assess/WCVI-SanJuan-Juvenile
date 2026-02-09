@@ -6,16 +6,17 @@
 
 # ========================= SET UP =========================
 
-# Load libraries -------------------
+## Load libraries -------------------
 library(tidyverse)
 
-# Load helpers ---------------
+## Load helpers ---------------
 "%notin%" <- Negate("%in%")
+options(scipen=99999)
 
 
 # ========================= LOAD JUVENILE DATA =========================
 
-# Sample events ----------------- 
+## Sample events ----------------- 
 eventMeta <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                 pattern="^R_OUT - San Juan PSSI master database",
                                                 full.names = T),
@@ -27,7 +28,7 @@ eventMeta <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/G
 
 
 
-# Environmentals ----------------- 
+## Environmentals ----------------- 
 enviros <- readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/",
                                                 pattern = "^R_OUT - San Juan PSSI master database",
                                                 full.names = T),
@@ -36,7 +37,7 @@ enviros <- readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO
 
 
 
-# Catch totals ----------------- 
+## Catch totals ----------------- 
 setTotals <-  readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/",
                                                    pattern = "^R_OUT - San Juan PSSI master database",
                                                    full.names = T),
@@ -68,14 +69,20 @@ setTotals <-  readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-
   janitor::clean_names()
 
 
-# Mark-release ----------------- 
+## Mark-release ----------------- 
 release <- readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/",
                                                 pattern = "^R_OUT - San Juan PSSI master database",
                                                 full.names = T),
-                              sheet="mark-release")
+                              sheet="mark-release") %>%
+  mutate_at("total_released", as.numeric)  %>%
+  mutate_at("release_date", as.Date) %>%
+  mutate(life_stage = case_when(grepl("parr", life_stage) ~ "smolt",
+                                TRUE ~ life_stage),
+         release_doy = lubridate::yday(release_date),
+         year = lubridate::year(release_date))
 
 
-# Hatchery release dates ----------------- 
+## Hatchery release dates ----------------- 
 hatchery_releases <- readxl::read_excel(path = here::here("data", "hatchery-releases", "upperSJ_hatchery_releases_2024-2025.xlsx"),
                                         sheet=1) %>%
   mutate(doy = lubridate::yday(date))
@@ -117,7 +124,7 @@ hydro <- full_join(
 
 # =============== VISUALIZE FISHING EVENTS/EFFORT ===============
 
-# For 2023 ------------
+## For 2023 ------------
 ggplot() +
   geom_segment(data=eventMeta %>% 
                  filter(year==2023), aes(x=datetime_start, xend=datetime_stop, y=NA, yend=NA, colour=set_type), size=10, alpha=0.7) +
@@ -125,7 +132,7 @@ ggplot() +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1)) 
 
-# For 2024 ------------
+## For 2024 ------------
 ggplot() +
   geom_segment(data=eventMeta %>% 
                  filter(year==2024), aes(x=datetime_start, xend=datetime_stop, y=NA, yend=NA, fill=set_type), size=10, alpha=0.7) +
@@ -133,7 +140,7 @@ ggplot() +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1))
 
-# For 2025 ------------
+## For 2025 ------------
 ggplot() +
   geom_segment(data=eventMeta %>% 
                  filter(year==2025), aes(x=datetime_start, xend=datetime_stop, y=NA, yend=NA, fill=set_type), size=10, alpha=0.7) +
@@ -145,15 +152,13 @@ ggplot() +
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# RAW DATA PLOTS FOR REPORT
-
 # ===================== OBSERVED CATCH DATA =====================
 
 pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST observed catches - all years, species.pdf"),   
     width = 16, # The width of the plot in inches
     height = 14) # The height of the plot in inches
 
-# All species/years bar plot
+## All species/years (plot) -------------------
 ggplot() +
   geom_bar(data=eventMeta_totals %>% 
              pivot_longer(cols=c(chinook_natural_obs:chinook_hatchery_obs), names_to = "species_life_stage", values_to = "count") %>%
@@ -199,8 +204,10 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
+#                                                      SET UP DATA FOR IMPUTATION (INFILLING)
 
-# =============== JOIN META + TOTALS ===============
+
+# =============== JOIN eventMeta + setTotals ===============
 
 # Link set totals to events so that I have the start/end times associated with the totals
 eventMeta_totals <- full_join(eventMeta %>%
@@ -245,7 +252,7 @@ eventMeta_totals <- full_join(eventMeta %>%
 
 # =============== CREATE IMPUTATION VALIDATION DATA SET ===============
 
-# Identify annual sample sizes representing 20% of the data (non-NA days) each year ------------
+## Identify annual sample sizes representing 20% of the data (non-NA days) each year ------------
 #     These sample sizes are going to be used to randomly select a number of days from each year to validate imputation models
 #     Here I just used the natural Chinook series as a representative variable - all species counts have the same NA days so it is arbitrary which variable is
 #     used. Could have also used coho_subyearling_obs and gotten the same calculation 
@@ -265,7 +272,7 @@ random.sample.sizes <- data.frame(year=c(2023,2024,2025),
                                       pull(n)))
 
 
-# Random selection of values to replace per year for each of the focal species being infilled: 
+### Random selection of values to replace per year for each of the focal species being infilled ------
 set.seed(3)
 random.selection <- eventMeta_totals %>%
   group_split(year) %>%
@@ -277,7 +284,7 @@ random.selection <- eventMeta_totals %>%
          chinook_hatchery_obs_validation = NA)                                                                  # Overwrite those dates with NAs for model validation
 
 
-# Rejoin to full dataset, but just simplify a bit for infilling/validation --------------
+## Rejoin to full dataset, but just simplify a bit for infilling/validation --------------
 eventMeta_totals_impValFull <- full_join(eventMeta_totals %>%
                                 filter(date_stop %notin% random.selection$date_stop),
                               
@@ -309,7 +316,7 @@ eventMeta_totals_impValFull <- full_join(eventMeta_totals %>%
 
 
 
-# Avg/range of hours fished ------------
+## Avg/range of hours fished ------------
 TBL.operational_hours_summary <- eventMeta_totals %>%
   filter(!is.na(usid)) %>%
   group_by(year) %>% 
@@ -318,15 +325,8 @@ TBL.operational_hours_summary <- eventMeta_totals %>%
             max_hrs = max(hrs_fished, na.rm=T))
 
 
-
-
-
-
-
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
-
-
 
 
 # INFILLING MISSED DAYS 
@@ -365,25 +365,157 @@ imputeTS::statsNA(ts(eventMeta_totals_impValFull[eventMeta_totals_impValFull$yea
 # See each unique sub-script, e.g., 01-1-cpue-infilling-abundance-CN_NO.R
 
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
 
 # =============== FINAL INFILLING! ===============
-# *** next day: need the paper sheets in office to put in the final choice for each species!
 
+# The top models selected were:
+# 2024:
+  # NO chinook - na_kalman (structTS)
+  # coho subY - na_kalman (ARIMA)
+  # coho Y - na_interp (stine)
+# 2025:
+  # NO chinook - na_interp (linear) or na_kalman (either)  **thinking kalman/ARIMA because it was chosen most times 
+  # coho subY - na_ma (2 or 3 day window - pick 2 day)
+  # coho Y - na_kalman (ARIMA)
 
+## Apply the chosen infill models ------------------
+eventMeta_totals_INFILLEDFINAL <- full_join(
+  eventMeta_totals_impValFull %>%
+    filter(year == 2024) %>%
+    select(-c(contains("validation"))) %>%
+    mutate(chinook_natural_obs = imputeTS::na_kalman(ts(chinook_natural_obs), model="StructTS"),
+           coho_subyearling_obs = imputeTS::na_kalman(ts(coho_subyearling_obs), model="auto.arima"),
+           coho_yearling_obs = imputeTS::na_interpolation(ts(coho_yearling_obs), option="stine")),
+  
+  eventMeta_totals_impValFull %>%
+    filter(year == 2025) %>%
+    select(-c(contains("validation"))) %>%
+    mutate(chinook_natural_obs = imputeTS::na_interpolation(ts(chinook_natural_obs), option="linear"),
+           coho_subyearling_obs = imputeTS::na_ma(ts(coho_subyearling_obs), weighting="simple", k=2),
+           coho_yearling_obs = imputeTS::na_kalman(ts(coho_yearling_obs), model="auto.arima")),
+) %>%
+  full_join(.,
+            eventMeta_totals_impValFull %>%
+              filter(year == 2023) %>%
+              select(-c(contains("validation")))) %>%
+  rename (chinook_natural = chinook_natural_obs,
+          coho_subyearling = coho_subyearling_obs,
+          coho_yearling = coho_yearling_obs,
+          chum_fry = chum_fry_obs,
+          coho_alevin = coho_alevin_obs,
+          chinook_hatchery = chinook_hatchery_obs) %>%
+  pivot_longer(cols=c(chinook_natural:chinook_hatchery), values_to = "count", names_to = "species") %>%
+  mutate(species = case_when(species=="chinook_natural" ~ "Chinook (natural)",
+                             species=="coho_subyearling"~ "Coho fry (sub-yearling)",
+                             species=="coho_yearling"~ "Coho smolt (yearling)",
+                             species=="chum_fry"~ "Chum fry",
+                             species=="chinook_hatchery"~ "Chinook (hatchery)",
+                             species=="coho_alevin"~ "Coho alevin"
+                             ))
+  
+  
 
-# Hatchery-origin Chinook:
-# **** next day: need to truncate hatchery chinook time series based on release dates and re-do infilling from the new "day 0"
+## Plot ------------------
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST infilled.pdf"),   
+    width = 16, # The width of the plot in inches
+    height = 14) # The height of the plot in inches
 
-# Sub-yearling Coho:
+ggplot(data=eventMeta_totals_INFILLEDFINAL %>%
+         filter(species %in% c("Chinook (natural)", "Coho fry (sub-yearling)", "Coho smolt (yearling)"),
+                year != 2023)) +
+  geom_point(aes(x=as.Date(doy, origin="2023-12-31"), y=count, fill=species, colour=species, shape=estimate_type), 
+             alpha=0.8, size=4, stroke=2) +
+  geom_line(aes(x=as.Date(doy, origin="2023-12-31"), y=count, colour=species), 
+            alpha=0.8, linewidth=1) +
+  scale_fill_manual(values=c("Chinook (natural)" = "#7caed1",
+                             "Coho fry (sub-yearling)" = "#fdb462",
+                             "Coho smolt (yearling)" = "#fb8072")) +
+  scale_colour_manual(values=c("Chinook (natural)" = "#7caed1",
+                             "Coho fry (sub-yearling)" = "#fdb462",
+                             "Coho smolt (yearling)" = "#fb8072")) +
+  scale_shape_manual(values=c("infill" = 4,
+                               "observed" = 21),
+                     labels = c("infill"="Infilled",
+                                "observed" = "Observed")) +
+  scale_x_date(date_breaks="7 day", date_labels = "%b %d") +
+  labs(y="Juvenile salmon counts", fill="Species/life history", colour="Species/life history", shape="Count type") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=19),
+        axis.text.x = element_text(angle=45, hjust=1),
+        axis.title = element_text(face="bold", size=23),
+        axis.title.x = element_blank(),
+        legend.title = element_text(face="bold", size=20),
+        legend.text = element_text(size=19),
+        strip.text = element_text(size=20, face="bold")) +
+  facet_wrap(~year, scales="free", nrow=2)
 
-# Yearling Coho:
-
-# Chum:
-
-
-
-
+dev.off()
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ======================= TRAP EFFICIENCY ======================= 
+
+release_summary <- release %>%
+  filter(total_released > 0) %>%
+  group_by(year, life_stage) %>%
+  summarize(release_by_stage = sum(total_released)) %>%
+  print()
+
+ggplot() +
+  geom_point(data=release %>%
+               group_by(year, release_doy, life_stage) %>%
+               summarize(n = sum(total_released, na.rm=T)) %>%
+               filter(n > 0),
+             aes(x=release_doy, y=n), size=4, shape=21, fill="gray70", stroke=1) +
+  
+  geom_point(data=setTotals %>%
+               filter(bismarck_recaps > 0) %>%
+               mutate(life_stage = case_when(life_stage=="subyearling" ~ "fry",
+                                             life_stage=="yearling" ~ "smolt",
+                                             TRUE ~ life_stage)) %>%
+               group_by(year, doy, life_stage) %>%
+               summarize(n = sum(bismarck_recaps, na.rm=T)) %>%
+               filter(n > 0) ,
+             aes(x=doy, y=n), size=4, shape=21, fill="red", stroke=1) +
+  #scale_x_date(date_breaks="2 day", date_labels="%b %d") +
+  scale_x_continuous(breaks=seq(0,366, by=2)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) +
+  facet_wrap(year ~ life_stage, scales="free")
+  
+
+
+mark_rel_sum <- left_join(
+  
+  release %>% 
+    group_by(year, release_date, life_stage) %>%
+    summarize(total_marks_released_M = sum(total_released, na.rm=T)),
+  
+  
+  setTotals %>%
+    filter(grepl("chinook|coho", species, ignore.case=T)) %>%
+    select(year, date, life_stage, total_caught_incl_recaps, bismarck_recaps) %>%
+    mutate(life_stage = case_when(life_stage=="subyearling" ~ "fry",
+                                  life_stage=="yearling" ~ "smolt",
+                                  TRUE ~ life_stage))  %>%
+    group_by(year, date, life_stage) %>%
+    summarize(total_caught_markunmarked_nC = sum(total_caught_incl_recaps, na.rm=T),
+              total_recaps_mR = sum(bismarck_recaps, na.rm=T)) %>%
+    rename(catch_date = date) %>%
+    mutate(catch_date_lagged = as.Date(catch_date)-1),
+
+  
+  by=c("release_date" = "catch_date_lagged",
+    "life_stage", "year")
+) %>%
+  filter(year != 2023) %>%
+  select(year, life_stage, release_date, catch_date, total_marks_released_M, total_caught_markunmarked_nC, total_recaps_mR) %>%
+  arrange(year, life_stage)
+
+
+write.csv(mark_rel_sum, "mark_rel_sum test2.csv", row.names=F)
