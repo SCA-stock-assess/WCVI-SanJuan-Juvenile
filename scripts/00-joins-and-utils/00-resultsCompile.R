@@ -36,9 +36,10 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
                                        resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
                                        resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
          condK = resolved_weight_g/(length^3)*100000,
-         species = stringr::str_to_lower(species),
+         #species = ,
          species = case_when(grepl("perch", species, ignore.case=T) ~ "Perch",
-                             grepl("smelt", species, ignore.case=T) ~ "Smelt")) %>%
+                             grepl("smelt", species, ignore.case=T) ~ "Smelt",
+                             TRUE ~ stringr::str_to_title(species))) %>%
   relocate(c(lab_weight_g, modelled_weight_g), .after=weight) %>%
   relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
   rename(fork_length_mm = length,
