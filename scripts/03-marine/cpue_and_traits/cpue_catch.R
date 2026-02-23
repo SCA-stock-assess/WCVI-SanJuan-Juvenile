@@ -61,17 +61,17 @@ day_site_sets %>%
 # Stat week and site
 effort <- setTotals.Meta %>% 
   filter(usid !="07Jul23-PRS-Gordon R-1") %>% 
-  group_by(year, statWeek, site_name_clean) %>% 
+  group_by(statWeek, site_name_clean) %>% 
   summarize(usid = unique(usid)) %>%
-  group_by(year, statWeek, site_name_clean) %>%
-  summarize(effort_sets=n(), usid=usid) %>%
+  group_by(statWeek, site_name_clean) %>%
+  summarize(effort_sets=n()) %>%
   print()
 
 
 # Calculate CPUE -------------
 CPUE <- setTotals.Meta %>% 
-  group_by(year, statWeek, site_name_clean, species_simple) %>% 
-  summarize(usid = unique(usid),
+  group_by(statWeek, site_name_clean, species_simple) %>% 
+  summarize(#usid = unique(usid),
             total_catch = sum(total_caught_excl_recaps, na.rm=T)) %>%
   left_join(.,
             effort) %>%
@@ -85,23 +85,29 @@ CPUE$statWeek <- factor(CPUE$statWeek, levels=c("05-1", "05-2", "05-3", "05-4", 
                                                 "07-4", "08-1", "08-2", "08-3", "08-4", "08-5", "09-1", "09-2", "09-3", "09-4", "10-1", "10-2",
                                                 "10-3", "10-4", "10-5"), ordered=T)
 
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Purse seine CPUE - site.pdf"),   
+    width = 20, # The width of the plot in inches
+    height = 12) # The height of the plot in inches
+
 ggplot() +
   geom_bar(data = CPUE %>%
              filter(!is.na(species_simple), CPUE>0) %>%
              group_by(site_name_clean, statWeek, species_simple) %>%
              summarize(mean_CPUE = mean(CPUE, na.rm=T)),
-           aes(x=statWeek, y=mean_CPUE, fill=species_simple, colour=species_simple), stat="identity", position="stack", alpha=0.8, linewidth=1) +
+           aes(x=statWeek, y=mean_CPUE, fill=species_simple, colour=species_simple), stat="identity", position="stack", alpha=0.7, linewidth=1) +
+  # geom_label(data = CPUE %>%
+  #              filter(!is.na(species_simple), CPUE>0) %>%
+  #              group_by(site_name_clean, statWeek) %>%
+  #              summarize(n_sets = sum(effort_sets)),
+  #            aes(x=statWeek, y=-25, label=n_sets), size=4.5) +
   scale_fill_manual(values=c("Anchovy" = "#ff3366",
                              "Chinook" = "#91ebec",
-                             #"Chinook (natural)" = "#7caed1",
                              "Chum" = "#b3de69",
-                             #"Coho alevin" = "#ffffb3",
-                             #"Coho fry (sub-yearling)" = "#fdb462",
                              "Coho" = "#fb8072",
                              "Herring" = "#940317",
-                             "Other benthic species/groundfish" = "gray90",
+                             "Other benthic species/groundfish" = "gray70",
                              "Perch" = "#955230",
-                             "Sandlance" = "#cdc1ff",
+                             "Sandlance" = "#b3a1ff",
                              "Sardine" = "#2e5aac",
                              "Smelts" = "#e57a00",
                              "Sockeye" = "#f9d251",
@@ -109,42 +115,78 @@ ggplot() +
                              )) +
   scale_colour_manual(values=c("Anchovy" = "#ff3366",
                              "Chinook" = "#91ebec",
-                             #"Chinook (natural)" = "#7caed1",
                              "Chum" = "#b3de69",
-                             #"Coho alevin" = "#ffffb3",
-                             #"Coho fry (sub-yearling)" = "#fdb462",
                              "Coho" = "#fb8072",
                              "Herring" = "#940317",
-                             "Other benthic species/groundfish" = "gray90",
+                             "Other benthic species/groundfish" = "gray70",
                              "Perch" = "#955230",
-                             "Sandlance" = "#cdc1ff",
+                             "Sandlance" = "#b3a1ff",
                              "Sardine" = "#2e5aac",
                              "Smelts" = "#e57a00",
                              "Sockeye" = "#f9d251",
                              "Steelhead" = "#ccff00"
   )) +
-  labs(x="Stat week (month-week)", y="Mean CPUE (catch per set)") +
+  labs(x="Stat week (month-week)", y="CPUE (catch per set)") +
   theme_bw() +
-  theme(axis.text = element_text(colour="black", size=21),
-        axis.text.x = element_text(angle=45, hjust=1),
-        axis.title = element_text(face="bold", size=25),
+  theme(axis.text.x = element_text(angle=45, hjust=1, size=15),
+        axis.text = element_text(colour="black", size=19),
+        axis.title = element_text(face="bold", size=22),
         legend.title = element_blank(),
-        legend.text = element_text(size=20),
-        legend.position = c(0.72, 0.1)) +
+        legend.text = element_text(size=19),
+        legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+        legend.position = c(0.72, 0.1),
+        #plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
+        strip.text = element_text(size=17))  +
   guides(fill=guide_legend(ncol=2)) +
   facet_wrap(~site_name_clean, scales="free_y")
 
+dev.off()
 
 
-#
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ===================== CALCULATE SHANNON WEINER ===================== 
 
 
+## Pooled CPUE calculation across years (total catch/total sets) --------------
+CPUE_allspp <- setTotals.Meta %>% 
+  filter(!is.na(species)) %>%
+  group_by(site_name_clean, species) %>% 
+  summarize(total_catch = sum(total_caught_excl_recaps, na.rm=T)) %>%
+  left_join(.,
+            setTotals.Meta %>% 
+              filter(usid !="07Jul23-PRS-Gordon R-1") %>% 
+              group_by(site_name_clean) %>% 
+              summarize(usid = unique(usid)) %>%
+              group_by(site_name_clean) %>%
+              summarize(effort_sets=n())) %>%
+  mutate(CPUE = total_catch/effort_sets) %>%
+  group_by(site_name_clean, species) %>%
+  #summarize(mean_CPUE = mean(CPUE, na.rm=T)) %>%
+  select(-c(effort_sets, total_catch)) %>%
+  pivot_wider(names_from = species, values_from = CPUE) %>%
+  mutate(across(c(Anchovy:Sockeye), ~case_when(is.na(.) ~ replace_na(0),
+                                               TRUE ~ .))) %>%
+  ungroup() %>%
+  mutate(site_no = 1:10)
 
 
+## Calculate S-W indices --------------
+# Set up data in matrix:
+CPUE_matrix <- data.matrix(CPUE_allspp %>%
+                             select(-c(site_no)))
+
+# Calculate indices:
+SW_scores <- data.frame(SW_div = vegan::diversity(x = CPUE_matrix, index="shannon"),
+                       site_no = c(1:10))
+
+# Re-join to site names for interpretation:
+CPUE_SWscores <- left_join(CPUE_allspp %>% 
+                             select(site_name_clean, site_no),
+                           SW_scores)
 
 
-
-
+# Stats for "edge" effect --------------
 
 
 
