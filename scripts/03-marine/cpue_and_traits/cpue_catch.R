@@ -180,76 +180,119 @@ CPUE_matrix <- data.matrix(CPUE_allspp %>%
 SW_scores <- data.frame(SW_div = vegan::diversity(x = CPUE_matrix, index="shannon"),
                        site_no = c(1:10))
 
-# Re-join to site names for interpretation:
+# Re-join to site names for interpretation, add variable "edge" for stats below:
 CPUE_SWscores <- left_join(CPUE_allspp %>% 
                              select(site_name_clean, site_no),
-                           SW_scores)
+                           SW_scores) %>%
+  mutate(edge_site = case_when(site_name_clean %in% c("PGM", "PRCD", "Mill Bay", "Thrasher", "Jap Rock", "Gordon R") ~ "edge",
+                               TRUE ~ "mid"))
 
 
-# Stats for "edge" effect --------------
+## Stats for "edge" effect --------------
+
+## Check assumptions -----
+# Check for normality, equal variance
+qqnorm(as.numeric(CPUE_SWscores$SW_div))
+qqline(as.numeric(CPUE_SWscores$SW_div), col="red")
+# points don't really follow line at tails, suggests non-normal
+
+shapiro.test(as.numeric(CPUE_SWscores$SW_div))
+# w=0.96853, p-value = 0.8769
+# no significance, implies normality
+
+fligner.test(CPUE_SWscores$SW_div ~ as.factor(CPUE_SWscores$edge_site))
+# Fligner-Killeen:med chi-squared = 1.1615, df = 1, p-value = 0.2812
+# p > 0.05 indicates equal variances 
+# Used this test because it's robust to non-normality 
 
 
-
-
-
-
-
-
-# ** HERE NEXT DAY
-# - calculate CPUE by stat week/site
-# - make CPUE catch plot (below)
-
-
+### Run the test -----
+SW_edge.t <- t.test(CPUE_SWscores$SW_div ~ as.factor(CPUE_SWscores$edge_site))
+summary(SW_edge.t)
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# ===================== OBSERVED CATCH DATA =====================
+#                                                                      NMDS
 
-pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST observed catches - all years, species.pdf"),   
-    width = 16, # The width of the plot in inches
-    height = 14) # The height of the plot in inches
+# CATCH CPUE NMDS ---------------
+set.seed(2)
 
-## All species/years (plot) -------------------
-ggplot() +
-  geom_bar(data=eventMeta_totals %>% 
-             pivot_longer(cols=c(chinook_natural_obs:chinook_hatchery_obs), names_to = "species_life_stage", values_to = "count") %>%
-             mutate(species_life_stage = case_when(grepl("chinook_hatchery", species_life_stage) ~ "Chinook (hatchery)",
-                                                   grepl("chinook_natural", species_life_stage) ~ "Chinook (natural)",
-                                                   grepl("chum", species_life_stage) ~ "Chum",
-                                                   grepl("coho_alevin", species_life_stage) ~ "Coho alevin",
-                                                   grepl("coho_subyearling", species_life_stage) ~ "Coho fry (sub-yearling)",
-                                                   grepl("coho_yearling", species_life_stage) ~ "Coho smolt (yearling)")) %>%
-             filter(count>0),
-           aes(x=as.Date(doy, origin="2022-12-31"), y=count, fill=species_life_stage, colour=species_life_stage), 
-           stat="identity", position="stack", alpha=0.9, width=1) +
-  geom_point(data=hatchery_releases, 
-             aes(x=as.Date(doy, origin="2022-12-31"), y=0), colour="black", fill="black", size=2.5, shape=24, alpha=0.7) +
-  scale_x_date(date_labels="%b %d", date_breaks="3 day") +
-  scale_fill_manual(values=c("Chinook (hatchery)" = "#8dd3c7",
-                             "Chinook (natural)" = "#7caed1",
-                             "Chum" = "#b3de69",
-                             "Coho alevin" = "#ffffb3",
-                             "Coho fry (sub-yearling)" = "#fdb462",
-                             "Coho smolt (yearling)" = "#fb8072")) +
-  scale_colour_manual(values=c("Chinook (hatchery)" = "#8dd3c7",
-                               "Chinook (natural)" = "#7caed1",
-                               "Chum" = "#b3de69",
-                               "Coho alevin" = "#ffffb3",
-                               "Coho fry (sub-yearling)" = "#fdb462",
-                               "Coho smolt (yearling)" = "#fb8072")) +
-  labs(y="Observed catch", fill="Species/life history", colour="Species/life history") +
+example_NMDS <- vegan::metaMDS(sqrt(CPUE_matrix), # Our community-by-species matrix
+                     k=2, trymax=100, distance="bray") # The number of reduced dimensions
+
+vegan::stressplot(example_NMDS)
+
+
+
+## Extract NMDS scores and plot ---------------
+data.scores = as.data.frame(vegan::scores(example_NMDS)$sites)
+
+# add columns to data frame: 
+data.scores$site_name_clean = CPUE_SWscores$site_name_clean
+data.scores$edge_site = CPUE_SWscores$edge_site
+
+
+### Plot --------
+ggplot(data.scores, aes(x=NMDS1, y=NMDS2)) + 
+  geom_point(size=4, aes(colour=site_name_clean, shape=edge_site)) + 
   theme_bw() +
-  theme(axis.text = element_text(colour="black", size=19),
-        axis.text.x = element_text(angle=45, hjust=1),
-        axis.title = element_text(face="bold", size=23),
-        axis.title.x = element_blank(),
-        legend.title = element_text(face="bold", size=20),
-        legend.text = element_text(size=19),
-        strip.text = element_text(size=20, face="bold")) +
-  facet_wrap(~year, scales="free", nrow=3)
+  theme(axis.text = element_text(colour="black", size=12),
+        legend.text = element_text(size=12), 
+        axis.title = element_text(face="bold", size=14), 
+        legend.title = element_text(size=14, colour="black", face="bold")) + 
+  labs(x="NMDS1", colour="Site", y="NMDS2")  
 
-dev.off()
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# # ===================== OBSERVED CATCH DATA =====================
+# 
+# pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST observed catches - all years, species.pdf"),   
+#     width = 16, # The width of the plot in inches
+#     height = 14) # The height of the plot in inches
+# 
+# ## All species/years (plot) -------------------
+# ggplot() +
+#   geom_bar(data=setTotals.Meta %>% 
+#              pivot_longer(cols=c(chinook_natural_obs:chinook_hatchery_obs), names_to = "species_life_stage", values_to = "count") %>%
+#              mutate(species_life_stage = case_when(grepl("chinook_hatchery", species_life_stage) ~ "Chinook (hatchery)",
+#                                                    grepl("chinook_natural", species_life_stage) ~ "Chinook (natural)",
+#                                                    grepl("chum", species_life_stage) ~ "Chum",
+#                                                    grepl("coho_alevin", species_life_stage) ~ "Coho alevin",
+#                                                    grepl("coho_subyearling", species_life_stage) ~ "Coho fry (sub-yearling)",
+#                                                    grepl("coho_yearling", species_life_stage) ~ "Coho smolt (yearling)")) %>%
+#              filter(count>0),
+#            aes(x=as.Date(doy, origin="2022-12-31"), y=count, fill=species_life_stage, colour=species_life_stage), 
+#            stat="identity", position="stack", alpha=0.9, width=1) +
+#   geom_point(data=hatchery_releases, 
+#              aes(x=as.Date(doy, origin="2022-12-31"), y=0), colour="black", fill="black", size=2.5, shape=24, alpha=0.7) +
+#   scale_x_date(date_labels="%b %d", date_breaks="3 day") +
+#   scale_fill_manual(values=c("Chinook (hatchery)" = "#8dd3c7",
+#                              "Chinook (natural)" = "#7caed1",
+#                              "Chum" = "#b3de69",
+#                              "Coho alevin" = "#ffffb3",
+#                              "Coho fry (sub-yearling)" = "#fdb462",
+#                              "Coho smolt (yearling)" = "#fb8072")) +
+#   scale_colour_manual(values=c("Chinook (hatchery)" = "#8dd3c7",
+#                                "Chinook (natural)" = "#7caed1",
+#                                "Chum" = "#b3de69",
+#                                "Coho alevin" = "#ffffb3",
+#                                "Coho fry (sub-yearling)" = "#fdb462",
+#                                "Coho smolt (yearling)" = "#fb8072")) +
+#   labs(y="Observed catch", fill="Species/life history", colour="Species/life history") +
+#   theme_bw() +
+#   theme(axis.text = element_text(colour="black", size=19),
+#         axis.text.x = element_text(angle=45, hjust=1),
+#         axis.title = element_text(face="bold", size=23),
+#         axis.title.x = element_blank(),
+#         legend.title = element_text(face="bold", size=20),
+#         legend.text = element_text(size=19),
+#         strip.text = element_text(size=20, face="bold")) +
+#   facet_wrap(~year, scales="free", nrow=3)
+# 
+# dev.off()
 
 
