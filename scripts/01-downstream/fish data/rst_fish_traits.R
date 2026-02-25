@@ -52,7 +52,7 @@ write.csv(
               mseW = paste0(meanW, " (", seW, ")"),
               
               meanK = round(mean(cond_k, na.rm=T),2),
-              seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),2),
+              seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),5),
               mseK = paste0(meanK, " (", seK, ")"),
               
               N = n()),
@@ -66,6 +66,12 @@ View(rst.biodat.fish %>%
   filter(grepl("chinook", species, ignore.case=T), ad_clip=="Y") %>%
   group_by(year, date) %>%
   summarize(avg_weight = mean(resolved_weight_g, na.rm=T)))
+
+rst.biodat.fish %>%
+  filter(grepl("chinook", species, ignore.case=T), ad_clip=="Y") %>%
+  group_by(year) %>%
+  summarize(avg_weight = mean(resolved_weight_g, na.rm=T),
+            sd_weight = sd(resolved_weight_g, na.rm=T))
 
 
 ## Hatchery weight stats --------------- 
@@ -178,7 +184,7 @@ rst.natCN <- rst.biodat.fish %>%
 
 
 ### Check assumptions -----
-# CHeck for normality, equal variance
+# Check for normality, equal variance
 qqnorm(as.numeric(rst.natCN$fork_length_mm))
 qqline(as.numeric(rst.natCN$fork_length_mm), col="red")
 # points do not follow line at tails, suggests non-normal
