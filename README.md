@@ -33,11 +33,16 @@ Contains code related to report Results section 3.2
 - Summary and analyses of fish biodata traits from beach seine fish (Section 3.2.1 - 3.2.2) --> bs_fish_traits.R
 
 ### 03-marine
-Contains code related to report Results section 3.3
+Contains code related to report Results section 3.3 & 3.4
 - cpue and traits (folder), specific to Port Renfrew purse seine
   + Catch and CPUE calculations for purse seine fish (Section 3.3.1) --> cpue_catch.R
   + Summary and analyses of fish biodata traits from purse seine fish (Section 3.3.1 - 3.3.2) --> bs_fish_traits.R
-  + 
+- diet (folder), includes both PR & Barkley Sound purse seine
+  + Diet analysis of San Juan Chinook in Nita Maria (Barkley Sound) purse seine from JB/BH --> NMpurseseine_diets-SJonly.R
+  + Partial Fullness Index (summary/plot) (Section 3.4) --> PFI.R
+  + Other diet analysis specific to Port Renfrew purse seine (Section 3.3.4) --> purseseine_diets.R
+ 
+map.R (loose script) --> delete
 
 
 Maintainer: Katie Davidson
