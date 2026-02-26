@@ -197,6 +197,7 @@ gsi.master <- full_join(
                                    TRUE ~ janitor::excel_numeric_to_date(as.numeric(MGL_CatchDate..YYYY.MM.DD.)))) %>%
   select(-c(MGL_CatchDate..YYYY.MM.DD.)) %>%
   relocate(MGL_CatchDate, .before=MGL_ID_Source) %>%
+  distinct(MGL_Vial, .keep_all=T) %>%    # some fish vials were provided twice, once in the FtF 2023 file and once later on. Remove duplicate rows. 
   print()
 
 
@@ -249,7 +250,7 @@ biosamp.gsi.linked <-  left_join(biodata,
                                    # Marine/estuary rules: 
                                   # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
                                    #year == "2024" & gear %in% c("Beach seine", "Mini purse seine") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Sample before hatchery releases",
-                                   gear %in% c("Beach seine", "Mini purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "PBT (presence/absence)",
+                                   gear %in% c("Beach seine", "Mini purse seine", "Large purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "PBT (presence/absence)",
                                    grepl("seine", gear, ignore.case=T) & resolved_species == "Coho" & ad_clip != "Y" ~ "Ad clip (absence, coho)", 
                                    grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ NA,
 
@@ -270,7 +271,7 @@ biosamp.gsi.linked <-  left_join(biodata,
                                      # Marine/estuary rules: 
                                      # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
                                      #year == "2024" & gear %in% c("Beach seine", "Mini purse seine") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Sample before hatchery releases",
-                                     gear %in% c("Beach seine", "Mini purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "Natural",
+                                     gear %in% c("Beach seine", "Mini purse seine", "Large purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "Natural",
                                      gear %in% c("Beach seine", "Mini purse seine") & resolved_species == "Coho" & ad_clip != "Y" ~ "Natural", 
                                      grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ "Unknown",
                                      
@@ -301,6 +302,9 @@ biosamp.gsi.linked <-  left_join(biodata,
                                          stringr::str_to_upper(gsub(MGL_repunit.1, pattern="_", replacement=" ")),
                                        
                                        gear %in% c("IPT", "6' RST") ~ "San Juan River",
+                                       
+                                       grepl("HAT", usid, ignore.case=T) ~ "San Juan River",
+                                       
                                        TRUE ~ "Unknown"),
          
          resolved_stock_origin = paste0(hatchery_origin, " ", resolved_stock_id),
@@ -334,7 +338,8 @@ biosamp.gsi.linked <-  left_join(biodata,
 
                                                   TRUE ~ "FLAG"), 
          stray_status = case_when(grepl("san juan", resolved_stock_id, ignore.case=T) ~ "local",
-                                  !grepl("san juan", resolved_stock_id, ignore.case=T) ~ "stray",
+                                  !grepl("san juan|unknown", resolved_stock_id, ignore.case=T) ~ "stray",
+                                  grepl("unknown", resolved_stock_id, ignore.case=T) ~ "unknown",
                                   TRUE ~ NA)) %>%
   print()
 
@@ -499,7 +504,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
 ## JOIN: field biodata+GSI + diet results ----------------- 
 
 biosample.long.diet <- full_join(biosamp.gsi.otochem.linked %>% 
-                                     select(year, gear, usid, date, DOY, species, fork_length_mm, height_mm, field_weight_g, lab_weight_g,
+                                     select(year, gear, usid, date, DOY, species, resolved_species, fork_length_mm, height_mm, field_weight_g, lab_weight_g,
                                             modelled_weight_g, resolved_weight_g, resolved_weight_source, 
                                             ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
                                             MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
