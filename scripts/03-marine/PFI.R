@@ -4,7 +4,6 @@
 
 
 
-
 # Set up -----------------
 library(tidyverse)
 library(leaflet)
@@ -12,11 +11,12 @@ library(leaflet)
 options(scipen = 9999999)
 
 
+
 # Beach and purse seine data -----------------
 all.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                      pattern="^R_OUT - San Juan PSSI master database",
                                                      full.names = T),
-                                     sheet="biosampling core results") %>%
+                                     sheet="biosampling long w diet") %>%
   filter(grepl("beach seine|purse seine|rst|ipt", gear, ignore.case=T)) %>%
   janitor::clean_names()  %>%
   mutate(MT_status = case_when(taxonomy_simple=="Empty" ~ "Empty",
@@ -47,11 +47,11 @@ all.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
               select(site_name_clean, lat_dd, long_dd, usid),
             by="usid") %>%
   mutate(PFI_group = case_when(grepl("flies|beetles|butterflies|insect|midge|bug|wasp", taxonomy_simple, ignore.case=T) ~ "Insects",
-                               grepl("arachnids|lice|centipede", taxonomy_simple, ignore.case=T) ~ "Other terrestrial invertebrates",
+                               grepl("arachnids|lice|centipede", taxonomy_simple, ignore.case=T) ~ "Other terrestrial arthropods",
                                grepl("worm", taxonomy_simple, ignore.case=T) ~ "Worms (incl polychaete)",
-                               grepl("crustaceans", taxonomy_simple, ignore.case=T) ~ "Other crustaceans",
-                               grepl("arthropod", taxonomy_simple, ignore.case=T) ~ "Other arthropods",
-                               grepl("Invertebrates (unspecified)", taxonomy_simple, ignore.case=T) ~ "Other invertebrates",
+                               grepl("crustaceans", taxonomy_simple, ignore.case=T) ~ "Crustaceans (unspecified)",
+                               grepl("arthropod", taxonomy_simple, ignore.case=T) ~ "Arthropods (unspecified)",
+                               grepl("Invertebrates (unspecified)", taxonomy_simple, ignore.case=T) ~ "Invertebrates (unspecified)",
                                TRUE ~ taxonomy_simple)) %>%
   relocate(site_name_clean, .after=usid) %>%
   ungroup()
@@ -61,122 +61,121 @@ all.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# =============================================== PARTIAL FULLNESS INDEX: ALL FISH ===============================================
+# =============================================== PARTIAL FULLNESS INDEX: ALL CHINOOK ===============================================
 
 
 ## Calculate mean PFI by gear, month, hatchery origin -----------------
 meanPFI_by_month_ALL <- all.biodat.diet %>%
-  filter(lethal_tag_no != "SJ25-071") %>%          # this sample is the one that had 2.2g of barnacles. 
   mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                 grepl("purse seine", gear, ignore.case=T) ~ "Purse seine",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
                                  TRUE ~ gear)) %>%
-  filter(!is.na(source1), !is.na(taxonomy_simple), taxonomy_simple!="No sample", !is.na(month),
-         grepl("chinook", species, ignore.case=T)) %>%  #MT_status!="Empty",
-  filter(taxonomy_simple %notin% c("Plastic", "Non-food")) %>%     #"Plant/seaweed", 
-  group_by(lethal_tag_no, PFI_group) %>%
+  filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+         grepl("chinook", resolved_species, ignore.case=T), 
+         !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      # limit PFI to only "logical" prey items
+         lethal_tag_no != "SJ25-071") %>%                                                    # this sample is the one that had 2.2g of barnacles - typo from analyst. have to discard as unreliable data.           
+  group_by(lethal_tag_no, PFI_group) %>%                                                     # group data by individual fish and diet group and summarize the data to extract unique months, gear type, hatchery origin, and total PFI per fish
   summarize(month = unique(month),
             gear_simple = unique(gear_simple), 
             hatchery_origin = unique(hatchery_origin), 
             prey_PFI = sum(PFI, na.rm=T)) %>%
   ungroup() %>%
-  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%
-  group_by(lethal_tag_no) %>%
-  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%
+  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%                           # fill out the dataframe for all combinations of individual fish and diet group (needed to calculate average below). For any diet group that wasn't present, give it a value of 0 for the fullness index
+  group_by(lethal_tag_no) %>%                                                                # group by individual fish
+  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%                    # fill out other missing variables that are currently NA since using complete() above
   ungroup() %>%
-  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%
-  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%
+  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%                               # group by hatchery origin, month, gear, and diet group
+  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%                                        # calculate the mean PFI across individuals (but within above groups)
+  full_join(.,
+            data.frame(month = c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep")),   # join to a list of all months for plotting
+            by="month") %>%
+  left_join(.,
+            all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+                                             TRUE ~ gear)) %>%
+              filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+                     grepl("chinook", resolved_species, ignore.case=T), 
+                     !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      
+                     lethal_tag_no != "SJ25-071") %>%
+              group_by(month, gear_simple, hatchery_origin, lethal_tag_no) %>%
+              summarize(n=n()) %>%
+              group_by(month, gear_simple, hatchery_origin) %>%
+              summarize(n=sum(n)) %>%
+              ungroup()) %>%
   print()
 
 
-## Sample size of fish for the label -----------------
-meanPFI_by_month_ALLn <- all.biodat.diet %>%
-   filter(!is.na(source1), !is.na(taxonomy_simple), taxonomy_simple!="No sample", !is.na(month), 
-          grepl("chinook", species, ignore.case=T)) %>%  #MT_status!="Empty", 
-   filter(taxonomy_simple %notin% c("Plastic", "Non-food")) %>%   # "Plant/seaweed",
-  group_by(hatchery_origin, lethal_tag_no) %>%
-  summarize(n=n()) %>%
-  group_by(hatchery_origin) %>%
-  summarize(n=n())
+
+
+### Plot -----------------
+meanPFI_by_month_ALL$gear_simple <- factor(meanPFI_by_month_ALL$gear_simple, levels=c("RST", "Beach seine", "Port Renfrew purse seine",
+                                                                                      "Barkley Sound purse seine"), ordered=T)
+
+meanPFI_by_month_ALL$month <- factor(meanPFI_by_month_ALL$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
+                                    ordered=T)
+
+
+pdf(file = here::here("outputs", "figures", "diet", "PFI - All Chinook (new).pdf"),   
+    width = 18, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data=meanPFI_by_month_ALL %>%
+             filter(hatchery_origin!="Unknown", mean_PFI>0), 
+           aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", 
+           alpha=0.7, linewidth=1) +
+  geom_label(data = meanPFI_by_month_ALL %>%
+               filter(hatchery_origin!="Unknown", mean_PFI>0) %>%
+               distinct(n),
+             aes(x=month, y=-0.01, label=n), size=4) +
+  scale_fill_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
+                               "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
+                               "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
+                               "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
+                               "Shrimps", "Worms (incl polychaete)", "Unidentified remains"),
+                    values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                             "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                             "#9fe375", "#f57407", "#1ba831", "#6b7280", 
+                             "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
+                             "black",  "#ad00ff",
+                             "#cecfd3")) +
+  scale_colour_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
+                                 "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
+                                 "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
+                                 "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
+                                 "Shrimps", "Worms (incl polychaete)", "Unidentified remains"),
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280", 
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
+                               "black",  "#ad00ff",
+                               "#cecfd3")) +
+  scale_y_continuous(limits=c(-0.015,0.05))+ 
+  labs(y="Mean Partial Fullness Index") +  
+  theme_bw() +
+  ggh4x::facet_nested(rows=vars(gear_simple, hatchery_origin),
+                      nest_line = TRUE,
+                      strip = ggh4x::strip_nested(text_y = list(element_text(face="bold", color="black", size=13),
+                                                                element_text(size=11)),
+                                                  background_y = list(element_rect(fill="gray90"),
+                                                                      element_rect(fill="white")),
+                                                  by_layer_y = T)) +
+  theme(axis.title.x = element_blank(),
+        axis.title = element_text(face="bold",size=14), 
+        axis.text = element_text(colour="black", size=12),
+        strip.placement = "outside",                     
+        strip.background = element_rect(fill="white", colour="white", linewidth=0),
+        legend.text = element_text(size=12),
+        legend.title = element_blank()) 
+
+dev.off()
 
 
 
-### PLOT All PFI ~ hatchery origin, month, gear -----------------
-meanPFI_by_month_ALL$gear_simple <- factor(meanPFI_by_month_ALL$gear_simple, levels=c("RST", "Beach seine", "Purse seine"), ordered=T)
 
-pdf(file = here::here("outputs", "figures", "diet", "Purse seine Chinook by statweek - condition (facet year).pdf"),   
-    width = 11, # The width of the plot in inches
-    height = 8.5) # The height of the plot in inches
 
-ggpubr::ggarrange(
-  ggplot() +
-    geom_bar(data=meanPFI_by_month_ALL %>% 
-               filter(hatchery_origin=="Y"),
-             aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", alpha=0.8,
-             linewidth=1) +
-    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                 "Plant/seaweed",  "Unidentified remains"),
-                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                               "gray80",  "gray20")) +
-    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                   "Plant/seaweed",  "Unidentified remains"),
-                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                                 "gray80",  "gray20")) +
-    labs(title = paste0("Hatchery-origin Chinook (all), n=", meanPFI_by_month_ALLn[meanPFI_by_month_ALLn$hatchery_origin=="Y",]$n), 
-         y="Mean Partial Fullness Index") +  theme_bw() +
-    theme_bw() +
-    theme(axis.title.x = element_blank(),
-          axis.title = element_text(face="bold"), 
-          axis.text = element_text(colour="black") ,
-          strip.background = element_rect(colour="transparent")) +
-    facet_wrap(~gear_simple, nrow=2, strip.position = "right"),
-  
-  
-  ggplot(data=meanPFI_by_month_ALL %>% 
-           filter(hatchery_origin=="N")) +
-    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack") +
-    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                 "Plant/seaweed",  "Unidentified remains"),
-                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                               "gray80",  "gray20")) +
-    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                   "Plant/seaweed",  "Unidentified remains"),
-                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                                 "gray80",  "gray20")) +
-    labs(title = paste0("Natural-origin Chinook (all), n=", meanPFI_by_month_ALLn[meanPFI_by_month_ALLn$hatchery_origin=="N",]$n), 
-         y="Mean Partial Fullness Index") +  theme_bw() +    theme_bw() +
-    theme(axis.title.x = element_blank(),
-          axis.title = element_text(face="bold"), 
-          axis.text = element_text(colour="black") ,
-          strip.background = element_rect(colour="transparent")) +
-    facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
-  
-  nrow = 2, common.legend = T,
-  legend = "right"
-)
 
 
 
@@ -187,115 +186,115 @@ ggpubr::ggarrange(
 
 ## Calculate mean PFI by gear, month, hatchery origin -----------------
 meanPFI_by_month_SJ <- all.biodat.diet %>%
-  filter(stray_status=="local") %>%
   mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
                                  TRUE ~ gear)) %>%
-  filter(!is.na(source1), !is.na(taxonomy_simple), taxonomy_simple!="No sample", !is.na(month), 
-         grepl("chinook", species, ignore.case=T)) %>%  #MT_status!="Empty", 
-  filter(taxonomy_simple %notin% c("Plastic",  "Non-food")) %>%
-  group_by(lethal_tag_no, PFI_group) %>%
+  filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+         grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
+         !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      # limit PFI to only "logical" prey items
+         lethal_tag_no != "SJ25-071") %>%                                                    # this sample is the one that had 2.2g of barnacles - typo from analyst. have to discard as unreliable data.           
+  group_by(lethal_tag_no, PFI_group) %>%                                                     # group data by individual fish and diet group and summarize the data to extract unique months, gear type, hatchery origin, and total PFI per fish
   summarize(month = unique(month),
             gear_simple = unique(gear_simple), 
             hatchery_origin = unique(hatchery_origin), 
             prey_PFI = sum(PFI, na.rm=T)) %>%
   ungroup() %>%
-  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%
-  group_by(lethal_tag_no) %>%
-  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%
+  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%                           # fill out the dataframe for all combinations of individual fish and diet group (needed to calculate average below). For any diet group that wasn't present, give it a value of 0 for the fullness index
+  group_by(lethal_tag_no) %>%                                                                # group by individual fish
+  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%                    # fill out other missing variables that are currently NA since using complete() above
   ungroup() %>%
-  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%
-  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%
+  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%                               # group by hatchery origin, month, gear, and diet group
+  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%                                        # calculate the mean PFI across individuals (but within above groups)
+  full_join(.,
+            data.frame(month = c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep")),   # join to a list of all months for plotting
+            by="month") %>%
+  left_join(., 
+            all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+                                             TRUE ~ gear)) %>%
+              filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+                     grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
+                     !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      
+                     lethal_tag_no != "SJ25-071") %>%
+              group_by(month, gear_simple, hatchery_origin, lethal_tag_no) %>%
+              summarize(n=n()) %>%
+              group_by(month, gear_simple, hatchery_origin) %>%
+              summarize(n=sum(n)) %>%
+              ungroup()) %>%  
   print()
 
 
-## Sample size of fish for the label -----------------
-meanPFI_by_month_SJn <- all.biodat.diet %>%
-  filter(stray_status=="local", !is.na(lethal_tag_no)) %>%
-  filter(!is.na(source1), !is.na(taxonomy_simple), taxonomy_simple!="No sample", !is.na(month)) %>%  #MT_status!="Empty", 
-  filter(taxonomy_simple %notin% c("Plastic", "Non-food")) %>%
-  group_by(hatchery_origin, lethal_tag_no) %>%
-  summarize(n=n()) %>%
-  group_by(hatchery_origin) %>%
-  summarize(n=n()) %>%
-  print()
 
 
 
 
-### PLOT San Juan PFI ~ origin, month, gear -----------------
-meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("RST", "Beach seine", "Mini purse seine"), ordered=T)
+### Plot -----------------
+meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("RST", "Beach seine", "Port Renfrew purse seine",
+                                                                                    "Barkley Sound purse seine"), ordered=T)
 
-ggpubr::ggarrange(
-  ggplot() +
-    geom_bar(data=meanPFI_by_month_SJ %>% 
-               filter(hatchery_origin=="Y"),
-             aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", alpha=0.8,
-             linewidth=1) +
-    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                 "Plant/seaweed",  "Unidentified remains"),
-                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                               "gray80",  "gray20")) +
-    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                   "Plant/seaweed",  "Unidentified remains"),
-                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                                 "gray80",  "gray20")) +
-    labs(title = paste0("Hatchery-origin Chinook (San Juan), n=", meanPFI_by_month_SJn[meanPFI_by_month_SJn$hatchery_origin=="Y",]$n), 
-         y="Mean Partial Fullness Index") +  theme_bw() +
-    theme_bw() +
-    theme(axis.title.x = element_blank(),
-          axis.title = element_text(face="bold"), 
-          axis.text = element_text(colour="black") ,
-          strip.background = element_rect(colour="transparent")) +
-    facet_wrap(~gear_simple, nrow=2, strip.position = "right"),
+meanPFI_by_month_SJ$month <- factor(meanPFI_by_month_SJ$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
+                                    ordered=T)
+
+
+pdf(file = here::here("outputs", "figures", "diet", "PFI - San Juan (new).pdf"),   
+    width = 18, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data=meanPFI_by_month_SJ %>%
+             filter(hatchery_origin!="Unknown", mean_PFI>0), 
+           aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", 
+           alpha=0.7, linewidth=1) +
+  geom_label(data = meanPFI_by_month_SJ %>%
+               filter(hatchery_origin!="Unknown", mean_PFI>0) %>%
+               distinct(n),
+             aes(x=month, y=-0.01, label=n), size=4) +
+  scale_fill_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
+                               "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
+                               "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
+                               "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
+                               "Shrimps",   "Worms (incl polychaete)", "Unidentified remains"),
+                    values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                             "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                             "#9fe375", "#f57407", "#1ba831", "#6b7280", 
+                             "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
+                             "black",  "#ad00ff",
+                             "#cecfd3")) +
+  scale_colour_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
+                                 "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
+                                 "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
+                                 "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
+                                 "Shrimps",   "Worms (incl polychaete)", "Unidentified remains"),
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280", 
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
+                               "black",  "#ad00ff",
+                               "#cecfd3")) +
+  scale_y_continuous(limits=c(-0.015,0.05))+ 
+  labs(y="Mean Partial Fullness Index") +  
+  theme_bw() +
+  ggh4x::facet_nested(rows=vars(gear_simple, hatchery_origin),
+                      nest_line = TRUE,
+                      strip = ggh4x::strip_nested(text_y = list(element_text(face="bold", color="black", size=14),
+                                                                element_text(size=14)),
+                                                  background_y = list(element_rect(fill="gray90"),
+                                                                      element_rect(fill="white")),
+                                                  by_layer_y = T)) +
+  theme(axis.title.x = element_blank(),
+        axis.title = element_text(face="bold", size=17), 
+        axis.text = element_text(colour="black", size=15),
+        strip.placement = "outside",                     
+        strip.background = element_rect(fill="white", colour="white", linewidth=0),
+        legend.text = element_text(size=15),
+        legend.title = element_blank()) 
   
-  
-  ggplot(data=meanPFI_by_month_SJ %>% 
-           filter(hatchery_origin=="N")) +
-    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack") +
-    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                 "Plant/seaweed",  "Unidentified remains"),
-                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                               "gray80",  "gray20")) +
-    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                   "Plant/seaweed",  "Unidentified remains"),
-                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
-                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                                 "gray80",  "gray20")) +
-    labs(title = paste0("Natural-origin Chinook (San Juan), n=", meanPFI_by_month_SJn[meanPFI_by_month_SJn$hatchery_origin=="N",]$n), 
-         y="Mean Partial Fullness Index") +  theme_bw() +    theme_bw() +
-    theme(axis.title.x = element_blank(),
-          axis.title = element_text(face="bold"), 
-          axis.text = element_text(colour="black") ,
-          strip.background = element_rect(colour="transparent")) +
-    facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
-  
-  nrow = 2, common.legend = T,
-  legend = "right"
-)
+dev.off()
 
+ 
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -305,104 +304,153 @@ ggpubr::ggarrange(
 
 ## Calculate mean PFI by gear, month, hatchery origin -----------------
 meanPFI_by_month_stray <- all.biodat.diet %>%
-  filter(stray_status=="stray", !is.na(resolved_stock_id)) %>%
   mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
                                  TRUE ~ gear)) %>%
-  filter(!is.na(source1), !is.na(taxonomy_simple), taxonomy_simple!="No sample", MT_status!="Empty", !is.na(month),
-         grepl("chinook", species, ignore.case=T)) %>%
-  filter(taxonomy_simple %notin% c("Plastic", "Non-food")) %>%
-  group_by(lethal_tag_no, PFI_group) %>%
+  filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+         grepl("chinook", resolved_species, ignore.case=T), stray_status=="stray",           # only keeping STRAY fish this time
+         !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      # limit PFI to only "logical" prey items
+         lethal_tag_no != "SJ25-071") %>%                                                    # this sample is the one that had 2.2g of barnacles - typo from analyst. have to discard as unreliable data.           
+  group_by(lethal_tag_no, PFI_group) %>%                                                     # group data by individual fish and diet group and summarize the data to extract unique months, gear type, hatchery origin, and total PFI per fish
   summarize(month = unique(month),
             gear_simple = unique(gear_simple), 
             hatchery_origin = unique(hatchery_origin), 
             prey_PFI = sum(PFI, na.rm=T)) %>%
   ungroup() %>%
-  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%
-  group_by(lethal_tag_no) %>%
-  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%
+  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%                           # fill out the dataframe for all combinations of individual fish and diet group (needed to calculate average below). For any diet group that wasn't present, give it a value of 0 for the fullness index
+  group_by(lethal_tag_no) %>%                                                                # group by individual fish
+  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%                    # fill out other missing variables that are currently NA since using complete() above
   ungroup() %>%
-  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%
-  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%
+  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%                               # group by hatchery origin, month, gear, and diet group
+  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%                                        # calculate the mean PFI across individuals (but within above groups)
+  full_join(.,
+            data.frame(month = c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep")),   # join to a list of all months for plotting
+            by="month") %>%
+  left_join(., 
+            all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+                                             TRUE ~ gear)) %>%
+              filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+                     grepl("chinook", resolved_species, ignore.case=T), stray_status=="stray",           # only keeping STRAY fish this time
+                     !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      
+                     lethal_tag_no != "SJ25-071") %>%
+              group_by(month, gear_simple, hatchery_origin, lethal_tag_no) %>%
+              summarize(n=n()) %>%
+              group_by(month, gear_simple, hatchery_origin) %>%
+              summarize(n=sum(n)) %>%
+              ungroup()) %>%  
   print()
 
 
-## Sample size of fish for the label -----------------
-meanPFI_by_month_strayn <- all.biodat.diet %>%
-  filter(stray_status=="stray", !is.na(lethal_tag_no), !is.na(resolved_stock_id)) %>%
-  filter(!is.na(source1), !is.na(taxonomy_simple), taxonomy_simple!="No sample", !is.na(month), 
-         grepl("chinook", species, ignore.case=T)) %>%  #MT_status!="Empty", 
-  filter(taxonomy_simple %notin% c("Plastic", "Non-food")) %>%
-  group_by(hatchery_origin, lethal_tag_no) %>%
-  summarize(n=n()) %>%
-  group_by(hatchery_origin) %>%
-  summarize(n=n()) %>%
-  print()
+
+
+### Plot -----------------
+meanPFI_by_month_stray$gear_simple <- factor(meanPFI_by_month_stray$gear_simple, 
+                                             levels=c("RST", "Beach seine", "Port Renfrew purse seine",
+                                                      "Barkley Sound purse seine"), ordered=T)
+
+meanPFI_by_month_stray$month <- factor(meanPFI_by_month_stray$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
+                                    ordered=T)
+
+
+pdf(file = here::here("outputs", "figures", "diet", "PFI - Strays (new).pdf"),   
+    width = 18, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data=meanPFI_by_month_stray %>%
+             filter(mean_PFI>0), 
+           aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", 
+           alpha=0.7, linewidth=1) +
+  geom_label(data = meanPFI_by_month_stray %>%
+               filter(mean_PFI>0) %>%
+               distinct(n),
+             aes(x=month, y=-0.01, label=n), size=4) +
+  scale_fill_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
+                               "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
+                               "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
+                               "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
+                               "Shrimps",   "Worms (incl polychaete)", "Unidentified remains"),
+                    values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                             "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                             "#9fe375", "#f57407", "#1ba831", "#6b7280", 
+                             "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
+                             "black",  "#ad00ff",
+                             "#cecfd3")) +
+  scale_colour_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
+                                 "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
+                                 "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
+                                 "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
+                                 "Shrimps",   "Worms (incl polychaete)", "Unidentified remains"),
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280", 
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
+                               "black",  "#ad00ff",
+                               "#cecfd3")) +
+  scale_y_continuous(limits=c(-0.015,0.05))+ 
+  labs(y="Mean Partial Fullness Index") +  
+  theme_bw() +
+  ggh4x::facet_nested(rows=vars(gear_simple, hatchery_origin),
+                      nest_line = TRUE,
+                      strip = ggh4x::strip_nested(text_y = list(element_text(face="bold", color="black", size=13),
+                                                                element_text(size=11)),
+                                                  background_y = list(element_rect(fill="gray90"),
+                                                                      element_rect(fill="white")),
+                                                  by_layer_y = T)) +
+  theme(axis.title.x = element_blank(),
+        axis.title = element_text(face="bold",size=14), 
+        axis.text = element_text(colour="black", size=12),
+        strip.placement = "outside",                     
+        strip.background = element_rect(fill="white", colour="white", linewidth=0),
+        legend.text = element_text(size=12),
+        legend.title = element_blank()) 
+
+dev.off()
 
 
 
-### PLOT Stray PFI ~ origin, month, gear -----------------
-meanPFI_by_month_stray$gear_simple <- factor(meanPFI_by_month_stray$gear_simple, levels=c("RST", "Beach seine", "Mini purse seine"), ordered=T)
+
+
+
+
+
+
+
+
+
+
+
 
 ggpubr::ggarrange(
-  # ggplot() +
-  #   geom_bar(data=meanPFI_by_month_stray %>% 
-  #              filter(hatchery_origin=="Y"),
-  #            aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group, group=PFI_group), stat="identity", position="stack", alpha=0.8,
-  #            linewidth=1) +
-  #   scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-  #                                "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-  #                                "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-  #                                "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-  #                                "Plant/seaweed",  "Unidentified remains"),
-  #                     values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-  #                              "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-  #                              "#9acda0", "#9fe375", "#fff700", "#ffa900",
-  #                              "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-  #                              "gray80",  "gray20")) +
-  #   scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-  #                                  "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-  #                                  "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-  #                                  "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-  #                                  "Plant/seaweed",  "Unidentified remains"),
-  #                       values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-  #                                "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-  #                                "#9acda0", "#9fe375", "#fff700", "#ffa900",
-  #                                "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-  #                                "gray80",  "gray20")) +
-  #   labs(title = paste0("Hatchery-origin Chinook (strays), n=", meanPFI_by_month_strayn[meanPFI_by_month_strayn$hatchery_origin=="Y",]$n), 
-  #        y="Mean Partial Fullness Index (g)") +  theme_bw() +
-  #   theme_bw() +
-  #   theme(axis.title.x = element_blank(),
-  #         axis.title = element_text(face="bold"), 
-  #         axis.text = element_text(colour="black") ,
-  #         strip.background = element_rect(colour="transparent")) +
-  #   facet_wrap(~gear_simple, nrow=2, strip.position = "right"),
-  
-  
   ggplot(data=meanPFI_by_month_stray %>% 
-           filter(hatchery_origin=="N")) +
-    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack") +
+           filter(hatchery_origin=="Hatchery")) +
+    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack", alpha=0.7) +
     scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
                                  "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
                                  "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
                                  "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                 "Plant/seaweed",  "Unidentified remains"),
+                                 "Non-food (plants, seaweed, rocks, feathers)",  "Unidentified remains"),
                       values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
                                "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
                                "#9acda0", "#9fe375", "#fff700", "#ffa900",
                                "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                               "gray80",  "gray20")) +
+                               "#6b7280", "#cecfd3")) +
     scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
                                    "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
                                    "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
                                    "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-                                   "Plant/seaweed",  "Unidentified remains"),
+                                   "Non-food (plants, seaweed, rocks, feathers)",  "Unidentified remains"),
                         values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
                                  "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
                                  "#9acda0", "#9fe375", "#fff700", "#ffa900",
                                  "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-                                 "gray80",  "gray20")) +
-    labs(title = paste0("Natural-origin Chinook (strays), n=", meanPFI_by_month_strayn[meanPFI_by_month_strayn$hatchery_origin=="N",]$n), 
+                                 "#6b7280", "#cecfd3")) +
+    labs(title = paste0("Hatchery-origin Chinook (strays), n=", 
+                        meanPFI_by_month_strayn[meanPFI_by_month_strayn$hatchery_origin=="Hatchery",]$n), 
          y="Mean Partial Fullness Index") +  theme_bw() +
     theme_bw() +
     theme(axis.title.x = element_blank(),
@@ -412,38 +460,74 @@ ggpubr::ggarrange(
     facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
   
   
-  # ggplot(data=mean_by_month %>% 
-  #          filter(hatchery_origin=="U")) +
-  #   geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack") +
-  #   scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-  #                                "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-  #                                "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-  #                                "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-  #                                "Unidentified remains"),
-  #                     values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-  #                              "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-  #                              "#9acda0", "#9fe375", "#fff700", "#ffa900",
-  #                              "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-  #                              "gray20")) +
-  #   scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
-  #                                  "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
-  #                                  "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
-  #                                  "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
-  #                                  "Unidentified remains"),
-  #                       values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
-  #                                "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
-  #                                "#9acda0", "#9fe375", "#fff700", "#ffa900",
-  #                                "#f57407", "#ce2000", "#ff827b", "#ffcdff",
-  #                                "gray20")) +
-  #   labs(title = "Unknown-origin Chinook, n=63", y="Mean Partial Fullness Index (g)") +
-  #   theme_bw() +
-  #   theme(axis.title.x = element_blank(),
-  #         axis.title = element_text(face="bold"), 
-  #         axis.text = element_text(colour="black") ,
-  #         strip.background = element_rect(colour="transparent")) +
-  #   facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
+  ggplot(data=meanPFI_by_month_stray %>% 
+           filter(hatchery_origin=="Natural")) +
+    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack", alpha=0.7) +
+    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                 "Non-food (plants, seaweed, rocks, feathers)",  "Unidentified remains"),
+                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                               "#6b7280", "#cecfd3")) +
+    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                   "Non-food (plants, seaweed, rocks, feathers)",  "Unidentified remains"),
+                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                                 "#6b7280", "#cecfd3")) +
+    labs(title = paste0("Natural-origin Chinook (strays), n=", 
+                        meanPFI_by_month_strayn[meanPFI_by_month_strayn$hatchery_origin=="Natural",]$n), 
+         y="Mean Partial Fullness Index") +  theme_bw() +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.title = element_text(face="bold"), 
+          axis.text = element_text(colour="black") ,
+          strip.background = element_rect(colour="transparent")) +
+    facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
   
-  nrow = 2, common.legend = T,
+  
+  ggplot(data=meanPFI_by_month_stray %>% 
+           filter(hatchery_origin=="Unknown")) +
+    geom_bar(aes(x=month, y=mean_PFI, fill=PFI_group, colour=PFI_group), stat="identity", position="stack", alpha=0.7) +
+    scale_fill_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                 "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                 "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                 "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                 "Non-food (plants, seaweed, rocks, feathers)",  "Unidentified remains"),
+                      values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                               "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                               "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                               "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                               "#6b7280", "#cecfd3")) +
+    scale_colour_manual(breaks = c("Barnacles", "Copepods", "Ostracods", "Decapods", 
+                                   "Octopus (larvae)", "Shrimps", "Amphipods", "Isopods", 
+                                   "Other crustaceans", "Worms (incl polychaete)", "Parasites*", "Fish",
+                                   "Insects", "Other terrestrial invertebrates", "Other arthropods",  "Other invertebrates", 
+                                   "Non-food (plants, seaweed, rocks, feathers)",  "Unidentified remains"),
+                        values=c("#2a4b7c", "#0000ff", "#039be5", "#a4efff",
+                                 "#e3faff", "#7fffd4", "#14c8aa", "#3d6643",
+                                 "#9acda0", "#9fe375", "#fff700", "#ffa900",
+                                 "#f57407", "#ce2000", "#ff827b", "#ffcdff",
+                                 "#6b7280", "#cecfd3")) +
+    labs(title = paste0("Unknown-origin Chinook (strays), n=", 
+                        meanPFI_by_month_strayn[meanPFI_by_month_strayn$hatchery_origin=="Unknown",]$n), 
+         y="Mean Partial Fullness Index") +  theme_bw() +
+    theme_bw() +
+    theme(axis.title.x = element_blank(),
+          axis.title = element_text(face="bold"), 
+          axis.text = element_text(colour="black"),
+          strip.background = element_rect(colour="transparent")) +
+    facet_wrap(~gear_simple, nrow=3, strip.position = "right"),
+  
+  nrow = 3, common.legend = T,
   legend = "right"
 )
 
