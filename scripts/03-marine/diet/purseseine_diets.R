@@ -86,11 +86,10 @@ prs.biodat.diet %>%
   group_by(taxonomy_simple) %>% 
   summarize(n=n())
 
-View(prs.biodat.diet %>% filter(!is.na(lethal_tag_no), is.na(taxonomy_simple)))
 
 
 ## Young of year check --------------
-# Size distribtuion of all fish considered (regardless of whether diet analysis was done)
+# Size distribution of all fish considered (regardless of whether diet analysis was done)
 ggplot() +
   geom_point(data=prs.biodat.diet %>%
                group_by(lethal_tag_no, doy) %>%
@@ -837,15 +836,15 @@ ggplot() +
   scale_fill_manual(breaks=waiver(), 
                     values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
                              "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
-                             "#9fe375", "#f57407", "#1ba831", "#bcbcbc",
+                             "#9fe375", "#f57407", "#1ba831", "#6b7280",
                              "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
-                             "#444444")) +
+                             "#cecfd3")) +
   scale_colour_manual(breaks=waiver(), 
                       values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
                                "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
-                               "#9fe375", "#f57407", "#1ba831", "#bcbcbc",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280",
                                "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
-                               "#444444")) +
+                               "#cecfd3")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
   labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
   theme_bw() +
