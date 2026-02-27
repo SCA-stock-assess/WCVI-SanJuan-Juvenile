@@ -5,7 +5,23 @@ The work is part of a project funded under Pacific Salmon Strategy Initiative (P
 
 # Directory
 
-## Scripts
+## data
+- archive --> delete
+- biosample/GSI - raw DNA analysis files from Molecular Genetics Lab; joined to field data using 00-resultsCompile.R
+- enviro - external environmental data (e.g., HOBO DO meter raw download files), Environment Canada hydromet station files downloaded from https://wateroffice.ec.gc.ca/report/real_time_e.html?stn=08HA010 (realtime) and https://wateroffice.ec.gc.ca/report/historical_e.html?stn=08HA010 (historical)
+- hatchery_releases - summary of hatchery release dates/abundances relevant to RST ops. This level of information currently not available in SEP EPAD database
+- Method of grouping WCVI Chinook based on GSI --> Natural WCVI GSI groupings - JBokvist-BHendriks 2025.png
+- Natural WCVI GSI groupings - SPower 2025.png --> delete
+- date - stat week lookup table joined to field data when needed --> stat_weeks.csv
+
+## outputs
+- figures output from scripts. Used in various sections of the report
+- table outputs from scripts. Used in various sections of the report --> R_OUT... 
+
+## report
+copy of final report and DFO Manuscript and Tech Report templates for reference. 
+
+## scripts
 
 ### 00-joins-and-utils
 Contains:
