@@ -58,7 +58,14 @@ bs.biodat.fish %>%
   group_by(year) %>%
   summarize(n())
 
-# Analyzed with results
+
+# Analyzed with results to species ID 
+bs.biodat.fish %>%
+  filter(!is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
+  group_by(mgl_species) %>%
+  summarize(n())
+
+# Analyzed with results to stock ID 
 bs.biodat.fish %>%
   filter(!is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
   group_by(mgl_id_source) %>%
@@ -67,13 +74,13 @@ bs.biodat.fish %>%
 
 # =============== % AGREEMENT SPECIES ID ===============
 bs.biodat.fish %>%
-  filter(!is.na(dna_vial), !is.na(mgl_species)) %>%
+  filter(!is.na(dna_vial), !is.na(mgl_species), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
   mutate(mgl_species2 = case_when(mgl_species=="chinook" | grepl("assume chinook", mgl_notes, ignore.case=T) ~ "chinook",
                                   mgl_species == "coho" ~ "Coho",
                                   mgl_species == "coho; chinook" | mgl_notes == "Species ID ambiguous, use caution with result" ~ paste0(mgl_species, " (genetics ambiguous)"),
                                   mgl_species == "chinook; pink" & mgl_notes == "Species ID ambiguous, use caution with result" ~ "Chinook (assumed)",
-                                  TRUE ~ "FLAG")) %>%
-  group_by(mgl_species2) %>%
+                                  TRUE ~ mgl_species)) %>%
+  group_by(species, mgl_species2) %>%
   summarize(n=n())
 
 
