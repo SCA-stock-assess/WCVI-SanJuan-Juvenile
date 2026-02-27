@@ -47,7 +47,7 @@ prs.biodat.fish <- prs.biodat.fish %>%
 #   group_by(year) %>%
 #   summarize(n=n())
 
-## Number of genetic samples --------------
+## Number of genetic samples... --------------
 # Collected
 prs.biodat.fish %>%
   filter(!is.na(dna_vial)) %>%
@@ -56,7 +56,7 @@ prs.biodat.fish %>%
 
 prs.biodat.fish %>%
   filter(!is.na(dna_vial)) %>%
-  group_by(species) %>%
+  group_by(resolved_species) %>%
   summarize(n())
 
 
@@ -67,18 +67,24 @@ prs.biodat.fish %>%
   group_by(year) %>%
   summarize(n())
 
+# Analyzed with results to species ID 
 prs.biodat.fish %>%
   filter(#grepl("chinook", resolved_species, ignore.case=T), 
     !is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
-  group_by(species) %>%
+  group_by(resolved_species) %>%
   summarize(n())
 
-
+# Analyzed with results to stock ID
 prs.biodat.fish %>%
   filter(#grepl("chinook", resolved_species, ignore.case=T), 
-         !is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
+    !is.na(dna_vial), !is.na(mgl_id_source), !grepl("no sample", mgl_notes, ignore.case=T)) %>%
   group_by(mgl_id_source) %>%
   summarize(n())
+
+
+
+
+
 
 
 # =============== % AGREEMENT SPECIES ID ===============
