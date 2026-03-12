@@ -42,7 +42,7 @@ setTotals.Meta <- left_join(setTotals,
 
 # ===================== CALCULATE DAILY/SITE CPUE ===================== 
 
-# Examine daily site effort ------------
+## Examine daily site effort ------------
 day_site_sets <- eventMeta %>% 
   group_by(date_start, site_name_clean) %>% 
   summarize(n=n()) %>%
@@ -57,7 +57,7 @@ day_site_sets %>%
 # Other set was fine so need to sum and then need to divide by effort for each day/site
 
 
-# Calculate Effort -------------
+## Calculate Effort -------------
 # Stat week and site
 effort <- setTotals.Meta %>% 
   filter(usid !="07Jul23-PRS-Gordon R-1") %>% 
@@ -68,7 +68,7 @@ effort <- setTotals.Meta %>%
   print()
 
 
-# Calculate CPUE -------------
+## Calculate CPUE -------------
 CPUE <- setTotals.Meta %>% 
   group_by(statWeek, site_name_clean, species_simple) %>% 
   summarize(#usid = unique(usid),
@@ -79,7 +79,7 @@ CPUE <- setTotals.Meta %>%
   print()
 
 
-## Plot -----
+### Plot (Figure xx) -----
 
 CPUE$statWeek <- factor(CPUE$statWeek, levels=c("05-1", "05-2", "05-3", "05-4", "05-5", "06-1", "06-2", "06-3", "06-4", "07-1", "07-2", "07-3",
                                                 "07-4", "08-1", "08-2", "08-3", "08-4", "08-5", "09-1", "09-2", "09-3", "09-4", "10-1", "10-2",
