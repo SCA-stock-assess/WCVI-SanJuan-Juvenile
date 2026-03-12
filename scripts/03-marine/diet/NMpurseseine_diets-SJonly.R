@@ -81,7 +81,7 @@ nm_meanTAXA_by_site <- nmmct.biodat.diet %>%
             long=mean(long))
 
 
-### Taxa by SITE - Plot -------------------
+### Taxa by SITE - Plot (Figure xx) -------------------
 nm_meanTAXA_by_site$site_name_clean <- factor(nm_meanTAXA_by_site$site_name_clean, levels=c("Nanat", "Sarita", "Sproat Narrows", "Kirby", "Village Reef",
                                                                                             "Turtle Island", "Hand Island", "Lyall Point", ordered=T))
 
@@ -101,7 +101,7 @@ ggplot() +
                summarize(n=n()) %>%
                group_by(site_name_clean) %>%
                summarize(n=n()),
-             aes(x=site_name_clean, y=-0.03, label=n), size=4.5) +
+             aes(x=site_name_clean, y=1.03, label=n), size=5) +
    scale_fill_manual(breaks=waiver(), 
                      values=c("#14c8aa", #"#00bce4", "#9f204f", "#ff827b",
                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
@@ -121,7 +121,7 @@ ggplot() +
                                 "#997950",
                                 "#cecfd3")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
-  labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
+  labs(x="Site name", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
         axis.text = element_text(colour="black", size=15),
