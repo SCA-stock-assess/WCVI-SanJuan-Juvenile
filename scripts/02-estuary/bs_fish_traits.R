@@ -147,7 +147,7 @@ bs.biodat.fish %>%
   mutate(total=sum(n))
 
 
-### Plot ---- 
+## Plot (Figure xx) ------------ 
 pdf(file = here::here("outputs", "figures", "stock comps", "Estuary stock composition (by SITE).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -174,7 +174,7 @@ ggplot() +
                                       TRUE ~ "South arm")) %>%
                group_by(arm, site_name_clean) %>%
                summarize(n=n()),
-             aes(x=site_name_clean, y=-0.02, label=n), size=4.5) +
+             aes(x=site_name_clean, y=1.03, label=n), size=4.5) +
   scale_fill_manual(breaks=c("Hatchery San Juan", "Natural San Juan",
                              "Natural Sooke/Nitinat", "Natural Inner Barkley",
                              "Natural SWVI", "Natural US"), 
