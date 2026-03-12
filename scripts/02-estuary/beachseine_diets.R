@@ -790,7 +790,7 @@ leaflet() %>%
 
 
 
-### Taxa by SITE (plot) ----------------
+### Taxa by SITE (plot) (Figure xx) ----------------
 
 pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy simplified and SITE).pdf"),   
     width = 11, # The width of the plot in inches
@@ -811,7 +811,7 @@ ggplot() +
                summarize(n=n()) %>%
                mutate(arm = case_when(site_name_clean %in% c("BS03", "BS14", "BS03B", "BS17", "BS06", "BS07", "BS24") ~ "North arm",
                                       TRUE ~ "South arm")),
-             aes(x=site_name_clean, y=-0.02, label=n), size=4.5) +
+             aes(x=site_name_clean, y=1.03, label=n), size=4.5) +
   scale_fill_manual(breaks=waiver(), 
                     values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
                              "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
@@ -823,7 +823,7 @@ ggplot() +
                                 "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
                                 "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
-  labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
+  labs(x="Site name", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
         axis.text = element_text(colour="black", size=15),
