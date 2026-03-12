@@ -12,7 +12,7 @@ library(tidyverse)
 rst.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                pattern="^R_OUT - San Juan PSSI master database",
                                                full.names = T),
-                               sheet="biosampling core results") %>%
+                               sheet="biosampling long w diet") %>%
   # readxl::read_excel(path=list.files(path=here::here("data"),
   #                                    pattern="^R_OUT - San Juan PSSI master database",
   #                                    full.names = T),
@@ -43,9 +43,9 @@ rst.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#                                                                        Data exploration 
+# ========================================= Data exploration =========================================
 
-# Lethal sample sizes by year --------------
+## Lethal sample sizes by year --------------
 rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple)) %>%
   group_by(year, lethal_tag_no) %>%
@@ -53,7 +53,7 @@ rst.biodat.diet %>%
   group_by(year) %>%
   summarize(n=n())
   
-# stomach content groups --------------
+## stomach content groups --------------
 rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no)) %>%
   group_by(taxonomy_simple) %>% 
@@ -63,9 +63,9 @@ View(rst.biodat.diet %>% filter(!is.na(lethal_tag_no), is.na(taxonomy_simple)))
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-#                                                                         Fullness
+# ========================================= FULLNESS =========================================
 
-# % empty stomachs vs some contents --------------
+## % empty stomachs vs some contents --------------
 # Total inventory of empty/prey/non-food etc. 
 rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample") %>%
@@ -73,7 +73,7 @@ rst.biodat.diet %>%
   summarize(n=n())  
 
 
-# Exclude non-food and calculate % empty by YEAR (pooled) --------------
+## Exclude non-food and calculate % empty by YEAR (pooled) --------------
 rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple!="No sample", MT_status!="Not prey") %>%
   group_by(year, lethal_tag_no) %>% 
@@ -85,9 +85,9 @@ rst.biodat.diet %>%
          propn=n/year_total) 
 
 
-# ================== PLOTS ================== 
+## Fullness plot --------------
 
-# Fullness plot by YEAR --------------
+### Fullness by YEAR (Figure xx) ----
   # Formatted this way to mirror the Sarita plot for comparison 
 
 rst.fullness <- rst.biodat.diet %>%
@@ -109,7 +109,7 @@ pdf(file = here::here("outputs", "figures", "diet", "RST stomach fullness (poole
 
 ggplot(data=rst.fullness, aes(x=year, y=propn, fill=MT_status)) +
   geom_bar(stat="identity", position="stack", alpha=0.75, linewidth=0.5, colour="black") +
-  geom_label(aes(x=year, y=-0.03, label=year_total), inherit.aes=F, size=8) +
+  geom_label(aes(x=year, y=1.05, label=year_total), inherit.aes=F, size=8) +
   scale_fill_manual(values=c("Identifiable prey items"="#f05d5e", "Trace"="#fdf07f", "Empty"="#96eb70")) +
   #scale_colour_manual(values=c("Identifiable prey items"="#f05d5e", "Trace"="#e9c46a", "Empty"="#7dce94")) +
   scale_y_continuous(labels=scales::percent_format()) +
@@ -127,7 +127,7 @@ dev.off()
 
 
 
-# Fullness plot by MONTH --------------
+### Fullness plot by MONTH ----
   # Formatted this way to mirror the Sarita plot for comparison 
 
 rest.fullness_month <- rst.biodat.diet %>%
@@ -171,7 +171,7 @@ dev.off()
 
 
 
-# Of stomachs with prey, what is the total weight of prey in the stomachs per individual fish --------------
+## Of stomachs with prey, what is the total weight of prey in the stomachs per individual fish --------------
 View(rst.biodat.diet %>%
   filter(!is.na(lethal_tag_no), !is.na(taxonomy_simple), lethal_tag_no!="P9629", taxonomy_simple%notin%c("Empty", "No sample", "Non-food")) %>%
   group_by(year, lethal_tag_no, taxonomy_simple) %>% 
