@@ -14,7 +14,7 @@ options(scipen = 9999999)
 all.biodat <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                       pattern="^R_OUT - San Juan PSSI master database",
                                                       full.names = T),
-                                      sheet="biosampling detailed w GSI") %>%
+                                      sheet="biosampling") %>%
   filter(grepl("beach seine|purse seine|rst|ipt", gear, ignore.case=T)) %>%
   janitor::clean_names()  %>%
   mutate(month = lubridate::month(date, label=T, abbr=T)) %>%
@@ -29,11 +29,39 @@ all.biodat <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/
               filter(grepl("beach seine|purse seine|rst|ipt", gear, ignore.case=T)) %>%
               select(site_name_clean, lat_dd, long_dd, usid),
             by="usid") %>%
-  mutate(gear_simple = case_when(grepl("rst|ipt", gear, ignore.case=T) ~ "RST",
-                                 grepl("purse seine", gear, ignore.case=T) ~ "Purse seine",
-                                 grepl("beach seine", gear, ignore.case=T) ~ "Beach seine",
-                                 TRUE ~ "FLAG"))
+  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+                                 TRUE ~ gear))
 
+
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ======================================================== IDENTIFY OUTLIERS ==========================================================
+
+## Condition factor -----------------
+### RST -----
+rst.nat.k <- all.biodat %>% 
+  filter(gear_simple=="RST", resolved_species=="Chinook", hatchery_origin=="Natural") %>% 
+  pull(cond_k)
+
+# Get the outlier values and their indices using boxplot.stats()
+rst.nat.k.out <- boxplot.stats(rst.nat.k)$out
+rst.nat.k.ind <- which(rst.nat.k %in% rst.nat.k.out)
+
+# Print the outliers and their indices
+print(rst.nat.k.out)
+print(rst.nat.k.ind)
+
+# Z-score
+z_scores <- scale(rst.nat.k)
+
+# Identify indices of outliers (e.g., Z-score > 3 or < -3)
+outlier_indices <- which(abs(z_scores) > 3)
+
+# Print the outliers
+print(rst.nat.k[outlier_indices])
 
 
 
@@ -52,92 +80,110 @@ pdf(file = here::here("outputs", "figures", "fish traits", "Chinook by statweek 
     height = 8.5) # The height of the plot in inches
 
 ggplot(data=all.biodat %>% 
-         filter(grepl("chinook", species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T)) %>%
-         group_by(gear_simple, statWeek, hatchery_origin) %>%
-         summarize(meanK = mean(cond_k, na.rm=T),
-                   seK = sd(cond_k, na.rm=T) / sqrt(length(cond_k)),
-                   n=n()) %>%
-         group_by(gear_simple, statWeek) %>%
-         mutate(n=sum(n) 
-                #label = paste0(year, " (n=", n, ")")
-         )) +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=0.9, alpha=0.1, fill="red") +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=0.9, ymax=1, alpha=0.2, fill="yellow") +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=1, ymax=1.1, alpha=0.1, fill="green") +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=1.1, ymax=Inf, alpha=0.2, fill="light blue") +
-  geom_errorbar(aes(x=statWeek, ymin=meanK-seK, ymax=meanK+seK, colour=hatchery_origin), width=0.1, size=1, alpha=0.8) +
-  geom_point(aes(x=statWeek, y=as.numeric(meanK), fill=hatchery_origin, colour=hatchery_origin), shape=21, size=7, alpha=0.8) +
-  scale_fill_manual(values=c("N" = "blue",
-                             "Y" = "orange",
-                             "U" = "gray70")) +
-  scale_colour_manual(values=c("N" = "blue",
-                               "Y" = "orange",
-                               "U" = "gray70")) +
+         filter(grepl("chinook", resolved_species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T), 
+                grepl("san juan", resolved_stock_origin, ignore.case=T), !is.na(cond_k)
+                ) #%>%
+         # group_by(gear_simple, statWeek, hatchery_origin) %>%
+         # summarize(meanK = mean(cond_k, na.rm=T),
+         #           seK = sd(cond_k, na.rm=T) / sqrt(length(cond_k)),
+         #           n=n()) %>%
+         # group_by(gear_simple, statWeek) %>%
+         # mutate(n=sum(n) 
+         #        #label = paste0(year, " (n=", n, ")")
+         # )
+       ) +
+   # annotate('rect', xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=1, alpha=0.1, fill="red") +
+   # annotate('rect', xmin=-Inf, xmax=Inf, ymin=1, ymax=1.2, alpha=0.2, fill="yellow") +
+   # annotate('rect', xmin=-Inf, xmax=Inf, ymin=1.2, ymax=Inf, alpha=0.1, fill="green") +
+  geom_hline(aes(yintercept = 1), colour='red', linetype="dashed", size=1) +
+  geom_hline(aes(yintercept = 1.2), colour="green", linetype="dashed", size=1) +
+  # geom_errorbar(aes(x=statWeek, ymin=meanK-seK, ymax=meanK+seK, colour=hatchery_origin), width=0.1, size=1, alpha=0.8) +
+  # geom_point(aes(x=statWeek, y=as.numeric(meanK), fill=hatchery_origin, colour=hatchery_origin, shape=gear_simple), size=7, alpha=0.7,
+  #            stroke=1.5) +
+  geom_boxplot(aes(x=as.factor(statWeek), y=as.numeric(cond_k), fill=hatchery_origin, linetype=gear_simple), 
+               alpha=0.7, size=1) +
+  # scale_fill_manual(values=c("Natural" = "blue",
+  #                            "Hatchery" = "orange",
+  #                            "Unknown" = "gray70")) +
+  # scale_colour_manual(values=c("Natural" = "blue",
+  #                              "Hatchery" = "orange",
+  #                              "Unknown" = "gray70")) +
+  # scale_shape_manual(labels = c("Freshwater",
+  #                                 "Estuary",
+  #                                 "Early marine"),
+  #                      values=c(21, 24, 4),
+  #                      breaks=c("RST", "Beach seine", "Purse seine")) +
   scale_y_continuous(breaks=seq(0.3, 1.7, by=0.2)) +
-  scale_x_discrete(limits=c("2-3", "2-4", "3-1", "3-2", "3-3", "3-4", "4-1", "4-2", "4-3", "4-4", "5-1", "5-2", "5-3", "5-4", "6-1", "6-2", "6-3", "6-4", 
-                            "7-1", "7-2", "7-3", "7-4", "8-1", "8-2", "8-3", "8-4", "9-1", "9-2", "9-3", "9-4")) +
-  labs(y="Mean condition factor 'K' \u00B1 SE", x="Month - week", fill="Hatchery origin?:   ", colour="Hatchery origin?:   ") +
+  #scale_x_discrete(limits=c("2-3", "2-4", "3-1", "3-2", "3-3", "3-4", "4-1", "4-2", "4-3", "4-4", "5-1", "5-2", "5-3", "5-4", "6-1", "6-2", "6-3", "6-4", 
+  #                         "7-1", "7-2", "7-3", "7-4", "8-1", "8-2", "8-3", "8-4", "9-1", "9-2", "9-3", "9-4")) +
+  labs(y="Mean condition factor 'K' \u00B1 SE", x="Month - week", fill="Hatchery origin", colour="Hatchery origin", shape="Life stage") +
   theme_bw() +
   theme(axis.text = element_text(colour="black", size=25),
         axis.text.x = element_text(angle=45, hjust=1),
         axis.title = element_text(face="bold", size=26),
         legend.title = element_text(size=17, face="bold"),
         legend.text = element_text(size=15),
-        legend.position = "top",
-        legend.key.spacing.x = unit(1, "cm"),
-        strip.text = element_text(size=14))+
-  facet_wrap(~gear_simple , nrow = 3, strip.position = "right")
+        #legend.position = "top",
+        #legend.key.spacing.x = unit(1, "cm"),
+        strip.text = element_text(size=14)) #+
+  #facet_wrap(~gear_simple , nrow = 3, strip.position = "right")
 
 dev.off()
 
 
 
-## CF by month -----------------
+### Scatterplot ----
+ggplot(data=all.biodat %>% 
+         filter(grepl("chinook", resolved_species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T), 
+                grepl("san juan", resolved_stock_origin, ignore.case=T), !is.na(cond_k))) +
+  geom_hline(aes(yintercept = 1), colour='red', linetype="dashed", size=1) +
+  geom_hline(aes(yintercept = 1.2), colour="green", linetype="dashed", size=1) +
+  # geom_errorbar(aes(x=statWeek, ymin=meanK-seK, ymax=meanK+seK, colour=hatchery_origin), width=0.1, size=1, alpha=0.8) +
+  geom_point(aes(x=statWeek, y=as.numeric(cond_k), fill=hatchery_origin, colour=hatchery_origin, shape=gear_simple), size=7, alpha=0.7,
+             stroke=1.5)
 
-all.biodat$gear_simple <- factor(all.biodat$gear_simple, levels=c("RST", "Beach seine", "Purse seine", ordered=T))
+
+
+
+
+
+
+
+
+
+
+
+
+
+## CF by month (Figure xx) ----------------- 
+
+all.biodat$gear_simple <- factor(all.biodat$gear_simple, levels=c("RST", "Beach seine", "Port San Juan purse seine",
+                                                                  "Barkley Sound purse seine", ordered=T))
 
 
 pdf(file = here::here("outputs", "figures", "fish traits", "Chinook by month - condition (facet gear).pdf"),   
-    width = 11, # The width of the plot in inches
-    height = 8.5) # The height of the plot in inches
+    width = 14, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
 
 ggplot(data=all.biodat %>% 
-         filter(grepl("chinook", species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T)) %>%
-         group_by(gear_simple, month, hatchery_origin) %>%
-         summarize(meanK = mean(cond_k, na.rm=T),
-                   seK = sd(cond_k, na.rm=T) / sqrt(length(cond_k)),
-                   n=n()) %>%
-         group_by(gear_simple, month) %>%
-         mutate(n=sum(n) 
-                #label = paste0(year, " (n=", n, ")")
-         )) +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=0.9, alpha=0.1, fill="red") +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=0.9, ymax=1, alpha=0.2, fill="yellow") +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=1, ymax=1.1, alpha=0.1, fill="green") +
-  annotate('rect', xmin=-Inf, xmax=Inf, ymin=1.1, ymax=Inf, alpha=0.2, fill="light blue") +
-  geom_errorbar(aes(x=month, ymin=meanK-seK, ymax=meanK+seK, colour=hatchery_origin), width=0.1, size=1, alpha=0.8) +
-  geom_point(aes(x=month, y=as.numeric(meanK), fill=hatchery_origin, colour=hatchery_origin), shape=21, size=7, alpha=0.8) +
-  scale_fill_manual(values=c("N" = "blue",
-                             "Y" = "orange",
-                             "U" = "gray70")) +
-  scale_colour_manual(values=c("N" = "blue",
-                               "Y" = "orange",
-                               "U" = "gray70")) +
-  scale_y_continuous(breaks=seq(0.3, 1.7, by=0.2)) +
-  # scale_x_discrete(limits=c("2-3", "2-4", "3-1", "3-2", "3-3", "3-4", "4-1", "4-2", "4-3", "4-4", "5-1", "5-2", "5-3", "5-4", "6-1", "6-2", "6-3", "6-4", 
-  #                           "7-1", "7-2", "7-3", "7-4", "8-1", "8-2", "8-3", "8-4", "9-1", "9-2", "9-3", "9-4")) +
-  labs(y="Mean condition factor 'K' \u00B1 SE", fill="Hatchery origin?:   ", colour="Hatchery origin?:   ") +
+         filter(grepl("chinook", resolved_species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T),
+                grepl("san juan", resolved_stock_origin, ignore.case=T), !is.na(cond_k),
+                (gear_simple=="RST" & hatchery_origin=="Natural" & cond_k<1.5) |
+                  (gear_simple=="RST" & hatchery_origin=="Hatchery" & cond_k<1.75) |
+                  (grepl("seine", gear_simple, ignore.case=T) & cond_k<3))) +
+  geom_hline(aes(yintercept = 1), colour="#d91817", linetype="dashed", size=0.5, alpha=0.8) +
+  geom_hline(aes(yintercept = 1.2), colour="#15c528", linetype="dashed", size=0.5, alpha=0.8) +
+  geom_boxplot(aes(x=month, y=cond_k, fill=hatchery_origin, colour=hatchery_origin), linewidth=0.7, size=3, shape=21, alpha=0.7) +
+  scale_y_continuous(breaks=seq(0, 2, by=0.4)) +
+  labs(y="Condition factor", fill="Hatchery origin", colour="Hatchery origin") +
   theme_bw() +
-  theme(axis.text = element_text(colour="black", size=25),
-        axis.text.x = element_text(angle=45, hjust=1),
-        axis.title = element_text(face="bold", size=26),
+  theme(axis.text = element_text(colour="black", size=20),
+        axis.title = element_text(face="bold", size=22),
         axis.title.x = element_blank(),
-        legend.title = element_text(size=17, face="bold"),
-        legend.text = element_text(size=15),
-        legend.position = "top",
-        legend.key.spacing.x = unit(1, "cm"),
-        strip.text = element_text(size=14))+
-  facet_wrap(~gear_simple , nrow = 3, strip.position = "right")
+        legend.title = element_text(size=19, face="bold"),
+        legend.text = element_text(size=17),
+        strip.text = element_text(size=17)) +
+  facet_wrap(~gear_simple , nrow = 4, strip.position = "right", labeller = label_wrap_gen(width=14))
 
 dev.off()
 
@@ -148,7 +194,7 @@ dev.off()
 # ======================================================== STOCK COMP ==========================================================
 
 
-# By SITE -----------------
+## By SITE (mapped) -----------------
 stock_comp_site <- all.biodat %>%
   filter(gear_simple%notin%c("RST", "FLAG"), !is.na(site_name_clean), grepl("chinook", species, ignore.case=T), 
          !is.na(resolved_stock_id), resolved_stock_origin_rollup != "FLAG") %>%
