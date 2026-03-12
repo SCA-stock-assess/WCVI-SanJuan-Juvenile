@@ -44,7 +44,10 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
   relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
   rename(fork_length_mm = length,
          height_mm = height,
-         field_weight_g = weight) %>%
+         field_weight_g = weight,
+         dissected_by = sampler,
+         dissection_date = sampling_date) %>%
+  select(-c(mgl_gill_yn:biotoxin_liver_yn)) %>%
   print()
 
 
@@ -240,20 +243,21 @@ biosamp.gsi.linked <-  left_join(biodata,
                                    
                                    # Freshwater rules: 
                                    grepl("HATTK|HATSP|HATLP", usid) ~ "Hatchery sample",
-                                   gear == "IPT" & resolved_species=="Chinook" ~ "F/W sample before hatchery releases",
+                                   gear == "IPT" & resolved_species == "Chinook" ~ "F/W sample before hatchery releases",
                                    year=="2023" & gear %in% c("IPT", "6' RST") & resolved_species == "Chinook" ~ "F/W sample, no hatchery releases",
                                    year=="2024" & gear %in% c("IPT", "6' RST") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "F/W sample before hatchery releases",
-                                   year=="2025" & gear %in% c("IPT", "6' RST") & ad_clip=="N" & resolved_species == "Chinook" ~ "Ad clip (absence in f/w)",
+                                   year=="2024" & gear %in% c("IPT", "6' RST") & date >= as.Date("2024-04-29") & ad_clip=="N" & resolved_species == "Chinook" ~ "Ad clip (absence in f/w)",
                                    year=="2025" & gear %in% c("IPT", "6' RST") & date < as.Date("2025-04-27") & resolved_species == "Chinook" ~ "F/W sample before hatchery releases",
-                                   gear %in% c("IPT", "6' RST") & resolved_species != "Chinook" ~ "Freshwater non-enhanced species",
+                                   year=="2025" & gear %in% c("IPT", "6' RST") & date >= as.Date("2025-04-27") & ad_clip=="N" & resolved_species == "Chinook" ~ "Ad clip (absence in f/w)",
+                                   gear %in% c("IPT", "6' RST", "Pole seine") & resolved_species != "Chinook" ~ "F/W sample, non-enhanced species",
                                    
                                    # Marine/estuary rules: 
-                                  # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
+                                   # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
                                    #year == "2024" & gear %in% c("Beach seine", "Mini purse seine") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Sample before hatchery releases",
                                    gear %in% c("Beach seine", "Mini purse seine", "Large purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "PBT (presence/absence)",
                                    grepl("seine", gear, ignore.case=T) & resolved_species == "Coho" & ad_clip != "Y" ~ "Ad clip (absence, coho)", 
-                                   grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ NA,
-
+                                   gear %in% c("Beach seine", "Mini purse seine") & grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ NA,
+                                   
                                    TRUE ~ NA),
          hatchery_origin = case_when(ad_clip=="Y" ~ "Hatchery",
                                      cwt=="Y" | !is.na(cwt_code) ~ "Hatchery",
@@ -264,16 +268,17 @@ biosamp.gsi.linked <-  left_join(biodata,
                                      gear == "IPT" & resolved_species=="Chinook" ~ "Natural",
                                      year=="2023" & gear %in% c("IPT", "6' RST") & resolved_species == "Chinook" ~ "Natural",
                                      year=="2024" & gear %in% c("IPT", "6' RST") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Natural",
-                                     year=="2025" & gear %in% c("IPT", "6' RST") & ad_clip=="N" & resolved_species == "Chinook" ~ "Natural",
+                                     year=="2024" & gear %in% c("IPT", "6' RST") & date >= as.Date("2024-04-29") & ad_clip=="N" & resolved_species == "Chinook" ~ "Natural",
                                      year=="2025" & gear %in% c("IPT", "6' RST") & date < as.Date("2025-04-27") & resolved_species == "Chinook" ~ "Natural",
-                                     gear %in% c("IPT", "6' RST") & resolved_species != "Chinook" ~ "Natural",
+                                     year=="2025" & gear %in% c("IPT", "6' RST") & date >= as.Date("2025-04-27") & ad_clip=="N" & resolved_species == "Chinook" ~ "Natural",
+                                     gear %in% c("IPT", "6' RST", "Pole seine") & resolved_species != "Chinook" ~ "Natural",
                                      
-                                     # Marine/estuary rules: 
+                                                                          # Marine/estuary rules: 
                                      # year == "2023" & gear == "Beach seine" & date < as.Date("2023-05-25") & resolved_species=="Chinook" ~ "Sample before hatchery releases",
                                      #year == "2024" & gear %in% c("Beach seine", "Mini purse seine") & date < as.Date("2024-04-29") & resolved_species == "Chinook" ~ "Sample before hatchery releases",
                                      gear %in% c("Beach seine", "Mini purse seine", "Large purse seine") & MGL_ID_Source == "GSI" & MGL_species != "chum" ~ "Natural",
                                      gear %in% c("Beach seine", "Mini purse seine") & resolved_species == "Coho" & ad_clip != "Y" ~ "Natural", 
-                                     grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ "Unknown",
+                                     gear %in% c("Beach seine", "Mini purse seine") & grepl("pink|sockeye|chum", resolved_species, ignore.case=T) & ad_clip !="Y" ~ "Unknown",
                                      
                                      TRUE ~ "Unknown"),
          resolved_stock_id_method = case_when(MGL_ID_Source=="PBT" ~ "PBT",
@@ -443,10 +448,12 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
   select(-c(Company_Doing_Analysis, Year, Date_Sampled, Biologica_Sample_ID)) %>% 
   rename(diet_comments = Comments) %>% 
   janitor::clean_names() %>%
-  mutate(across(c(source1:total_ww_g), ~case_when(.%in%c("n/a", "NA")~NA, TRUE~.)),
-         ww_note = case_when(total_ww_g=="TR" ~ "TRACE",
-                             TRUE ~ NA),
-         total_ww_g = case_when(total_ww_g=="TR" ~ 0,
+  mutate(across(c(source1:total_ww_g), ~case_when(. %in% c("n/a", "NA") ~ NA, 
+                                                  TRUE ~ .)),
+         # ww_note = case_when(total_ww_g=="TR" ~ "TRACE",
+         #                     TRUE ~ NA),
+         total_ww_g = case_when(total_ww_g == "TR" ~ 0.000005,                                                                    # Make "trace" items below the detectable limit (0.00001) but greater than zero to distinguish trace items from truly missing items (important for later analyses)
+                                grepl("BDL|trace|below detectable limit", diet_comments, ignore.case=T) ~ 0.000005,               # Make "trace" items below the detectable limit (0.00001) but greater than zero to distinguish trace items from truly missing items (important for later analyses)
                                 TRUE ~ as.numeric(total_ww_g))) %>%
   mutate(lowest_taxon_final = case_when(!is.na(taxon) ~ taxon,
                                         is.na(taxon) & !is.na(order) ~ paste0("O. ", order),
@@ -505,7 +512,7 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
 
 biosample.long.diet <- full_join(biosamp.gsi.otochem.linked %>% 
                                      select(year, gear, usid, date, DOY, species, resolved_species, fork_length_mm, height_mm, field_weight_g, lab_weight_g,
-                                            modelled_weight_g, resolved_weight_g, resolved_weight_source, 
+                                            modelled_weight_g, resolved_weight_g, resolved_weight_source, condK,
                                             ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
                                             MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
                                             MGL_associated_collection_prob, MGL_species, MGL_notes,
@@ -599,7 +606,10 @@ openxlsx::writeData(R_OUT_SJjuviDB,
                                            sheet="mark-release"))
 openxlsx::writeData(R_OUT_SJjuviDB, 
                     sheet="biosampling", 
-                    x = biosamp.gsi.otochem.linked)
+                    x = biosamp.gsi.otochem.linked %>% 
+                      select(-c(condition_factor_QC)) %>%
+                      relocate(resolved_species, .after=species) %>%
+                      relocate(condK, .after = resolved_weight_source))
 
 openxlsx::writeData(R_OUT_SJjuviDB, 
                     sheet="biosampling long w diet", 
