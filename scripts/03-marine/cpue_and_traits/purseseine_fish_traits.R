@@ -106,7 +106,7 @@ prs.biodat.fish %>%
 # ======================================================== DATA SUMMARY ==========================================================
 
 # =============== AVG BODY TRAITS ===============
-# All salmon
+## All salmon ---------------
 write.csv(
   x=prs.biodat.fish %>% 
     filter(grepl("chinook|coho|chum|sockeye|pink", resolved_species, ignore.case=T)) %>%
@@ -135,7 +135,7 @@ write.csv(
   row.names=F)
 
 
-# By-catch
+## By-catch (Appendix Table xx) ---------------
 write.csv(
   x=prs.biodat.fish %>% 
     filter(!grepl("chinook|coho|chum|sockeye|pink|unknown", resolved_species, ignore.case=T), !is.na(resolved_species)) %>%
@@ -291,7 +291,7 @@ prs.biodat.fish %>%
 
 
 
-### Plot ---- 
+## Plot (Figure xx) ------------ 
 prs.biodat.fish$site_name_clean <- factor(prs.biodat.fish$site_name_clean, levels=c("Gordon R", "PGM", "PGM \"Mouth\"", "Nearshore",
                                                                                     "PRCD", "Offshore A", 
                                                                                     "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
@@ -319,7 +319,7 @@ ggplot() +
                       site_name_clean != "Numukamis Bay North") %>%
                group_by(year, site_name_clean) %>%
                summarize(n=n()),
-             aes(x=site_name_clean, y=-0.03, label=n), size=4.5) +
+             aes(x=site_name_clean, y=1.03, label=n), size=4.5) +
   scale_fill_manual(breaks = c("Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan",
                                "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
                                "Hatchery US", "Natural US",
@@ -347,14 +347,14 @@ ggplot() +
   labs(x="Site name", y="Proportion of genetic samples", fill="Stock ID", colour="Stock ID") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
-        axis.text = element_text(colour="black", size=15),
-        axis.title = element_text(face="bold", size=17),
+        axis.text = element_text(colour="black", size=16),
+        axis.title = element_text(face="bold", size=18),
         legend.title = element_text(face="bold", size=17),
-        legend.text = element_text(size=15),
+        legend.text = element_text(size=16),
         legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
         #legend.position = c(0.75,0.2),
         plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
-        strip.text = element_text(size=18))  +
+        strip.text = element_text(size=19))  +
   facet_wrap(~year, scales="free_x", nrow=1)
 
 dev.off()
