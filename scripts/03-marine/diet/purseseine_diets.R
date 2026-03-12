@@ -808,7 +808,7 @@ leaflet() %>%
 
 
 
-### Taxa by SITE (plot) ----------------
+### Taxa by SITE (plot) (Figure xx) ----------------
 prs_meanTAXA_by_site$site_name_clean <- factor(prs_meanTAXA_by_site$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
                                                                                               "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
                                                                                               ordered=T))
@@ -832,7 +832,7 @@ ggplot() +
                summarize(n=n()) %>%
                group_by(site_name_clean) %>%
                summarize(n=n()),
-             aes(x=site_name_clean, y=-0.03, label=n), size=4.5) +
+             aes(x=site_name_clean, y=1.03, label=n), size=5) +
   scale_fill_manual(breaks=waiver(), 
                     values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
                              "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
@@ -846,7 +846,7 @@ ggplot() +
                                "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
                                "#cecfd3")) +
   scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
-  labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
+  labs(x="Site name", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
         axis.text = element_text(colour="black", size=15),
