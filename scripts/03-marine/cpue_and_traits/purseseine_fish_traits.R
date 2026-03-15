@@ -17,12 +17,7 @@ prs.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
   janitor::clean_names()  %>%
   full_join(.,
             read.csv(here::here("data", "stat_weeks.csv"))) %>%
-  filter(statWeek %notin% c("2-3", "2-4", "3-1", "3-2", "3-3", "3-4", "4-1", "4-2","4-3", "4-4")) %>%
-  print()
-
-
-
-prs.biodat.fish <- prs.biodat.fish %>% 
+  #filter(statWeek %notin% c("2-3", "2-4", "3-1", "3-2", "3-3", "3-4", "4-1", "4-2","4-3", "4-4")) %>%
   left_join(.,
             readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                pattern="^R_OUT - San Juan PSSI master database",
@@ -106,7 +101,7 @@ prs.biodat.fish %>%
 # ======================================================== DATA SUMMARY ==========================================================
 
 # =============== AVG BODY TRAITS ===============
-## All salmon ---------------
+## All salmon (Table xx) ---------------
 write.csv(
   x=prs.biodat.fish %>% 
     filter(grepl("chinook|coho|chum|sockeye|pink", resolved_species, ignore.case=T)) %>%
@@ -262,17 +257,19 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
-# ======================================================== STOCK COMPOSITION ==========================================================
+# ======================================================== CHINOOK STOCK COMPOSITION ==========================================================
 
 
-## All ------------ 
+## By SITE ---------------
+
+# All
 prs.biodat.fish %>%
   group_by(resolved_stock_id) %>%
   summarize(n=n()) %>%
   ungroup() %>%
   mutate(total=sum(n))
 
-## Identifiable ------------ 
+# Identifiable
 prs.biodat.fish %>%
   filter(resolved_stock_id!="Unknown") %>%
   group_by(resolved_stock_id) %>%
@@ -280,7 +277,7 @@ prs.biodat.fish %>%
   ungroup() %>%
   mutate(total=sum(n))
 
-## Identifiable ROLLUP ------------ 
+# Identifiable ROLLUP
 prs.biodat.fish %>%
   filter(resolved_species=="Chinook") %>%
   group_by(year, resolved_stock_origin_rollup) %>%
@@ -291,60 +288,88 @@ prs.biodat.fish %>%
 
 
 
-## Plot (Figure xx) ------------ 
-prs.biodat.fish$site_name_clean <- factor(prs.biodat.fish$site_name_clean, levels=c("Gordon R", "PGM", "PGM \"Mouth\"", "Nearshore",
+### Plot (Figure xx) ------
+prs.comp.site <- prs.biodat.fish %>%
+  filter(resolved_species=="Chinook", !grepl("GPS", site_name_clean),
+         site_name_clean != "Numukamis Bay North") %>%
+  mutate(resolved_stock_origin_rollup2 = gsub(" River", "", resolved_stock_origin_rollup)) %>%
+  group_by(year, site_name_clean, resolved_stock_origin_rollup2) %>%
+  summarize(n=n()) %>% 
+  group_by(year, site_name_clean) %>% 
+  mutate(total=sum(n),
+         propn = n/total) %>%
+  print()
+
+prs.comp.site$resolved_stock_origin_rollup2 <- factor(prs.comp.site$resolved_stock_origin_rollup2, 
+                                                 levels = c("Hatchery Unknown", "Natural Unknown", "Unknown Unknown",
+                                                            "Hatchery US", "Natural US",
+                                                            "Natural Clayoquot", "Natural SWVI",
+                                                            "Natural Inner Barkley", "Natural Outer Barkley",
+                                                            "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
+                                                            "Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan"
+                                                 ), ordered=T)
+
+prs.comp.site$site_name_clean <- factor(prs.comp.site$site_name_clean, levels=c("Gordon R", "PGM", "PGM \"Mouth\"", "Nearshore",
                                                                                     "PRCD", "Offshore A", 
                                                                                     "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
                                                                                     "Numukamis Bay North",
                                                                                     ordered=T))
+
 
 pdf(file = here::here("outputs", "figures", "stock comps", "Marine stock composition (by SITE).pdf"),   
     width = 14, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
 ggplot() +
-  geom_bar(data = prs.biodat.fish %>%
-             filter(resolved_stock_id!="Unknown", resolved_species=="Chinook", !grepl("GPS", site_name_clean),
-                    site_name_clean != "Numukamis Bay North") %>%
-              mutate(resolved_stock_origin_rollup2 = gsub(" River", "", resolved_stock_origin_rollup)) %>%
-             group_by(year, site_name_clean, resolved_stock_origin_rollup2) %>%
-             summarize(n=n()) %>% 
-             group_by(year, site_name_clean) %>% 
-             mutate(total=sum(n),
-                    propn = n/total), 
-           aes(x=site_name_clean, y=propn, fill=resolved_stock_origin_rollup2, colour=resolved_stock_origin_rollup2), 
-           stat="identity", alpha=0.8, linewidth=1, position="stack") +
+  geom_bar(data = prs.comp.site, 
+           aes(x=site_name_clean, y=propn, fill=resolved_stock_origin_rollup2, 
+               colour=resolved_stock_origin_rollup2), 
+           stat="identity", alpha=0.8, linewidth=0.3, position="stack") +
   geom_label(data = prs.biodat.fish %>%
-               filter(resolved_stock_id!="Unknown", resolved_species=="Chinook", !grepl("GPS", site_name_clean), 
+               filter(resolved_species=="Chinook", !grepl("GPS", site_name_clean), 
                       site_name_clean != "Numukamis Bay North") %>%
                group_by(year, site_name_clean) %>%
                summarize(n=n()),
-             aes(x=site_name_clean, y=1.03, label=n), size=4.5) +
-  scale_fill_manual(breaks = c("Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan",
-                               "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
-                               "Hatchery US", "Natural US",
+             aes(x=site_name_clean, y=1, label=n), size=4.5, vjust=-0.2) +
+  scale_fill_manual(breaks = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                               "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
                                "Natural Inner Barkley", "Natural Outer Barkley",
-                               "Natural Clayoquot", "Natural SWVI" ),
-
-                    values=c("#3d6c3d", "#66b466", "#99f299",
-                             "#a759a7", "#ef80ef", "#f8ccf8",
-                             "#b27b2e", "#ffb142",
+                               "Natural Clayoquot", "Natural SWVI",
+                               "Hatchery US", "Natural US",
+                               "Hatchery Unknown", "Natural Unknown", "Unknown Unknown"),
+                    values=c("#99f299", "#66b466",  "#3d6c3d", 
+                             "#f8ccf8", "#ef80ef",  "#a759a7", 
                              "#8080ef", "#80b8ef",
-                             "#9b3a5e", "#174950")) +
-  scale_colour_manual(breaks = c("Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan",
-                                 "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
-                                 "Hatchery US", "Natural US",
-                                 "Natural Inner Barkley", "Natural Outer Barkley",
-                                 "Natural Clayoquot", "Natural SWVI" ),
-                      
-                      values=c("#3d6c3d", "#66b466", "#99f299",
-                               "#a759a7", "#ef80ef", "#f8ccf8",
-                               "#b27b2e", "#ffb142",
-                               "#8080ef", "#80b8ef",
-                               "#9b3a5e", "#174950")) +
-  
-  scale_y_continuous(labels=scales::percent_format()) +
-  labs(x="Site name", y="Proportion of genetic samples", fill="Stock ID", colour="Stock ID") +
+                             "#9b3a5e", "#174950",
+                             "#b27b2e", "#ffb142",
+                             "gray40", "gray80", "gray90") ,
+                    labels = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                               "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                               "Natural Inner Barkley", "Natural Outer Barkley",
+                               "Natural Clayoquot", "Natural SWVI",
+                               "Hatchery US", "Natural US",
+                               "Hatchery Unknown", "Natural Unknown", "Unknown Unknown")) +
+  scale_colour_manual(breaks = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                               "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                               "Natural Inner Barkley", "Natural Outer Barkley",
+                               "Natural Clayoquot", "Natural SWVI",
+                               "Hatchery US", "Natural US",
+                               "Hatchery Unknown", "Natural Unknown", "Unknown Unknown"),
+                    values=c("#99f299", "#66b466",  "#3d6c3d", 
+                             "#f8ccf8", "#ef80ef",  "#a759a7", 
+                             "#8080ef", "#80b8ef",
+                             "#9b3a5e", "#174950",
+                             "#b27b2e", "#ffb142",
+                             "gray40", "gray80", "gray90") ,
+                    labels = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                               "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                               "Natural Inner Barkley", "Natural Outer Barkley",
+                               "Natural Clayoquot", "Natural SWVI",
+                               "Hatchery US", "Natural US",
+                               "Hatchery Unknown", "Natural Unknown", "Unknown Unknown")) +
+  scale_y_continuous(labels=scales::percent_format(), limits=c(0, 1.05), expand = expansion(mult = c(0.01, 0.1)), 
+                     breaks = seq(0, 1, by=0.25)) +
+  labs(x="Site name", y="Proportion of Chinook", fill="Stock ID", colour="Stock ID") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
         axis.text = element_text(colour="black", size=16),
@@ -352,13 +377,137 @@ ggplot() +
         legend.title = element_text(face="bold", size=17),
         legend.text = element_text(size=16),
         legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
-        #legend.position = c(0.75,0.2),
-        plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
+        plot.margin = unit(c(t=0.2, r=0.5, b=0, l=0.2),"cm"),
         strip.text = element_text(size=19))  +
-  facet_wrap(~year, scales="free_x", nrow=1)
+  facet_wrap(~year, ncol=1, strip.position = "right")
 
 dev.off()
-  
+
+
+
+
+## By STATWEEK -------------
+cn.propn <- prs.biodat.fish %>%
+  filter(resolved_species == "Chinook") %>%
+  group_by(statWeek, hatchery_origin, stray_status) %>%
+  summarize(n=n()) %>%
+  group_by(statWeek) %>%
+  mutate(total = sum(n),
+         propn = n/total) %>%
+  full_join(.,
+            read.csv(here::here("data", "stat_weeks.csv")) %>%
+              group_by(statWeek) %>%
+              summarize(),
+            by="statWeek") %>%
+  filter(statWeek %notin% c("02-3", "02-4", "03-1", "03-2", "03-3", "03-4", "04-1", "04-2","04-3", "04-4", "10-1", "10-2",
+                            "10-3", "10-4", "10-5")) %>%
+  print()
+
+
+### Plot (Figure xx) -----
+
+prs.comp.sw <- prs.biodat.fish %>%
+  filter(resolved_species=="Chinook", !grepl("GPS", site_name_clean),
+         site_name_clean != "Numukamis Bay North") %>%
+  mutate(resolved_stock_origin_rollup2 = gsub(" River", "", resolved_stock_origin_rollup)) %>%
+  group_by(year, statWeek, resolved_stock_origin_rollup2) %>%
+  summarize(n=n()) %>% 
+  group_by(year, statWeek) %>% 
+  mutate(total=sum(n),
+         propn = n/total) %>%
+  full_join(.,
+            read.csv(here::here("data", "stat_weeks.csv")) %>%
+              group_by(statWeek) %>%
+              summarize(),
+            by="statWeek") %>%
+  filter(statWeek %notin% c("02-3", "02-4", "03-1", "03-2", "03-3", "03-4", "04-1", "04-2","04-3", "04-4", "10-1", "10-2",
+                            "10-3", "10-4", "10-5"), !is.na(year)) %>%
+  print()
+
+prs.comp.sw$resolved_stock_origin_rollup2 <- factor(prs.comp.sw$resolved_stock_origin_rollup2, 
+                                                levels = c("Hatchery Unknown", "Natural Unknown", "Unknown Unknown",
+                                                           "Hatchery US", "Natural US",
+                                                           "Natural Clayoquot", "Natural SWVI",
+                                                           "Natural Inner Barkley", "Natural Outer Barkley",
+                                                           "Hatchery Nitinat (Sooke Harbour Release)", "Hatchery Sooke", "Natural Sooke/Nitinat",
+                                                           "Hatchery San Juan (Port Renfrew Seapen)", "Hatchery San Juan", "Natural San Juan"
+                                                ), ordered=T)
+
+
+pdf(file = here::here("outputs", "figures", "stock comps", "Marine stock composition (by STATWEEK).pdf"),   
+    width = 14, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data = prs.comp.sw, 
+           aes(x=statWeek, y=propn, fill=resolved_stock_origin_rollup2, 
+               colour=resolved_stock_origin_rollup2), 
+           stat="identity", alpha=0.8, linewidth=0.3, position="stack") +
+  geom_label(data = prs.biodat.fish %>%
+               filter(resolved_species=="Chinook", !grepl("GPS", site_name_clean), 
+                      site_name_clean != "Numukamis Bay North") %>%
+               group_by(year, statWeek) %>%
+               summarize(n=n()),
+             aes(x=statWeek, y=1, label=n), size=4.2, vjust=-0.2) +
+  scale_fill_manual(breaks = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                               "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                               "Natural Inner Barkley", "Natural Outer Barkley",
+                               "Natural Clayoquot", "Natural SWVI",
+                               "Hatchery US", "Natural US",
+                               "Hatchery Unknown", "Natural Unknown", "Unknown Unknown"),
+                    values=c("#99f299", "#66b466",  "#3d6c3d", 
+                             "#f8ccf8", "#ef80ef",  "#a759a7", 
+                             "#8080ef", "#80b8ef",
+                             "#9b3a5e", "#174950",
+                             "#b27b2e", "#ffb142",
+                             "gray40", "gray80", "gray90") ,
+                    labels = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                               "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                               "Natural Inner Barkley", "Natural Outer Barkley",
+                               "Natural Clayoquot", "Natural SWVI",
+                               "Hatchery US", "Natural US",
+                               "Hatchery Unknown", "Natural Unknown", "Unknown Unknown")) +
+  scale_colour_manual(breaks = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                                 "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                                 "Natural Inner Barkley", "Natural Outer Barkley",
+                                 "Natural Clayoquot", "Natural SWVI",
+                                 "Hatchery US", "Natural US",
+                                 "Hatchery Unknown", "Natural Unknown", "Unknown Unknown"),
+                      values=c("#99f299", "#66b466",  "#3d6c3d", 
+                               "#f8ccf8", "#ef80ef",  "#a759a7", 
+                               "#8080ef", "#80b8ef",
+                               "#9b3a5e", "#174950",
+                               "#b27b2e", "#ffb142",
+                               "gray40", "gray80", "gray90") ,
+                      labels = c("Natural San Juan", "Hatchery San Juan",  "Hatchery San Juan (Port Renfrew Seapen)", 
+                                 "Natural Sooke/Nitinat", "Hatchery Sooke",  "Hatchery Nitinat (Sooke Harbour Release)", 
+                                 "Natural Inner Barkley", "Natural Outer Barkley",
+                                 "Natural Clayoquot", "Natural SWVI",
+                                 "Hatchery US", "Natural US",
+                                 "Hatchery Unknown", "Natural Unknown", "Unknown Unknown")) +
+  scale_y_continuous(labels=scales::percent_format(), limits=c(0, 1.05), expand = expansion(mult = c(0.01, 0.13)), 
+                     breaks = seq(0, 1, by=0.25)) +
+  labs(x="Stat week (month-week)", y="Proportion of Chinook", fill="Stock ID", colour="Stock ID") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(colour="black", size=16),
+        axis.title = element_text(face="bold", size=18),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=16),
+        legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+        plot.margin = unit(c(t=0.2, r=0.5, b=0.1, l=0.2),"cm"),
+        strip.text = element_text(size=19))  +
+  facet_wrap(~year, ncol=1, strip.position = "right")
+
+dev.off()
+
+
+
+
+
+
+
+
 
 
 
