@@ -557,6 +557,56 @@ dev.off()
 
 # =============================================== NDMS PFI: SAN JUAN only ===============================================
 
+meanPFI_by_month_SJ <- all.biodat.diet %>%
+  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+                                 TRUE ~ gear)) %>%
+  filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+         grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
+         !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      # limit PFI to only "logical" prey items
+         lethal_tag_no != "SJ25-071") %>%                                                    # this sample is the one that had 2.2g of barnacles - typo from analyst. have to discard as unreliable data.           
+  group_by(lethal_tag_no, PFI_group) %>%                                                     # group data by individual fish and diet group and summarize the data to extract unique months, gear type, hatchery origin, and total PFI per fish
+  summarize(month = unique(month),
+            gear_simple = unique(gear_simple), 
+            hatchery_origin = unique(hatchery_origin), 
+            prey_PFI = sum(PFI, na.rm=T)) %>%
+  mutate(PFI_category = "obs/trace") %>%
+  ungroup() %>%
+  complete(., lethal_tag_no, PFI_group, fill=list(prey_PFI=0)) %>%                           # fill out the dataframe for all combinations of individual fish and diet group (needed to calculate average below). For any diet group that wasn't present, give it a value of 0 for the fullness index
+  group_by(lethal_tag_no) %>%                                                                # group by individual fish
+  fill(c(gear_simple, month, hatchery_origin), .direction = "updown") %>%                    # fill out other missing variables that are currently NA since using complete() above
+  ungroup() %>%
+  group_by(hatchery_origin, month, gear_simple, PFI_group) %>%                               # group by hatchery origin, month, gear, and diet group
+  summarize(mean_PFI = mean(prey_PFI, na.rm = T)) %>%                                        # calculate the mean PFI across individuals (but within above groups)
+  full_join(.,
+            data.frame(month = c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep")),   # join to a list of all months for plotting
+            by="month") %>%
+  left_join(., 
+            all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+                                             TRUE ~ gear)) %>%
+              filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
+                     grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
+                     !grepl("No sample|Plastic|Non-food|parasite", taxonomy_simple, ignore.case=T),      
+                     lethal_tag_no != "SJ25-071") %>%
+              group_by(month, gear_simple, hatchery_origin, lethal_tag_no) %>%
+              summarize(n=n()) %>%
+              group_by(month, gear_simple, hatchery_origin) %>%
+              summarize(n=n()) %>%
+              ungroup()) %>%  
+  print()
+
+meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("RST", "Beach seine", "Port San Juan purse seine",
+                                                                                    "Barkley Sound purse seine"), ordered=T)
+
+meanPFI_by_month_SJ$month <- factor(meanPFI_by_month_SJ$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
+                                    ordered=T)
+
+
+
 ## Set up ---------------
 # Re-format
 meanPFI_by_month_SJ.wide <- meanPFI_by_month_SJ %>%
@@ -689,6 +739,58 @@ ggpubr::ggarrange(
 )
 
 dev.off()
+
+
+
+## PERMANOVA ----------
+set.seed(0)
+distances <- vegan::vegdist(PFI_matrix, distance = 'bray')
+
+### Origin ----
+set.seed(1)
+# Homogeneity of dispersion: 
+disp.origin <- vegan::betadisper(distances, meanPFI_by_month_SJ.wide$hatchery_origin)
+vegan::permutest(disp.origin)
+plot(disp.origin)
+
+# PERMANOVA:
+vegan::adonis2(distances ~ meanPFI_by_month_SJ.wide$hatchery_origin, method="bray")
+
+
+
+
+### Gear (habitat) ----
+set.seed(2)
+# Homogeneity of dispersion: 
+disp.habitat <- vegan::betadisper(distances, meanPFI_by_month_SJ.wide$gear_simple)
+vegan::permutest(disp.habitat)
+plot(disp.habitat)
+
+# PERMANOVA: 
+vegan::adonis2(distances ~ meanPFI_by_month_SJ.wide$gear_simple, method="bray")
+
+# Post-hoc: 
+RVAideMemoire::pairwise.perm.manova(distances, meanPFI_by_month_SJ.wide$gear_simple, p.method="bonferroni")
+
+
+
+
+### Month ----
+set.seed(3)
+# Homogeneity of dispersion: 
+disp.month <- vegan::betadisper(distances, meanPFI_by_month_SJ.wide$month)
+vegan::permutest(disp.month)
+plot(disp.month)
+
+# PERMANOVA
+vegan::adonis2(distances ~ meanPFI_by_month_SJ.wide$month, method="bray")
+
+# Post-hoc: 
+RVAideMemoire::pairwise.perm.manova(distances, meanPFI_by_month_SJ.wide$month, p.method="bonferroni")
+
+
+
+
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
