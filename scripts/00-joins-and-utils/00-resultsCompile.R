@@ -2,6 +2,9 @@
 # Feb 2024
 # Only need to run if new lab results returned (e.g., GSI, stomachs, etc.) or if changes to underlying data file (San Juan PSSI master database...)
 
+# Note this relies on statistical models developed in 
+#   - height_weight_model.R  (for modelled weights)
+#   - residual_condition.R   (for residual condition)
 
 
 # Load libraries/set up ------------------------------------
@@ -29,14 +32,13 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
   mutate(resolved_weight_source = case_when(!is.na(weight) ~ "field",
                                             is.na(weight) & !is.na(lab_weight_g) ~ "lab",
                                             is.na(weight) & is.na(lab_weight_g) ~ "modelled"),
-         modelled_weight_g = case_when(grepl("RST|IPT", gear, ignore.case=T) ~ 0.142*exp(0.229*height),   #  weight models as of Jan 26
+         modelled_weight_g = case_when(grepl("RST|IPT", gear, ignore.case=T) ~ 0.142*exp(0.229*height),   #  weight models as of Jan 26 - see height_weight_model.R
                                        #grepl("seine", gear, ignore.case=T) ~ ((2.59*height)-5.58)),
                                        grepl("seine", gear, ignore.case=T) ~ exp((2.59*log(height))-5.58)),
          resolved_weight_g = case_when(resolved_weight_source=="field" ~ as.numeric(weight),
                                        resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
                                        resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
          condK = resolved_weight_g/(length^3)*100000,
-         #species = ,
          species = case_when(grepl("perch", species, ignore.case=T) ~ "Perch",
                              grepl("smelt", species, ignore.case=T) ~ "Smelt",
                              TRUE ~ stringr::str_to_title(species))) %>%
@@ -50,6 +52,28 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
   select(-c(mgl_gill_yn:biotoxin_liver_yn)) %>%
   print()
 
+
+
+## Residual condition factor ------------------------------------
+# Doing this here because I need the modelled weights calculated above to make the length-weight regression
+
+ggplot(data = biodata) +
+  geom_point(aes(x=log(fork_length_mm), y=log(resolved_weight_g), colour=resolved_weight_source), size=3, alpha=0.7) +
+  geom_smooth(aes(x=log(fork_length_mm), y=log(resolved_weight_g)), method="lm", col="black")
+
+summary(lm(log(biodata$resolved_weight_g) ~ log(biodata$fork_length_mm)))
+# b = 2.84  (logged)
+# m = -11.06 (logged)
+# y = -11.06x + 2.84
+
+biodata2 <- biodata %>%
+  mutate(predicted_weight_Wp = (exp(-11.06) * biodata$fork_length_mm) + exp(2.84),
+         condKn_resid = resolved_weight_g / predicted_weight_Wp)
+
+# ** here next day -- weird resid cond values
+
+ggplot(data = biodata2) +
+  geom_point(aes(x=date, y=condKn_resid))
 
 
 
