@@ -1,0 +1,6 @@
+"species","method","estimate","UCI","LCI"
+"chinook","LH",317040,NA,NA
+"chinook","TE",317067,NA,NA
+"coho_subY","LH",858720,NA,NA
+"coho_subY","TE",1732044,NA,NA
+"coho_subY","PP",1130278,1570590.67619874,689965.323801258
