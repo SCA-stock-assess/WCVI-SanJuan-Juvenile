@@ -11,7 +11,7 @@ library(tidyverse)
 
 ## Load helpers ---------------
 "%notin%" <- Negate("%in%")
-options(scipen=99999)
+options(scipen=99999999)
 
 
 # ========================= LOAD JUVENILE DATA =========================
@@ -213,7 +213,7 @@ dev.off()
 eventMeta_totals <- full_join(eventMeta %>%
                                 select(year, gear, date_start, datetime_start, date_stop, datetime_stop, set_type, usid),
                               setTotals %>% 
-                                filter(species %in% c("chinook", "chum", "coho")) %>%
+                                filter(species %in% c("Chinook", "Chum", "Coho")) %>%
                                 select(usid, doy, species_stage_simple, total_caught_excl_recaps),
                               by="usid"
 ) %>%
@@ -237,13 +237,13 @@ eventMeta_totals <- full_join(eventMeta %>%
                                 TRUE ~ 0),
          estimate_type = case_when(is.na(usid) ~ "infill",
                                    TRUE ~ "observed"),
-         across(c(`chinook (natural)`:`chinook (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
+         across(c(`Chinook (natural)`:`Chinook (hatchery)`), ~case_when(!is.na(usid) & is.na(.) ~ 0,
                                                                   TRUE ~ .)),
-         chinook_natural_obs_validation = `chinook (natural)`,
-         coho_subyearling_obs_validation = `coho subyearling`,
-         coho_yearling_obs_validation = `coho yearling`,
-         chum_fry_obs_validation = `chum fry`,
-         chinook_hatchery_obs_validation = `chinook (hatchery)`) %>%
+         chinook_natural_obs_validation = `Chinook (natural)`,
+         coho_subyearling_obs_validation = `Coho subyearling`,
+         coho_yearling_obs_validation = `Coho yearling`,
+         chum_fry_obs_validation = `Chum fry`,
+         chinook_hatchery_obs_validation = `Chinook (hatchery)`) %>%
   janitor::clean_names() %>%
   ungroup() %>%
   rename_with(~ paste(., "obs", sep="_"), c(chinook_natural:chinook_hatchery)) %>%
@@ -458,14 +458,47 @@ dev.off()
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# ======================= TRAP EFFICIENCY ======================= 
+# ======================= CATCH AND FLOW RELATIONSHIPS ======================= 
+## Plot of 2024 catch + flow ~ time ---------- 
+ggplot() +
+  geom_line(data=hydro %>%
+              filter(year==2024, param=="discharge (cms)", month%in%c("Feb", "Mar", "Apr", "May", "Jun")),
+            aes(x=as.Date(doy, origin="2024-01-01"), y=value*5), colour="dodger blue", size=1) +
+  geom_bar(data=setTotals %>%
+             filter(species=="Coho", life_stage=="subyearling", year==2024) %>%
+             group_by(doy) %>%
+             summarize(total_cn = sum(total_caught_excl_recaps, na.rm=T)),
+           aes(x=as.Date(doy, origin="2024-01-01"), y=total_cn), stat="identity", fill="orange", colour="orange", alpha=0.6) +
+  annotate(geom="text", x=as.Date(60, origin="2024-01-01"), y=1600, label="2024 Coho subyearling", fontface="bold") +
+  scale_x_date(date_labels = "%b %d", date_breaks="2 day") +
+  scale_y_continuous(sec.axis = sec_axis(~./5)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
 
-release_summary <- release %>%
-  filter(total_released > 0) %>%
-  group_by(year, life_stage) %>%
-  summarize(release_by_stage = sum(total_released)) %>%
-  print()
 
+## Plot of 2025 catch + flow ~ time ---------- 
+ggplot() +
+  geom_line(data=hydro %>%
+              filter(year==2025, param=="discharge (cms)", month%in%c("Feb", "Mar", "Apr", "May", "Jun")),
+            aes(x=doy, y=value), colour="dodger blue", size=1) +
+  geom_bar(data=setTotals %>%
+             filter(species=="Coho", life_stage=="subyearling", year==2025) %>%
+             group_by(doy) %>%
+             summarize(total_cn = sum(total_caught_excl_recaps, na.rm=T)),
+           aes(x=doy, y=total_cn), stat="identity", fill="orange", colour="orange") +
+  scale_y_continuous(sec.axis = sec_axis(~./1)) +
+  theme_bw() 
+
+
+# Summary of releases: 
+# release_summary <- release %>%
+#   filter(total_released > 0) %>%
+#   group_by(year, species, life_stage) %>%    #add spp
+#   summarize(release_by_stage = sum(total_released)) %>%
+#   print()
+
+
+## Plot of ALL catch with ALL releases (unlagged) ---------- 
 ggplot() +
   geom_point(data=release %>%
                group_by(year, release_doy, life_stage) %>%
@@ -487,35 +520,338 @@ ggplot() +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1)) +
   facet_wrap(year ~ life_stage, scales="free")
+
+
+
+# ===================== COHO + CHINOOK FRY ABUNDANCE =======================
+# For these purposes, pool Chinook and Coho total catch/release/recaptures to calculate efficiency ~ flow
+
+## Total number of "new" fish passing the trap, infilled --------
+cocn_catch <- eventMeta_totals_INFILLEDFINAL %>%
+  filter(species %in% c("Coho fry (sub-yearling)", "Chinook (natural)"), year %in% c(2024,2025)) %>%
+  pivot_wider(names_from = species, values_from = count) %>%
+  select(-c(estimate_type, doy)) %>%
+  rename(cncount_Ucn = `Chinook (natural)`,
+         cocount_Uco = `Coho fry (sub-yearling)`) %>%
+  mutate(totalcount_U = cncount_Ucn+cocount_Uco) %>%
+  print()
+
+
+## Total number of releases --------
+cocn_releases <- release %>%
+  mutate(case_when(species=="coho" & life_stage=="smolt" ~ "yearling",
+                   TRUE ~ life_stage)) %>%
+  filter(species%in%c("coho","chinook"), life_stage!="yearling") %>%
+  group_by(year, release_date, species) %>%
+  summarize(marks = sum(total_released, na.rm=T)) %>%
+  pivot_wider(names_from = species, values_from = marks) %>%
+  rename(markedCN_released_Mcn = chinook,
+         markedCO_released_Mco = coho) %>%
+  rowwise() %>%
+  mutate(total_marks_released_M = sum(markedCN_released_Mcn,markedCO_released_Mco, na.rm=T)) %>%
+  print()
+
+
+## Total number of recaptures --------
+# Not lagged for time: 
+cocn_recaptures_nolag <- setTotals %>%
+  mutate_at("date", as.Date) %>%
+  filter(species%in%c("Coho", "Chinook"), life_stage!="yearling", year %in% c(2024,2025)) %>%
+  group_by(year, date, species) %>%
+  summarize(total_recaps = sum(bismarck_recaps, na.rm=T)) %>%
+  pivot_wider(names_from = species, values_from = total_recaps) %>%
+  rename(cnrecap_Rcn0 = Chinook,
+         corecap_Rco0 = Coho) %>%
+  rowwise() %>%
+  mutate(`total_recaps_R_lag0` = sum(cnrecap_Rcn0, corecap_Rco0, na.rm=T)) %>%
+  print()
+
+# Lagged for time to line up recaptures with their respective release groups (usually lagged by 1 day, occasionally >1 day)
+cocn_recaptures_lag <- setTotals %>%
+  mutate_at("date", as.Date) %>%
+  filter(species%in%c("Coho", "Chinook"), life_stage!="yearling", year %in% c(2024,2025)) %>%
+  group_by(year, date, species) %>%
+  summarize(total_recaps = sum(bismarck_recaps, na.rm=T)) %>%
+  pivot_wider(names_from = species, values_from = total_recaps) %>%
+  rename(`cnrecap_Rcn-1` = Chinook,
+         `corecap_Rco-1` = Coho) %>%
+  rowwise() %>%
+  mutate(`total_recaps_R_lag-1` = sum(`cnrecap_Rcn-1`, `corecap_Rco-1`, na.rm=T),
+         date = case_when(date == as.Date("2025-05-16") ~ date-2,   # This case lagged by 2 days - no other possible release groups
+                          date == as.Date("2024-04-23") ~ date-6,   # This case lagged by 6 days - no other possible release groups
+                          TRUE ~ date-1)) %>%                       # Default lagged by 1 day
+  print()
+
+
+## Total number marked+unmarked fish (second sample) --------
+cocn_markunmark <- setTotals %>%
+  filter(species%in%c("Coho", "Chinook"), life_stage!="yearling", year %in% c(2024,2025)) %>%
+  group_by(year, date, species) %>%
+  summarize(total_markunmark = sum(total_caught_incl_recaps, na.rm=T)) %>%
+  pivot_wider(names_from = species, values_from = total_markunmark) %>%
+  mutate(across(c(Chinook, Coho), ~ case_when(is.na(.) ~ 0,
+                                      TRUE ~ round(.,0)))) %>%
+  rename(CN_markunmarked_Ccn = Chinook,
+         CO_markunmarked_Cco = Coho) %>%
+  rowwise() %>%
+  mutate(total_markunmark_C = sum(CN_markunmarked_Ccn, CO_markunmarked_Cco, na.rm=T)) %>%
+  print()
+
+
+
+## JOIN: M-R SUMMARY --------
+cocn_abundance <- left_join(cocn_catch,            
+                            cocn_releases, 
+                            by=c("year",
+                                 "date_stop" = "release_date")) %>%
+  left_join(.,
+            cocn_recaptures_lag,
+            by = c("year",
+                   "date_stop" = "date")) %>%
+  left_join(.,
+            cocn_recaptures_nolag,
+            by = c("year",
+                   "date_stop" = "date")) %>%
+  mutate(across(c(markedCN_released_Mcn:`total_recaps_R_lag0`), ~case_when(is.na(.) ~ 0,
+                                                                           TRUE ~ .))) %>%
+  left_join(.,
+            cocn_markunmark,
+            by=c("year",
+                 "date_stop"="date")) %>% 
+  mutate(CN_markunmarked_Ccn = case_when(is.na(CN_markunmarked_Ccn) ~ round(cncount_Ucn,0),
+                                         TRUE ~ CN_markunmarked_Ccn),
+         CO_markunmarked_Cco = case_when(is.na(CO_markunmarked_Cco) ~ round(cocount_Uco,0),
+                                     TRUE ~ CO_markunmarked_Cco),
+         total_markunmark_C = case_when(is.na(total_markunmark_C) ~ round(totalcount_U,0),
+                                        TRUE ~ total_markunmark_C)) %>%
+  left_join(.,
+            hydro %>%
+              filter(param=="discharge (cms)", year %in% c(2024,2025)) %>%
+              select(date, value, year) %>%
+              rename(discharge=value),
+            by=c("year",
+                 "date_stop" = "date")) %>%
+  mutate(trap_efficiency_e = case_when(`total_recaps_R_lag-1`>0 ~ `total_recaps_R_lag-1`/total_marks_released_M),
+         efficiency_type = case_when(!is.na(trap_efficiency_e) ~ "observed",
+                                     TRUE ~ "modelled")) %>%
+  print()
+
+
+### Export to manually smooth discharge across release and recapture periods ----
+# This is too difficult to do in R as there are differentially lagged periods. As we don't know when exactly a fish entered the trap
+#   post-release, it cannot be necessarily attributed to one single day's discharge (i.e., one point in time). Instead, smooth (average)
+#   discharge across the release and recapture period to attribute an average discharge to each trap efficiency score
+
+  # write.csv(cocn_abundance, file=here::here("outputs", "R_OUT - mark_recapture_summary.csv"), row.names=F)
+
+# Calculate average discharge over "smoothed" days:
+hydro_sm <- hydro %>%
+  filter(param=="discharge (cms)", date %in% c(as.Date("2024-03-27"), as.Date("2024-03-28"),
+                                               as.Date("2024-04-03"), as.Date("2024-04-04"),
+                                               as.Date("2024-04-17"):as.Date("2024-04-23"),
+                                               as.Date("2024-05-07"), as.Date("2024-05-08"),
+                                               as.Date("2024-05-28"), as.Date("2024-05-29"),
+                                               as.Date("2025-05-14"):as.Date("2025-05-16"),
+                                               as.Date("2025-05-28"), as.Date("2025-05-29"))) %>%
+  mutate(efficiency_strata = case_when(date %in% c(as.Date("2024-03-27"), as.Date("2024-03-28")) ~ "1",
+                                       date %in% c(as.Date("2024-04-03"), as.Date("2024-04-04")) ~ "2",
+                                       date %in% c(as.Date("2024-04-17"), as.Date("2024-04-18"), as.Date("2024-04-19"),
+                                                   as.Date("2024-04-20"), as.Date("2024-04-21"), as.Date("2024-04-22"),
+                                                   as.Date("2024-04-23")) ~ "3",
+                                       date %in% c(as.Date("2024-05-07"), as.Date("2024-05-08")) ~ "4",
+                                       date %in% c(as.Date("2024-05-28"), as.Date("2024-05-29")) ~ "5",
+                                       date %in% c(as.Date("2025-05-14"), as.Date("2025-05-15"), as.Date("2025-05-16")) ~ "6",
+                                       date %in% c(as.Date("2025-05-28"), as.Date("2025-05-29")) ~ "7",
+                                       TRUE ~ NA)) %>%
+  group_by(efficiency_strata) %>%
+  summarize(mean_Q = mean(value, na.rm=T)) %>%
+  print()
+
+
+# Read manual averaged discharge values back in: 
+cocn_abundance_smooth <- readxl::read_excel(path=here::here("outputs", "R_IN - mark_recapture_summary_Qsmoothed-manual.xlsx"),
+                                            skip=1)
+
+
+
+## Efficiency ~ Flow ---------
+# Plot:
+ggplot(data=cocn_abundance_smooth %>% 
+         filter(!is.na(trap_efficiency_e))) +
+  geom_point(aes(x=discharge_smoothed, y=trap_efficiency_e), size=3) +
+  geom_smooth(aes(x=discharge_smoothed, y=trap_efficiency_e), method = "lm", se = FALSE, formula = y ~ x, color = "blue") +
+  geom_smooth(aes(x=discharge_smoothed, y=trap_efficiency_e), method = "lm", se = FALSE, formula = y ~ poly(x, 2), color = "#EC2049") +
+  geom_smooth(aes(x=discharge_smoothed, y=trap_efficiency_e), method = "lm", se = FALSE, formula = y ~ poly(x, 3), color = "green")
+
+# Create a simplified dataframe just of observed E ~ discharge: 
+lmdf <- cocn_abundance_smooth %>% 
+  filter(!is.na(trap_efficiency_e)) %>%
+  mutate(discharge_smoothed2 = discharge_smoothed^2,
+         discharge_smoothed3 = discharge_smoothed^3)
+
+
+### Evaluate models ----
+# Simple linear:
+summary(lm(trap_efficiency_e ~ discharge_smoothed, data=lmdf))
+
+# Log-linear transformed:
+summary(lm(log(trap_efficiency_e) ~ discharge_smoothed, data=lmdf)) #** 
+summary(lm(trap_efficiency_e ~ log(discharge_smoothed), data=lmdf))
+summary(lm(log(trap_efficiency_e) ~ log(discharge_smoothed), data=lmdf))
+
+# Polynomials: 
+summary(lm(trap_efficiency_e ~ discharge_smoothed + discharge_smoothed2, data=lmdf))
+#summary(lm(trap_efficiency_e ~ discharge_smoothed + discharge_smoothed2 + discharge_smoothed3, data=lmdf))    # truly terrible
+
+
+### Model selection ----
+# Based on R2, lm(log(trap_efficiency_e) ~ discharge_smoothed, data=lmdf) is best
+
+# Visualize: 
+ggplot(data=cocn_abundance_smooth %>% 
+         filter(!is.na(trap_efficiency_e))) +
+  geom_point(aes(x=discharge_smoothed, y=log(trap_efficiency_e)), size=3) +
+  geom_smooth(aes(x=discharge_smoothed, y=log(trap_efficiency_e)), method="lm", se=T, formula = y~x, color="blue") +
+  labs(x="Discharge (cms)", y="log(trap efficiency)") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=15),
+        axis.title = element_text(face="bold", size=17))
+
+# Define model:
+logE.lm <- lm(log(trap_efficiency_e) ~ discharge_smoothed, data=lmdf)
+logE.lm.b <- logE.lm$coefficients[1]
+logE.lm.m <- logE.lm$coefficients[2]
+logE.lmSum <- summary(logE.lm)
+logE.lmSum$r.squared
+
+
+### Predict E with model -------
+# y = mx + b
+# log(y) = -0.07222482*discharge - 2.317334 
+# exp(y)
+cocn_abundance_smooth.pred <- cocn_abundance_smooth %>%
+  mutate(trap_efficiency_e = case_when(efficiency_type=="modelled" ~ round(exp((logE.lm.m*discharge_smoothed) + logE.lm.b), 4),
+                                       TRUE ~ round(trap_efficiency_e, 4)))
+
+
+#### Plot ----
+cocn_abundance_smooth.pred$efficiency_type <- factor(cocn_abundance_smooth.pred$efficiency_type, levels=c("observed", "modelled"), 
+                                                     ordered=T)
+
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Trap efficiency ~ discharge.pdf"),   
+    width = 14, # The width of the plot in inches
+    height = 10) # The height of the plot in inches
+
+ggpubr::ggarrange(
+  ggplot() +
+    annotate(geom = "text", x = 5, y=-1, label="A", fontface="bold", size=6) +
+    geom_smooth(data=cocn_abundance_smooth %>% 
+                  filter(!is.na(trap_efficiency_e)),
+                aes(x=discharge_smoothed, y=log(trap_efficiency_e)), method="lm", se=T, formula = y~x, color="blue") +
+    geom_point(data=cocn_abundance_smooth %>% 
+                 filter(!is.na(trap_efficiency_e)),
+               aes(x=discharge_smoothed, y=log(trap_efficiency_e)), size=4, shape=21, fill="black", alpha=0.8) +
+    labs(x="Discharge (cms)", y="log(Trap efficiency)") +
+    theme_bw() +
+    theme(axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=19),
+          plot.margin = margin(10, 75, 10, 10)) ,   #t, r, b, l),
+  
+  ggplot(data=cocn_abundance_smooth.pred %>% 
+           filter(!is.na(trap_efficiency_e))) +
+    annotate(geom = "text", x = 2, y=0.11, label="B", fontface="bold", size=6) +
+    geom_point(aes(x=discharge_smoothed, y=trap_efficiency_e, fill=efficiency_type, colour=efficiency_type, alpha=efficiency_type), 
+               size=4, shape=21) +
+    scale_fill_manual(breaks=waiver(), values=c("black", "blue")) +
+    scale_colour_manual(breaks=waiver(), values=c("black", "blue")) +
+    scale_alpha_manual(breaks=waiver(), values=c(0.8, 0.3), guide="none") +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(x="Discharge (cms)", y="Trap efficiency", colour="Trap efficiency:", fill="Trap efficiency:") +
+    theme_bw() +
+    theme(axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=19),
+          legend.title = element_text(size=18, face="bold"),
+          legend.text = element_text(size=15),
+          plot.margin = margin(10, 0, 10, 0))
+)
+
+dev.off()
+
+## Daily Chinook estimates -------------
+cocn_abundance_smooth.predabund <- cocn_abundance_smooth.pred %>%
+  mutate(CNdaily_abundance_est = round(cncount_Ucn/trap_efficiency_e,0),
+         cncount_Ucn1 = cncount_Ucn+1,
+         CNdaily_abundance_est1 = round(cncount_Ucn1/trap_efficiency_e,0),
+         
+         COdaily_abundance_est = round(cocount_Uco/trap_efficiency_e,0),
+         cocount_Uco1 = cocount_Uco+1,
+         COdaily_abundance_est1 = round(cocount_Uco1/trap_efficiency_e,0)) %>%
+  print()
+
+
+## Annual abundance estimates -------------
+#### Based on trap efficiency ----
+efficiency.abundest <- cocn_abundance_smooth.predabund %>%
+  group_by(year) %>%
+  summarize(CNest = sum(CNdaily_abundance_est, na.rm=T),
+            CNest1 = sum(CNdaily_abundance_est1, na.rm=T),
+            
+            COest = sum(COdaily_abundance_est, na.rm=T),
+            COest1 = sum(COdaily_abundance_est1, na.rm=T)) %>%
+  print()
+
+
+### Based on life history calculations ----
+  # Chinook: 
+    # 2023 parental return: 2,642 spawners
+    # Assume 40% female: 1,057 females
+    # Assume 3000 eggs/female: 3,171,000 eggs
+    # Egg-fry mortality 90%: 317,100
+  # Coho:
+    # 2023 parental return: 3,578 spawners
+    # Assume 40% female: 1,431 females
+    # Assume fecundity 3000 eggs/female: 4,293,000 eggs
+    # Egg-fry mortality 80%: 858,720
+
+cn.LH.abundest <- ((2642*0.4)*3500)*0.1
+co.LH.abundest <- ((3578*0.4)*3000)*0.2    #this is likely not appropriate as we'd need the yearling component
+
+
+### Coho Pooled Petersen estimate ----
+coho.pp.abundest <- cocn_abundance_smooth.predabund %>%
+  group_by(year) %>%
+  summarize(M = sum(markedCO_released_Mco),
+            R = sum(corecap_Rco.y),
+            C = sum(CO_markunmarked_Cco)) %>%
+  mutate(N = (((M+1)*(C+1))/(R+1))-1,
+         var = ((M+1)*(C+1)*(M-R)*(C-R))/(((R+1)^2)*(R+2)),
+         SE = sqrt(var),
+         UCL = N + (1.96*SE),
+         LCL = N - (1.96*SE)) %>%
+  print()
+
+
+# M is the number of fish caught, marked, and released in first sample
+# R is the number of recaptures in the second sample (i.e., fish that were marked and released in the first sample),
+# C is the total number of marked and unmarked fish caught in second sample
+
+
+# ============= Export Table for Report ============= 
+write.csv(x = data.frame(species = c(rep("chinook", 2), rep("coho_subY", 3)),
+                         method = c("LH", "TE", "LH", "TE", "PP"),
+                         estimate = c(cn.LH.abundest, efficiency.abundest[efficiency.abundest$year=="2024",]$CNest1,
+                                      co.LH.abundest, efficiency.abundest[efficiency.abundest$year=="2024",]$COest1, 
+                                      coho.pp.abundest[coho.pp.abundest$year=="2024",]$N),
+                         UCI = c(NA, NA, NA, NA, coho.pp.abundest[coho.pp.abundest$year=="2024",]$UCL),
+                         LCI = c(NA, NA, NA, NA, coho.pp.abundest[coho.pp.abundest$year=="2024",]$LCL)),
+          file = here::here("outputs", "R_OUT - Outmigration abundance estimates 2024.csv"),
+          row.names=F
+          )
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+  
+  
   
 
 
-mark_rel_sum <- left_join(
-  
-  release %>% 
-    group_by(year, release_date, life_stage) %>%
-    summarize(total_marks_released_M = sum(total_released, na.rm=T)),
-  
-  
-  setTotals %>%
-    filter(grepl("chinook|coho", species, ignore.case=T)) %>%
-    select(year, date, life_stage, total_caught_incl_recaps, bismarck_recaps) %>%
-    mutate(life_stage = case_when(life_stage=="subyearling" ~ "fry",
-                                  life_stage=="yearling" ~ "smolt",
-                                  TRUE ~ life_stage))  %>%
-    group_by(year, date, life_stage) %>%
-    summarize(total_caught_markunmarked_nC = sum(total_caught_incl_recaps, na.rm=T),
-              total_recaps_mR = sum(bismarck_recaps, na.rm=T)) %>%
-    rename(catch_date = date) %>%
-    mutate(catch_date_lagged = as.Date(catch_date)-1),
-
-  
-  by=c("release_date" = "catch_date_lagged",
-    "life_stage", "year")
-) %>%
-  filter(year != 2023) %>%
-  select(year, life_stage, release_date, catch_date, total_marks_released_M, total_caught_markunmarked_nC, total_recaps_mR) %>%
-  arrange(year, life_stage)
-
-
-write.csv(mark_rel_sum, "mark_rel_sum test2.csv", row.names=F)
