@@ -64,6 +64,77 @@ outlier_indices <- which(abs(z_scores) > 3)
 print(rst.nat.k[outlier_indices])
 
 
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+
+# ======================================================== LENGTH ==========================================================
+
+
+all.FL <- all.biodat %>% 
+  filter(grepl("chinook", resolved_species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T),
+         grepl("san juan", resolved_stock_origin, ignore.case=T), 
+         !is.na(resolved_fork_length_mm), hatchery_origin!="Unknown") %>%
+  group_by(month, gear_simple, hatchery_origin) %>%
+  summarize(n = length(resolved_fork_length_mm),
+            meanFL = mean(resolved_fork_length_mm),
+            sdFL = sd(resolved_fork_length_mm),
+            seFL = sdFL/sqrt(length(resolved_fork_length_mm)),
+            CIFL = case_when(n>5 ~ qt(0.975, df=length(resolved_fork_length_mm)-1)*sdFL/sqrt(length(resolved_fork_length_mm)),    #formula to get to 0.975:  1-(1-conf.level)/2
+                             TRUE ~ NA),     
+            CI_flag = case_when(is.na(seFL) ~ "grp1",
+                                TRUE ~ "grp2")) %>%  
+  mutate(gear_simple = case_when(gear_simple=="RST" ~ "Freshwater",
+                                 grepl("beach seine", gear_simple, ignore.case=T) ~ "San Juan estuary",
+                                 grepl("port san juan", gear_simple, ignore.case=T) ~ "Early marine (Port San Jan)",
+                                 grepl("barkley", gear_simple, ignore.case=T) ~ "Early marine (Barkley Sound)")) %>%
+  print()
+
+
+## Length by month (Figure xx) ----------------- 
+all.FL$gear_simple <- factor(all.FL$gear_simple, levels=c("Freshwater", "San Juan estuary", "Early marine (Port San Jan)",
+                                                          "Early marine (Barkley Sound)", ordered=T))
+
+
+pdf(file = here::here("outputs", "figures", "fish traits", "SJ Chinook by month - length.pdf"),   
+    width = 14, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot(data = all.FL) +
+  geom_errorbar(aes(x=month, ymin=meanFL-CIFL, ymax=meanFL+CIFL, 
+                    group=interaction(gear_simple, hatchery_origin), colour=gear_simple), 
+                width=0.2, size=0.8, alpha=0.4, position=position_dodge(width=0.1)) +
+  geom_point(aes(x=month, y=meanFL, shape=hatchery_origin, colour=gear_simple, fill=gear_simple), 
+             stroke=1, size=4, position=position_dodge(width=0.1)) +
+  geom_line(aes(x=month, y=meanFL, group=interaction(hatchery_origin, gear_simple), 
+                colour=gear_simple, linetype=hatchery_origin),
+            size=1.1, alpha=1, position=position_dodge(width=0)) +
+  
+  scale_shape_manual(breaks=c("Hatchery", "Natural"), values=c(24, 21)) +
+  scale_linetype_manual(breaks=c("Hatchery", "Natural"), values=c("dashed", "solid")) +
+  scale_colour_hue() +
+  scale_fill_hue() +
+  
+  scale_y_continuous(breaks=seq(0, 200, by=25)) +
+  labs(y="Fork length (mm)", fill="Life stage", colour="Life stage", shape = "Hatchery origin", 
+       linetype = "Hatchery origin") +
+  
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=20),
+        axis.title = element_text(face="bold", size=22),
+        axis.title.x = element_blank(),
+        legend.title = element_text(size=19, face="bold"),
+        legend.text = element_text(size=17),
+        legend.key.width = unit(10, "mm"),
+        plot.margin = margin(t=0.5, b=0.5, l=0.5, r=0.5, unit="cm"))  +
+  guides(fill = guide_legend(override.aes = list(shape=32)),
+         shape = guide_legend(override.aes = list(size=4, stroke=1)),
+         linetype = guide_legend(override.aes = list(linetype=c("dashed", "solid"), linewidth=c(0.8,0.8))))
+
+dev.off()
+
+
+
+
+
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -71,7 +142,7 @@ print(rst.nat.k[outlier_indices])
 # ======================================================== CONDITION FACTOR ==========================================================
 
 
-## CF by statweek -----------------
+## CF by statweek (boxplot) -----------------
 all.biodat$gear_simple <- factor(all.biodat$gear_simple, levels=c("RST", "Beach seine", "Purse seine", ordered=T))
 
 
@@ -144,18 +215,7 @@ ggplot(data=all.biodat %>%
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-## CF by month (Figure xx) ----------------- 
+## CF by month, facet gear (boxplot) ----------------- 
 
 all.biodat$gear_simple <- factor(all.biodat$gear_simple, levels=c("RST", "Beach seine", "Port San Juan purse seine",
                                                                   "Barkley Sound purse seine", ordered=T))
@@ -186,6 +246,78 @@ ggplot(data=all.biodat %>%
   facet_wrap(~gear_simple , nrow = 4, strip.position = "right", labeller = label_wrap_gen(width=14))
 
 dev.off()
+
+
+
+
+
+## CF by month (Figure xx) ----------------- 
+
+all.K <- all.biodat %>% 
+  filter(grepl("chinook", resolved_species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T),
+         grepl("san juan", resolved_stock_origin, ignore.case=T), 
+         !is.na(cond_k), hatchery_origin!="Unknown") %>%
+  group_by(month, gear_simple, hatchery_origin) %>%
+  summarize(n = length(cond_k),
+            meanK = mean(cond_k),
+            sdK = sd(cond_k),
+            seK = sdK/sqrt(length(cond_k)),
+            CIK = case_when(n>5 ~ qt(0.975, df=length(cond_k)-1)*sdK/sqrt(length(cond_k)),    #formula to get to 0.975:  1-(1-conf.level)/2
+                             TRUE ~ NA),     
+            CI_flag = case_when(is.na(seK) ~ "grp1",
+                                TRUE ~ "grp2")) %>%  
+  mutate(gear_simple = case_when(gear_simple=="RST" ~ "Freshwater",
+                                 grepl("beach seine", gear_simple, ignore.case=T) ~ "San Juan estuary",
+                                 grepl("port san juan", gear_simple, ignore.case=T) ~ "Early marine (Port San Jan)",
+                                 grepl("barkley", gear_simple, ignore.case=T) ~ "Early marine (Barkley Sound)")) %>%
+  print()
+
+
+### Scatterplot w/ line -----
+
+all.K$gear_simple <- factor(all.K$gear_simple, levels=c("Freshwater", "San Juan estuary", "Early marine (Port San Jan)",
+                                                          "Early marine (Barkley Sound)", ordered=T))
+
+pdf(file = here::here("outputs", "figures", "fish traits", "SJ Chinook by month - condition.pdf"),   
+    width = 14, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+
+ggplot(data = all.K) +  
+  #annotate(geom="text", x="Feb", y=1.25, label="B", fontface="bold") +
+  geom_hline(aes(yintercept = 1), colour="black", linetype="solid", size=1, alpha=0.8) +
+  geom_hline(aes(yintercept = 1.2), colour="gray60", linetype="solid", size=1, alpha=0.8) +
+  geom_line(aes(x=month, y=meanK, group=interaction(hatchery_origin, gear_simple), 
+                colour=gear_simple, linetype=hatchery_origin),
+            size=0.8, alpha=1, position=position_dodge(width=0.1)) +
+  
+  geom_errorbar(aes(x=month, ymin=meanK-CIK, ymax=meanK+CIK, 
+                    group=interaction(gear_simple, hatchery_origin), colour=gear_simple), 
+                width=0.2, size=0.8, alpha=0.4, position=position_dodge(width=0.1)) +
+  geom_point(aes(x=month, y=meanK, shape=hatchery_origin, colour=gear_simple, fill=gear_simple), 
+             linewidth=0.7, size=4, alpha=1, position = position_dodge(width=0.1)) +
+  
+  scale_shape_manual(breaks=c("Hatchery", "Natural"), values=c(24, 21)) +
+  scale_linetype_manual(breaks=c("Hatchery", "Natural"), values=c("dashed", "solid")) +
+  
+  scale_y_continuous(breaks=seq(0, 2, by=0.1)) +
+  labs(y="Fulton's condition factor", fill="Life stage", colour="Life stage", shape="Hatchery origin", linetype="Hatchery origin") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=20),
+        axis.title = element_text(face="bold", size=22),
+        axis.title.x = element_blank(),
+        legend.title = element_text(size=19, face="bold"),
+        legend.text = element_text(size=17),
+        legend.key.width = unit(10, "mm"),
+        plot.margin = margin(t=0.5, b=0.5, l=0.5, r=0.5, unit="cm"))  +
+  guides(fill = guide_legend(override.aes = list(shape=32)),
+         shape = guide_legend(override.aes = list(size=4, stroke=1)),
+         linetype = guide_legend(override.aes = list(linetype=c("dashed", "solid"), linewidth=c(0.8,0.8))))
+
+dev.off()
+
+
+
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -383,4 +515,5 @@ leaflet() %>%
     chartdata = Thrasher[, c(3:11)], 
     colorPalette = colours, 
     width = 30, transitionTime = 0)  
+
 
