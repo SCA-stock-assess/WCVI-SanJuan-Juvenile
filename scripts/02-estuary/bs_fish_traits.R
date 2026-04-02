@@ -327,7 +327,7 @@ ggplot() +
                                  "Natural Unknown", "Unknown Unknown", "Hatchery Unknown")) +
   scale_y_continuous(labels=scales::percent_format(), limits=c(0, 1.05), expand = expansion(mult = c(0.01, 0.04)), 
                      breaks = seq(0, 1, by=0.25)) +
-  labs(x="Site name", y="Proportion of Chinook", fill="Stock ID", colour="Stock ID") +
+  labs(x="Stat week", y="Proportion of Chinook", fill="Stock ID", colour="Stock ID") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
         axis.text = element_text(colour="black", size=15),
