@@ -66,9 +66,10 @@ all.biodat.diet <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 
 ## Calculate mean PFI by gear, month, hatchery origin -----------------
 meanPFI_by_month_ALL <- all.biodat.diet %>%
-  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
-                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                 grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                  TRUE ~ gear)) %>%
   filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
          grepl("chinook", resolved_species, ignore.case=T), 
@@ -92,9 +93,10 @@ meanPFI_by_month_ALL <- all.biodat.diet %>%
             by="month") %>%
   left_join(.,
             all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
-              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
-                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                             grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                              TRUE ~ gear)) %>%
               filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
                      grepl("chinook", resolved_species, ignore.case=T), 
@@ -111,8 +113,9 @@ meanPFI_by_month_ALL <- all.biodat.diet %>%
 
 
 ### Plot -----------------
-meanPFI_by_month_ALL$gear_simple <- factor(meanPFI_by_month_ALL$gear_simple, levels=c("RST", "Beach seine", "Port Renfrew purse seine",
-                                                                                      "Barkley Sound purse seine"), ordered=T)
+meanPFI_by_month_ALL$gear_simple <- factor(meanPFI_by_month_ALL$gear_simple, levels=c("Freshwater", "San Juan estuary", 
+                                                                                      "Early marine (Port San Juan)",
+                                                                                      "Early marine (Barkley Sound)"), ordered=T)
 
 meanPFI_by_month_ALL$month <- factor(meanPFI_by_month_ALL$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
                                     ordered=T)
@@ -192,9 +195,10 @@ dev.off()
 
 ## Calculate mean PFI by gear, month, hatchery origin -----------------
 meanPFI_by_month_SJ <- all.biodat.diet %>%
-  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
-                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                 grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                  TRUE ~ gear)) %>%
   filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
          grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
@@ -218,9 +222,10 @@ meanPFI_by_month_SJ <- all.biodat.diet %>%
             by="month") %>%
   left_join(., 
             all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
-              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
-                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                             grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                              TRUE ~ gear)) %>%
               filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
                      grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
@@ -239,8 +244,9 @@ meanPFI_by_month_SJ <- all.biodat.diet %>%
 
 
 ### Plot (Figure xx) -----------------
-meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("RST", "Beach seine", "Port San Juan purse seine",
-                                                                                    "Barkley Sound purse seine"), ordered=T)
+meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("Freshwater", "San Juan estuary", 
+                                                                                      "Early marine (Port San Juan)",
+                                                                                      "Early marine (Barkley Sound)"), ordered=T)
 
 meanPFI_by_month_SJ$month <- factor(meanPFI_by_month_SJ$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
                                     ordered=T)
@@ -269,22 +275,22 @@ ggplot() +
                                "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
                                "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
                                "Shrimps",   "Worms (incl polychaete)", "Unidentified remains"),
-                    values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                    values=c("#14c8aa", "#00bce4", "#9f204f", "#ce4a2d",
                              "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
                              "#9fe375", "#f57407", "#1ba831", "#6b7280", 
                              "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
-                             "black",  "#ad00ff",
+                             "#997950",  "#ad00ff",
                              "#cecfd3")) +
   scale_colour_manual(breaks = c("Amphipods", "Arthropods (unspecified)", "Barnacles", "Collembola",
                                  "Copepods (non-parasitic)", "Crustaceans (unspecified)", "Decapods", "Fish",
                                  "Insects", "Invertebrates (unspecified)", "Isopods", "Non-food (plants, seaweed, rocks, feathers)",
                                  "Octopus (larvae)", "Ostracods",  "Other terrestrial invertebrates", "Parasites*", 
                                  "Shrimps",   "Worms (incl polychaete)", "Unidentified remains"),
-                      values=c("#14c8aa", "#00bce4", "#9f204f", "#8b6b5a",
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#ce4a2d",
                                "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
                                "#9fe375", "#f57407", "#1ba831", "#6b7280", 
                                "#e3faff", "#ffea3b", "#ff006f", "#f73921", 
-                               "black",  "#ad00ff",
+                               "#997950",  "#ad00ff",
                                "#cecfd3")) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.3))) + 
   labs(y="Mean Partial Fullness Index") +  
@@ -295,7 +301,8 @@ ggplot() +
                                                                 element_text(size=15)),
                                                   background_y = list(element_rect(fill="gray90"),
                                                                       element_rect(fill="white")),
-                                                  by_layer_y = T)) +
+                                                  by_layer_y = T),
+                      labeller = label_wrap_gen(width = 18)) +
   theme(axis.title.x = element_blank(),
         axis.title = element_text(face="bold", size=17), 
         axis.text = element_text(colour="black", size=16),
@@ -319,9 +326,10 @@ dev.off()
 
 ## Calculate mean PFI by gear, month, hatchery origin -----------------
 meanPFI_by_month_stray <- all.biodat.diet %>%
-  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
-                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                 grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                  TRUE ~ gear)) %>%
   filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
          grepl("chinook", resolved_species, ignore.case=T), stray_status=="stray",           # only keeping STRAY fish this time
@@ -345,9 +353,10 @@ meanPFI_by_month_stray <- all.biodat.diet %>%
             by="month") %>%
   left_join(., 
             all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
-              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port Renfrew purse seine",
-                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                             grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                              TRUE ~ gear)) %>%
               filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
                      grepl("chinook", resolved_species, ignore.case=T), stray_status=="stray",           # only keeping STRAY fish this time
@@ -365,8 +374,9 @@ meanPFI_by_month_stray <- all.biodat.diet %>%
 
 ### Plot -----------------
 meanPFI_by_month_stray$gear_simple <- factor(meanPFI_by_month_stray$gear_simple, 
-                                             levels=c("RST", "Beach seine", "Port Renfrew purse seine",
-                                                      "Barkley Sound purse seine"), ordered=T)
+                                             levels=c("Freshwater", "San Juan estuary", 
+                                                      "Early marine (Port San Juan)",
+                                                      "Early marine (Barkley Sound)"), ordered=T)
 
 meanPFI_by_month_stray$month <- factor(meanPFI_by_month_stray$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
                                     ordered=T)
