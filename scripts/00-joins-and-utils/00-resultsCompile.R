@@ -435,7 +435,7 @@ otochem.w.biodata <- left_join(otochem,
                                by=c("otolith_box_vial" = "r_otolith_box_vial_concat")) %>%
   left_join(.,
             biosamp.gsi.linked %>%
-              select(gear, usid, date, species, fork_length_mm, height_mm, field_weight_g, ad_clip, hatchery_origin,
+              select(gear, usid, date, species, field_fork_length_mm, height_mm, field_weight_g, ad_clip, hatchery_origin,
                      lethal_tag_no, comments, condK, MGL_ID_Source, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
                      MGL_associated_collection_prob, MGL_species, origin_method:stray_status),
             by=c("Sample ID" = "lethal_tag_no")) %>% 
@@ -451,7 +451,7 @@ otochem.w.biodata <- left_join(otochem,
   select(-c(species.x, species.y, start_date, date, external_marks, ad_clip, r_resolved_origin, hatchery_origin, r_resolved_origin_method,
             origin_method, r_resolved_stock_id, resolved_stock_id, r_resolved_stock_id_method, resolved_stock_id_method, 
             r_resolved_stock_origin, resolved_stock_origin, MGL_ID_Source, comments, MGL_PBT_brood_group)) %>%
-  relocate(c(sample_date, gear, usid, species, MGL_species, sex, adipose_clipped, poh_length_mm, fork_length_mm, height_mm, field_weight_g, condK), 
+  relocate(c(sample_date, gear, usid, species, MGL_species, sex, adipose_clipped, poh_length_mm, field_fork_length_mm, height_mm, field_weight_g, condK), 
            .before=otolith_box_vial) %>%
   relocate(c(resolved_origin, resolved_origin_method, resolved_stock_ID, resolved_stock_ID_method, resolved_stock_ID_origin,
              resolved_stock_origin_rollup, stray_status), .after = r_resolved_brood_year)
@@ -542,8 +542,11 @@ diet.results <- readxl::read_excel(path=list.files(path="//ENT.dfo-mpo.ca/DFO-MP
 ## JOIN: field biodata+GSI + diet results ----------------- 
 
 biosample.long.diet <- full_join(biosamp.gsi.otochem.linked %>% 
-                                     select(year, gear, usid, date, DOY, species, resolved_species, fork_length_mm, height_mm, field_weight_g, lab_weight_g,
-                                            modelled_weight_g, resolved_weight_g, resolved_weight_source, condK,
+                                     select(year, gear, usid, date, DOY, species, resolved_species, 
+                                            field_fork_length_mm, lab_fork_length_mm, resolved_fork_length_mm, resolved_length_source,
+                                            height_mm, 
+                                            field_weight_g, lab_weight_g, modelled_weight_g, resolved_weight_g, resolved_weight_source, 
+                                            condK,
                                             ad_clip, cwt, hatchery_origin, lethal_tag_no, DNA_vial, 
                                             MGL_ID_Source, MGL_PBT_brood_year, MGL_PBT_brood_collection, MGL_PBT_brood_group, MGL_top_collection,
                                             MGL_associated_collection_prob, MGL_species, MGL_notes,
