@@ -38,13 +38,20 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
          resolved_weight_g = case_when(resolved_weight_source=="field" ~ as.numeric(weight),
                                        resolved_weight_source=="lab" ~ as.numeric(lab_weight_g),
                                        resolved_weight_source=="modelled" ~ as.numeric(modelled_weight_g)),
-         condK = resolved_weight_g/(length^3)*100000,
+         resolved_length_source = case_when(!is.na(length) ~ "field",
+                                            is.na(length) & !is.na(lab_length_mm) ~ "lab"),
+         resolved_fork_length_mm = case_when(resolved_length_source=="field" ~ as.numeric(length),
+                                             resolved_length_source=="lab" ~ as.numeric(lab_length_mm)),
+         condK = resolved_weight_g/(resolved_fork_length_mm^3)*100000,
          species = case_when(grepl("perch", species, ignore.case=T) ~ "Perch",
                              grepl("smelt", species, ignore.case=T) ~ "Smelt",
                              TRUE ~ stringr::str_to_title(species))) %>%
   relocate(c(lab_weight_g, modelled_weight_g), .after=weight) %>%
   relocate(c(resolved_weight_g, resolved_weight_source), .after=modelled_weight_g) %>%
-  rename(fork_length_mm = length,
+  relocate(c(lab_length_mm), .after=length) %>%
+  relocate(c(resolved_fork_length_mm, resolved_length_source), .after=lab_length_mm) %>%
+  rename(field_fork_length_mm = length,
+         lab_fork_length_mm = lab_length_mm,
          height_mm = height,
          field_weight_g = weight,
          dissected_by = sampler,
@@ -57,23 +64,23 @@ biodata <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GRO
 ## Residual condition factor ------------------------------------
 # Doing this here because I need the modelled weights calculated above to make the length-weight regression
 
-ggplot(data = biodata) +
-  geom_point(aes(x=log(fork_length_mm), y=log(resolved_weight_g), colour=resolved_weight_source), size=3, alpha=0.7) +
-  geom_smooth(aes(x=log(fork_length_mm), y=log(resolved_weight_g)), method="lm", col="black")
-
-summary(lm(log(biodata$resolved_weight_g) ~ log(biodata$fork_length_mm)))
-# b = 2.84  (logged)
-# m = -11.06 (logged)
-# y = -11.06x + 2.84
-
-biodata2 <- biodata %>%
-  mutate(predicted_weight_Wp = (exp(-11.06) * biodata$fork_length_mm) + exp(2.84),
-         condKn_resid = resolved_weight_g / predicted_weight_Wp)
-
-# ** here next day -- weird resid cond values
-
-ggplot(data = biodata2) +
-  geom_point(aes(x=date, y=condKn_resid))
+# ggplot(data = biodata) +
+#   geom_point(aes(x=log(fork_length_mm), y=log(resolved_weight_g), colour=resolved_weight_source), size=3, alpha=0.7) +
+#   geom_smooth(aes(x=log(fork_length_mm), y=log(resolved_weight_g)), method="lm", col="black")
+# 
+# summary(lm(log(biodata$resolved_weight_g) ~ log(biodata$fork_length_mm)))
+# # b = 2.84  (logged)
+# # m = -11.06 (logged)
+# # y = -11.06x + 2.84
+# 
+# biodata2 <- biodata %>%
+#   mutate(predicted_weight_Wp = (exp(-11.06) * biodata$fork_length_mm) + exp(2.84),
+#          condKn_resid = resolved_weight_g / predicted_weight_Wp)
+# 
+# # ** here next day -- weird resid cond values
+# 
+# ggplot(data = biodata2) +
+#   geom_point(aes(x=date, y=condKn_resid))
 
 
 
