@@ -568,9 +568,10 @@ dev.off()
 # =============================================== NDMS PFI: SAN JUAN only ===============================================
 
 meanPFI_by_month_SJ <- all.biodat.diet %>%
-  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
-                                 grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+  mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                 grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                 grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                 grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                  TRUE ~ gear)) %>%
   filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
          grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
@@ -594,9 +595,10 @@ meanPFI_by_month_SJ <- all.biodat.diet %>%
             by="month") %>%
   left_join(., 
             all.biodat.diet %>%                                                              # Section below simply calculates the number of samples for each group so that we can plot sample size labels (and re-joins it to the main table for ease of plotting)
-              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "RST",
-                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Port San Juan purse seine",
-                                             grepl("large purse seine", gear, ignore.case=T) ~ "Barkley Sound purse seine",
+              mutate(gear_simple = case_when(gear%in% c("6' RST", "IPT") ~ "Freshwater",
+                                             grepl("beach seine", gear, ignore.case=T) ~ "San Juan estuary",
+                                             grepl("mini purse seine", gear, ignore.case=T) ~ "Early marine (Port San Juan)",
+                                             grepl("large purse seine", gear, ignore.case=T) ~ "Early marine (Barkley Sound)",
                                              TRUE ~ gear)) %>%
               filter(!is.na(source1), !is.na(taxonomy_simple), !is.na(month),
                      grepl("chinook", resolved_species, ignore.case=T), stray_status=="local",           # only keeping LOCAL (SJ) fish this time
@@ -609,8 +611,9 @@ meanPFI_by_month_SJ <- all.biodat.diet %>%
               ungroup()) %>%  
   print()
 
-meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("RST", "Beach seine", "Port San Juan purse seine",
-                                                                                    "Barkley Sound purse seine"), ordered=T)
+meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("Freshwater", "San Juan estuary", 
+                                                                                    "Early marine (Port San Juan)",
+                                                                                    "Early marine (Barkley Sound)"), ordered=T)
 
 meanPFI_by_month_SJ$month <- factor(meanPFI_by_month_SJ$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), 
                                     ordered=T)
@@ -674,8 +677,9 @@ gear_hull <-
 
 ### Plot (Figure xx) --------
 data.scores$month <- factor(data.scores$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), ordered=T)
-data.scores$gear_simple <- factor(data.scores$gear_simple, levels=c("RST", "Beach seine", "Port Renfrew purse seine", 
-                                                                    "Barkley Sound purse seine", ordered=T))
+data.scores$gear_simple <- factor(data.scores$gear_simple, levels=c("Freshwater", "San Juan estuary", 
+                                                                    "Early marine (Port San Juan)",
+                                                                    "Early marine (Barkley Sound)", ordered=T))
 
 pdf(file = here::here("outputs", "figures", "diet", "NMDS multi-plot.pdf"),   
     width = 14, # The width of the plot in inches
@@ -712,8 +716,8 @@ ggpubr::ggarrange(
     annotate("text", x=-0.32, y=0.28, label="B", fontface="bold", size=7) +
     annotate("text", x=0.32, y=0.28, label = paste0("2D Stress: ", round(PFI.NMDS$stress, 2)), size=6) +
     scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
-    scale_fill_discrete(labels = c("Freshwater", "San Juan \nestuary", "Port San Juan \n(marine)", "Barkley Sound \n(marine)")) +
-    scale_colour_discrete(labels = c("Freshwater", "San Juan \nestuary", "Port San Juan \n(marine)", "Barkley Sound \n(marine)")) +
+    scale_fill_discrete(labels = c("Freshwater", "San Juan \nestuary", "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
+    scale_colour_discrete(labels = c("Freshwater", "San Juan \nestuary", "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
     labs(x="NMDS1", y="NMDS2")  +
     theme_bw() +
     theme(axis.text = element_blank(),
