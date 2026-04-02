@@ -805,7 +805,7 @@ ggplot() +
              mutate(arm = case_when(site_name_clean %in% c("BS03", "BS14", "BS03B", "BS17", "BS06", "BS07", "BS24") ~ "North arm",
                                     TRUE ~ "South arm")),
            aes(x=site_name_clean, y=mean_prey_ww_propn, fill=taxonomy_simple, colour=taxonomy_simple), 
-           stat="identity", position="stack", alpha=0.7, linewidth=1) +
+           stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
   geom_label(data=bs.biodat.diet %>%
                filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
                       taxonomy_simple!="Non-food") %>%
