@@ -101,8 +101,7 @@ bs.biodat.diet %>%
 
 
 
-# ================== PLOTS ================== 
-# Not going to bother plotting because there were almost no empty stomachs and obviously the rest will have a mix of detectable and non-detectable parts. 
+# >> Not going to bother plotting because there were almost no empty stomachs and obviously the rest will have a mix of detectable and non-detectable parts. 
 
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -616,41 +615,46 @@ pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy 
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
-ggplot() +
-  geom_bar(data = bs.biodat.diet %>%
-             filter(!is.na(source1), MT_status!="Empty", total_ww_contents>0) %>%
-             # -- Add up prey source weights for each individual, and the total mass of all matter in the stomach
-             group_by(lethal_tag_no, taxonomy_simple) %>%
-             summarize(weight_by_taxa = sum(total_ww_g, na.rm=T),
-                       total_prey_ww = unique(total_ww_contents, na.rm=T))   %>%
-             # -- Calculate the proportion of each prey source for each individual
-             group_by(lethal_tag_no) %>%
-             mutate(propn_prey_taxa = weight_by_taxa/total_prey_ww) %>%
-             ungroup() %>%
-             # -- Fill in for missing categories and fill the missing values: 
-             complete(., lethal_tag_no, taxonomy_simple, 
-                      fill=list(weight_by_taxa=0, propn_prey_taxa=0)) %>%
-             group_by(lethal_tag_no) %>%
-             fill(total_prey_ww, .direction = "updown") %>%
-             # -- Calculate the average prey source for each year
-             group_by(taxonomy_simple) %>%
-             summarize(mean_taxa_ww_propn = mean(propn_prey_taxa, na.rm=T)) %>%
-             mutate(check = sum(mean_taxa_ww_propn))  %>%
-             mutate(taxonomy_simple = case_when(grepl("Non-food", taxonomy_simple) ~ "Non-food",
-                                                TRUE ~ taxonomy_simple),
-                    source_simple = case_when(grepl("amphipods|barnacles|copepods|decapods|isopods|ostracods|parasites|polychaete|shrimp", taxonomy_simple, ignore.case=T) ~ "Marine",
-                                              grepl("arachnid|arthropod|centipede|insect|midges", taxonomy_simple, ignore.case=T) ~ "Terrestrial/Freshwater",
-                                              grepl("non-food", taxonomy_simple, ignore.case=T) | taxonomy_simple=="Unidentified remains" ~ "Non-food/undetermined",
-                                              TRUE ~ "FLAG")),
-           aes(x=fct_reorder(taxonomy_simple, mean_taxa_ww_propn, .desc = TRUE), y=mean_taxa_ww_propn, fill=source_simple, colour=source_simple), 
+ggplot(data = bs.biodat.diet %>%
+         filter(!is.na(source1), MT_status!="Empty", total_ww_contents>0) %>%
+         # -- Add up prey source weights for each individual, and the total mass of all matter in the stomach
+         group_by(lethal_tag_no, taxonomy_simple) %>%
+         summarize(weight_by_taxa = sum(total_ww_g, na.rm=T),
+                   total_prey_ww = unique(total_ww_contents, na.rm=T))   %>%
+         # -- Calculate the proportion of each prey source for each individual
+         group_by(lethal_tag_no) %>%
+         mutate(propn_prey_taxa = weight_by_taxa/total_prey_ww) %>%
+         ungroup() %>%
+         # -- Fill in for missing categories and fill the missing values: 
+         complete(., lethal_tag_no, taxonomy_simple, 
+                  fill=list(weight_by_taxa=0, propn_prey_taxa=0)) %>%
+         group_by(lethal_tag_no) %>%
+         fill(total_prey_ww, .direction = "updown") %>%
+         # -- Calculate the average prey source for each year
+         group_by(taxonomy_simple) %>%
+         summarize(mean_taxa_ww_propn = mean(propn_prey_taxa, na.rm=T),
+                   CI = qt(0.975, df=length(propn_prey_taxa)-1)*sd(propn_prey_taxa)/sqrt(length(propn_prey_taxa))) %>%    #formula to get to 0.975:  1-(1-conf.level)/2
+         mutate(check = sum(mean_taxa_ww_propn))  %>%
+         mutate(taxonomy_simple = case_when(grepl("Non-food", taxonomy_simple) ~ "Non-food",
+                                            TRUE ~ taxonomy_simple),
+                source_simple = case_when(grepl("amphipods|barnacles|copepods|decapods|isopods|ostracods|parasites|polychaete|shrimp", taxonomy_simple, ignore.case=T) ~ "Marine",
+                                          grepl("arachnid|arthropod|centipede|insect|midges", taxonomy_simple, ignore.case=T) ~ "Terrestrial/Freshwater",
+                                          grepl("non-food", taxonomy_simple, ignore.case=T) | taxonomy_simple=="Unidentified remains" ~ "Non-food/undetermined",
+                                          TRUE ~ "FLAG"))) +
+  geom_bar(aes(x=fct_reorder(taxonomy_simple, mean_taxa_ww_propn, .desc = TRUE), y=mean_taxa_ww_propn, 
+               fill=source_simple, colour=source_simple), 
            stat="identity", position="dodge", alpha=0.7, linewidth=1) +
-  # scale_fill_manual(breaks=waiver(), values=c("#00e7ff", "gray80", "#569351", "gray40")) +
-  # scale_colour_manual(breaks=waiver(), values=c("#00e7ff", "gray80", "#569351", "gray40")) +
+  
+  geom_errorbar(aes(x=fct_reorder(taxonomy_simple, mean_taxa_ww_propn, .desc = TRUE),
+                    ymax=mean_taxa_ww_propn+CI, ymin=mean_taxa_ww_propn,
+                    fill=source_simple, colour=source_simple),
+                position="dodge", alpha=0.7, width=0.2, linewidth=1, show.legend = F) +
+  
   scale_fill_manual(breaks=c("Marine", "Terrestrial/Freshwater", "Non-food/undetermined"), 
                     values=c("#0424D9", "#6be980",  "gray20")) +
   scale_colour_manual(breaks=c("Marine", "Terrestrial/Freshwater", "Non-food/undetermined"), 
                       values=c("#0424D9", "#6be980",  "gray20")) +
-  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1), limits=c(0, 0.4)) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1), limits=c(0, 0.45)) +
   labs(x="", y="Mean prey proprtion in diet (g/g)", fill="Prey source", colour="Prey source") +
   theme_bw() +
   theme(axis.text.x = element_text(angle=45, hjust=1),
