@@ -833,7 +833,7 @@ ggplot() +
              mutate(tax_simp_plot = case_when(grepl("non-food", tax_simp_plot, ignore.case=T) ~ "Non-food",
                                               TRUE ~ tax_simp_plot)),
            aes(x=site_name_clean, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), 
-           stat="identity", position="stack", alpha=0.7, linewidth=1) +
+           stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
   geom_label(data=prs.biodat.diet %>%
                filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean)) %>%
                group_by(lethal_tag_no, site_name_clean) %>%
