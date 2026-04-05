@@ -93,7 +93,8 @@ pdf(file = here::here("outputs", "figures", "diet", "Barkley Sound Marine diets 
 ggplot() +
   geom_bar(data = nm_meanTAXA_by_site %>% 
              filter(!is.na(site_name_clean)),
-           aes(x=site_name_clean, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), stat="identity", position="stack", alpha=0.7, linewidth=1) +
+           aes(x=site_name_clean, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), 
+           stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
   geom_label(data=nmmct.biodat.diet %>%
                filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
                       taxonomy_simple%notin%c("Non-food", "No sample", "Plastic"), gear=="Large purse seine") %>%
