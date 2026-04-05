@@ -36,24 +36,31 @@ rst.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 write.csv(
   x=rst.biodat.fish %>% 
     filter(grepl("chinook|chum|coho|pink|sockeye", species, ignore.case=T), !is.na(ad_clip), resolved_weight_source=="field") %>%
-    mutate_at(c("resolved_weight_g", "fork_length_mm"), as.numeric) %>%
+    mutate_at(c("resolved_weight_g", "resolved_fork_length_mm"), as.numeric) %>%
     group_by(year, species_stage_simple) %>%
-    #group_by(year) %>%
-    summarize(meanL = round(mean(fork_length_mm, na.rm=T),2),
-              seL = round(sd(fork_length_mm, na.rm=T) / sqrt(length(fork_length_mm)),2),
+    summarize(meanL = round(mean(resolved_fork_length_mm, na.rm=T),2),
+              seL = round(sd(resolved_fork_length_mm, na.rm=T) / sqrt(length(resolved_fork_length_mm)),2),
+              CIL = round(qt(0.975, df=length(resolved_fork_length_mm)-1)*sd(resolved_fork_length_mm, na.rm=T)/sqrt(length(resolved_fork_length_mm)),2),
               mseL = paste0(meanL, " (", seL, ")"),
+              mCIL = paste0(meanL, " (", CIL, ")"),
               
               meanH = round(mean(height_mm, na.rm=T),2),
               seH = round(sd(height_mm, na.rm=T) / sqrt(length(height_mm)),2),
+              CIH = round(qt(0.975, df=length(height_mm)-1)*sd(height_mm, na.rm=T)/sqrt(length(height_mm)),2),
               mseH = paste0(meanH, " (", seH, ")"),
+              mCIH = paste0(meanH, " (", CIH, ")"),
               
               meanW = round(mean(resolved_weight_g, na.rm=T),2),
               seW = round(sd(resolved_weight_g, na.rm=T) / sqrt(length(resolved_weight_g)),2),
+              CIW = round(qt(0.975, df=length(resolved_weight_g)-1)*sd(resolved_weight_g, na.rm=T)/sqrt(length(resolved_weight_g)),2),
               mseW = paste0(meanW, " (", seW, ")"),
+              mCIW = paste0(meanW, " (", CIW, ")"),
               
               meanK = round(mean(cond_k, na.rm=T),2),
               seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),5),
+              CIK = round(qt(0.975, df=length(cond_k)-1)*sd(cond_k, na.rm=T)/sqrt(length(cond_k)),2),
               mseK = paste0(meanK, " (", seK, ")"),
+              mCIK = paste0(meanK, " (", CIK, ")"),
               
               N = n()),
   
