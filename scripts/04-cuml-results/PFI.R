@@ -698,13 +698,13 @@ ggpubr::ggarrange(
     #            aes(x = axis1, y = axis2, color = hatchery_origin), 
     #            size = 5, shape = 17) +
     scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
-    labs(x="NMDS1", y="NMDS2")  + 
+    labs(x="NMDS1", y="NMDS2", fill="Hatchery \nassignment", colour="Hatchery \nassignment")  + 
     theme_bw() +
     theme(axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.title = element_text(size=18), 
           legend.text = element_text(size=17), 
-          legend.title = element_blank(),
+          legend.title = element_text(size=18, face="bold"),
           legend.key.spacing.y = unit(2, "mm")),
   
   ggplot() + 
@@ -718,13 +718,13 @@ ggpubr::ggarrange(
     scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
     scale_fill_discrete(labels = c("Freshwater", "San Juan \nestuary", "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
     scale_colour_discrete(labels = c("Freshwater", "San Juan \nestuary", "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
-    labs(x="NMDS1", y="NMDS2")  +
+    labs(x="NMDS1", y="NMDS2", fill="Migration stage", colour="Migration stage")  +
     theme_bw() +
     theme(axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.title = element_text(size=18), 
           legend.text = element_text(size=16), 
-          legend.title = element_blank(),
+          legend.title = element_text(size=18, face="bold"),
           legend.key.spacing.y = unit(3, "mm"),
           plot.margin = margin(5, 0, 5, 5)    #t, r, b, l
           ),
@@ -740,13 +740,13 @@ ggpubr::ggarrange(
     scale_fill_discrete (breaks=waiver()) +
     scale_colour_discrete (breaks=waiver()) +  
     scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
-    labs(x="NMDS1", y="NMDS2") +
+    labs(x="NMDS1", y="NMDS2", fill="Month", colour="Month") +
     theme_bw() +
     theme(axis.text = element_blank(),
           axis.ticks = element_blank(),
           axis.title = element_text(size=18), 
           legend.text = element_text(size=17), 
-          legend.title = element_blank(),
+          legend.title = element_text(size=18, face="bold"),
           plot.margin = margin(10, 41, 10, 5),    #t, r, b, l
           legend.key.spacing.y = unit(2, "mm"))  
   
