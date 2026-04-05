@@ -94,7 +94,8 @@ ggplot() +
              filter(!is.na(species_simple), CPUE>0) %>%
              group_by(site_name_clean, statWeek, species_simple) %>%
              summarize(mean_CPUE = mean(CPUE, na.rm=T)),
-           aes(x=statWeek, y=mean_CPUE, fill=species_simple, colour=species_simple), stat="identity", position="stack", alpha=0.7, linewidth=1) +
+           aes(x=statWeek, y=mean_CPUE, fill=species_simple, colour=species_simple), 
+           stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
   # geom_label(data = CPUE %>%
   #              filter(!is.na(species_simple), CPUE>0) %>%
   #              group_by(site_name_clean, statWeek) %>%
