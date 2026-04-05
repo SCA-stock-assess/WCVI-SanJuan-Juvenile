@@ -114,8 +114,8 @@ ggplot(data = all.FL) +
   scale_fill_hue() +
   
   scale_y_continuous(breaks=seq(0, 200, by=25)) +
-  labs(y="Fork length (mm)", fill="Life stage", colour="Life stage", shape = "Hatchery origin", 
-       linetype = "Hatchery origin") +
+  labs(y="Fork length (mm)", fill="Migration stage", colour="Migration stage", shape = "Hatchery assignment", 
+       linetype = "Hatchery assignment") +
   
   theme_bw() +
   theme(axis.text = element_text(colour="black", size=20),
@@ -289,7 +289,7 @@ ggplot(data = all.K) +
   geom_hline(aes(yintercept = 1.2), colour="gray60", linetype="solid", size=1, alpha=0.8) +
   geom_line(aes(x=month, y=meanK, group=interaction(hatchery_origin, gear_simple), 
                 colour=gear_simple, linetype=hatchery_origin),
-            size=0.8, alpha=1, position=position_dodge(width=0.1)) +
+            size=1.1, alpha=1, position=position_dodge(width=0.1)) +
   
   geom_errorbar(aes(x=month, ymin=meanK-CIK, ymax=meanK+CIK, 
                     group=interaction(gear_simple, hatchery_origin), colour=gear_simple), 
@@ -301,7 +301,8 @@ ggplot(data = all.K) +
   scale_linetype_manual(breaks=c("Hatchery", "Natural"), values=c("dashed", "solid")) +
   
   scale_y_continuous(breaks=seq(0, 2, by=0.1)) +
-  labs(y="Fulton's condition factor", fill="Life stage", colour="Life stage", shape="Hatchery origin", linetype="Hatchery origin") +
+  labs(y="Fulton's condition factor", fill="Migration stage", colour="Migration stage", 
+       shape="Hatchery assignment", linetype="Hatchery assignment") +
   theme_bw() +
   theme(axis.text = element_text(colour="black", size=20),
         axis.title = element_text(face="bold", size=22),
