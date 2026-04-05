@@ -419,29 +419,34 @@ eventMeta_totals_INFILLEDFINAL <- full_join(
   
 
 ## Plot ------------------
-pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST infilled.pdf"),   
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST infilled - 2024 final.pdf"),   
     width = 16, # The width of the plot in inches
     height = 14) # The height of the plot in inches
 
 ggplot(data=eventMeta_totals_INFILLEDFINAL %>%
-         filter(species %in% c("Chinook (natural)", "Coho fry (sub-yearling)", "Coho smolt (yearling)"),
-                year != 2023)) +
+         filter(species %in% c("Chinook (natural)", "Coho fry (sub-yearling)"#, "Coho smolt (yearling)"
+                               ),
+                year == 2024
+                )) +
   geom_point(aes(x=as.Date(doy, origin="2023-12-31"), y=count, fill=species, colour=species, shape=estimate_type), 
              alpha=0.8, size=4, stroke=2) +
   geom_line(aes(x=as.Date(doy, origin="2023-12-31"), y=count, colour=species), 
             alpha=0.8, linewidth=1) +
   scale_fill_manual(values=c("Chinook (natural)" = "#7caed1",
-                             "Coho fry (sub-yearling)" = "#fdb462",
-                             "Coho smolt (yearling)" = "#fb8072")) +
+                             "Coho fry (sub-yearling)" = "#fdb462" #,
+                             #"Coho smolt (yearling)" = "#fb8072"
+                             )) +
   scale_colour_manual(values=c("Chinook (natural)" = "#7caed1",
-                             "Coho fry (sub-yearling)" = "#fdb462",
-                             "Coho smolt (yearling)" = "#fb8072")) +
+                             "Coho fry (sub-yearling)" = "#fdb462" #,
+                             #"Coho smolt (yearling)" = "#fb8072"
+                             )) +
   scale_shape_manual(values=c("infill" = 4,
                                "observed" = 21),
                      labels = c("infill"="Infilled",
                                 "observed" = "Observed")) +
   scale_x_date(date_breaks="7 day", date_labels = "%b %d") +
-  labs(y="Juvenile salmon counts", fill="Species/life history", colour="Species/life history", shape="Count type") +
+  scale_y_continuous(breaks=scales::pretty_breaks(n=10)) +
+  labs(y="Daily count", fill="Species/life history", colour="Species/life history", shape="Count type") +
   theme_bw() +
   theme(axis.text = element_text(colour="black", size=19),
         axis.text.x = element_text(angle=45, hjust=1),
@@ -449,8 +454,9 @@ ggplot(data=eventMeta_totals_INFILLEDFINAL %>%
         axis.title.x = element_blank(),
         legend.title = element_text(face="bold", size=20),
         legend.text = element_text(size=19),
-        strip.text = element_text(size=20, face="bold")) +
-  facet_wrap(~year, scales="free", nrow=2)
+        strip.text = element_text(size=20, face="bold"),
+        plot.margin = margin(t=0.5, r=0.2, b=0.2, l=0.5, unit="cm")) #+
+  #facet_wrap(~year, scales="free", nrow=2)
 
 dev.off()
 
