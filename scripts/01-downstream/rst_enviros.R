@@ -13,9 +13,9 @@ library(tidyverse)
 "%notin%" <- Negate("%in%")
 
 
-# ========================= LOAD JUVENILE DATA =========================
+# ========================= LOAD DATA =========================
 
-# Sample events ----------------- 
+## Sample events ----------------- 
 eventMeta <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database",
                                                 pattern="^R_OUT - San Juan PSSI master database",
                                                 full.names = T),
@@ -27,7 +27,7 @@ eventMeta <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO-MPO/G
 
 
 
-# Environmentals ----------------- 
+## RST Environmentals ----------------- 
 enviros <- readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO/GROUP/PAC/PBS/Operations/SCA/SCD_Stad/WCVI/JUVENILE_PROJECTS/Area 20-San Juan juveniles/# Juvi Database/",
                                                 pattern = "^R_OUT - San Juan PSSI master database",
                                                 full.names = T),
@@ -40,7 +40,7 @@ enviros <- readxl::read_excel(path = list.files(path = "//ENT.dfo-mpo.ca/DFO-MPO
   mutate_at("rst_rpms", as.numeric)
 
 
-# ========================= LOAD HYDROMET DATA =========================
+## Hydromet flow data ----------------- 
 hydro <- full_join(
   read.csv(file=list.files(path = here::here("data", "enviro"),
                            pattern = "SANJUAN_historical*",
@@ -70,13 +70,27 @@ hydro <- full_join(
   janitor::clean_names()
 
 
+
+## Hydromet temp data ----------------- 
+wcvi_hydromet <- readxl::read_excel(path=here::here("data", "enviro", "SanJuan_WCVIhydromet_2022-2025.xlsx")) %>%
+  janitor::clean_names() %>%
+  mutate(date = lubridate::ymd_hms(station_time),
+         date = as.Date(date),
+         water_temp_celcius_corrected = case_when(is.na(water_temp_celcius_corrected) ~ water_temp_celcius,
+                                                  TRUE ~ water_temp_celcius_corrected)) %>%
+  group_by(date) %>%
+  summarize(mean_temp = mean(water_temp_celcius_corrected, na.rm=T)) %>%
+  mutate(year = lubridate::year(date)) %>%
+  print()
+
+
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
 # =============== RST OPS ===============
 
-# RPMs ----------------- 
+## RPMs ----------------- 
 rpms <- enviros %>%
   group_by(year) %>% 
   summarize(mean = mean(rst_rpms, na.rm=T),
@@ -84,7 +98,7 @@ rpms <- enviros %>%
   print()
 
 
-# RPMs and FLOW ----------------- 
+## RPMs and FLOW ----------------- 
 
 pdf(file = here::here("outputs", "figures", "RST RPMs and flow.pdf"),   
     width = 11, # The width of the plot in inches
@@ -121,7 +135,8 @@ ggplot() +
         axis.text.x = element_text(angle=45,hjust=1),
         axis.title.x = element_blank(),
         axis.title.y.left = element_text(colour="dodger blue"),
-        axis.title = element_text(face="bold", size=19)) +
+        axis.title = element_text(face="bold", size=19),
+        strip.text = element_text(size=16)) +
   facet_wrap(~year, scales="free_y", nrow=3) 
 
 dev.off()
@@ -133,9 +148,53 @@ dev.off()
 
 # =============== WATER QUALITY ===============
 
-# Temp ----------------- 
+## Temp ----------------- 
+cn.atu <- wcvi_hydromet %>%
+  mutate(outmigration_year = case_when(date %in% as.Date(c(as.Date("2022-10-01"):as.Date("2023-06-30"))) ~ 2023,
+                                       date %in% as.Date(c(as.Date("2023-10-01"):as.Date("2024-06-30"))) ~ 2024,
+                                       date %in% as.Date(c(as.Date("2024-10-01"):as.Date("2025-06-30"))) ~ 2025,
+                                       TRUE ~ NA)) %>%
+  filter(!is.na(outmigration_year)) %>%
+  group_by(outmigration_year) %>%
+  filter(month(date) %in% c(10,11,12,1,2,3,4,5,6)) %>%
+  arrange(date) %>%
+  group_by(outmigration_year) %>%
+  mutate(ATU = cumsum(mean_temp),
+         date2 = lubridate::make_datetime(9999, month(date), day(date)),
+         day_num = row_number()) %>%
+  print()
+
+View(cn.atu %>%
+       group_by(outmigration_year) %>%
+       filter(ATU >= 825 & ATU <= 1025) %>%
+       summarize(earliest_emerg = min(date),
+                 latest_emerg = max(date)))
+
+
+pdf(file = here::here("outputs", "figures", "ATUs.pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot(data = cn.atu) +
+  geom_hline(yintercept = 825, colour="red", linetype="dashed")+
+  geom_hline(yintercept = 1025, colour="red", linetype="dashed")+
+  geom_line(aes(x=day_num, y=ATU, group=as.factor(outmigration_year), colour=as.factor(outmigration_year)), 
+            size=1.5, alpha=0.8) +
+  scale_x_continuous(breaks=scales::pretty_breaks(20)) +
+  labs(x="Days elapsed since egg deposition (Oct 01)", y="ATUs", colour="Outmigration \nyear") +
+  theme_bw() +
+  theme(axis.text = element_text(colour="black", size=17),
+        axis.title = element_text(face="bold", size=19),
+        legend.title = element_text(face="bold", size=18),
+        legend.text = element_text(size=17))
+
+dev.off()
+
+## DO ----------------- 
 
 
 
-# DO ----------------- 
+
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+# ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
