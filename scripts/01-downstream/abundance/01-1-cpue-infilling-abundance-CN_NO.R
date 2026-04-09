@@ -68,14 +68,15 @@ CNNO_impVal <- eventMeta_totals_impValFull %>%
 #          size = guide_legend(override.aes = element_blank()))
 
 # Save as PDF: 
-pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Imputation diagnostic plot - Chinook NO.pdf"),   # The directory you want to save the file in
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Imputation diagnostic plot - Chinook NO - 2024 only.pdf"),   # The directory you want to save the file in
     width = 16, # The width of the plot in inches
     height = 10) # The height of the plot in inches
 
 print(
   ggplot() +
     geom_point(data=CNNO_impVal %>% 
-                 filter(!is.na(value), estimate_type=="observed" & data_series=="chinook_natural_obs"),
+                 filter(!is.na(value), estimate_type=="observed" & data_series=="chinook_natural_obs",
+                        year==2024),
                aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), 
                colour="black", fill="black", alpha=1, stroke=1.2, size=2.5) +  
     geom_point(data=CNNO_impVal %>% 
@@ -87,7 +88,7 @@ print(
     scale_x_date(date_breaks="3 day", date_labels="%b %d") +
     scale_size_manual(breaks=waiver(), values=c(3, 4)) +
     scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-    labs(x="", y="Natural Chinook catch", colour="Infilling model", fill="Infilling model", size="Data type", shape="Data type") +
+    labs(x="", y="Chinook catch", colour="Infilling model", fill="Infilling model", size="Data type", shape="Data type") +
     theme_bw() +
     theme(axis.text = element_text(colour="black", size=18),
           axis.text.x = element_text(angle=45, hjust=1),
@@ -98,7 +99,7 @@ print(
           legend.title = element_text(face="bold", size=18),
           legend.text = element_text(size=16),
           strip.text = element_text(size=20, face="bold")) +
-    facet_wrap(~year, nrow=2, scales="free_y") +
+    #facet_wrap(~year, nrow=2, scales="free_y") +
     guides(color = guide_legend(override.aes = list(alpha = 1))#,
            #size = guide_legend(override.aes = element_blank())
            )
