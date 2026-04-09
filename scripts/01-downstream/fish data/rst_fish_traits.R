@@ -57,7 +57,7 @@ write.csv(
               mCIW = paste0(meanW, " (", CIW, ")"),
               
               meanK = round(mean(cond_k, na.rm=T),2),
-              seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),5),
+              seK = round(sd(cond_k, na.rm=T) / sqrt(length(cond_k)),2),
               CIK = round(qt(0.975, df=length(cond_k)-1)*sd(cond_k, na.rm=T)/sqrt(length(cond_k)),2),
               mseK = paste0(meanK, " (", seK, ")"),
               mCIK = paste0(meanK, " (", CIK, ")"),
@@ -145,25 +145,28 @@ ggplot(data=rst.biodat.fish %>%
 dev.off()
 
 
-## Length plot ---------------  
+## Length ~ statweek ---------------  
 pdf(file = here::here("outputs", "figures", "fish traits", "RST Chinook by statweek - length.pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
 
 ggplot(data=rst.biodat.fish %>% 
-         mutate_at("length_mm", as.numeric) %>%
+         mutate_at("resolved_fork_length_mm", as.numeric) %>%
          filter(grepl("chinook", species, ignore.case=T), ad_clip=="N") %>%
-         mutate(statWeek = paste0(0, statWeek)) %>%
+         #mutate(statWeek = paste0(0, statWeek)) %>%
          group_by(year, statWeek) %>%
-         summarize(meanL = mean(length_mm, na.rm=T),
-                   seL = sd(length_mm, na.rm=T) / sqrt(length(length_mm)),
+         summarize(meanL = mean(resolved_fork_length_mm, na.rm=T),
+                   seL = sd(resolved_fork_length_mm, na.rm=T) / sqrt(length(resolved_fork_length_mm)),
+                   #CIL = case_when(qt(0.975, df=length(resolved_fork_length_mm)-1)*sd(resolved_fork_length_mm, na.rm=T)/sqrt(length(resolved_fork_length_mm)),
                    n=n()) %>%
          group_by(year) %>%
          mutate(n=sum(n),
                 label = paste0(year, " (n=", n, ")"))) +
   geom_errorbar(aes(x=statWeek, ymin=meanL-seL, ymax=meanL+seL, colour=as.factor(label)), width=0.2, size=1, alpha=0.8) +
-  geom_point(aes(x=statWeek, y=as.numeric(meanL), fill=as.factor(label)), shape=21, size=7, alpha=0.8, colour="black", linewidth=1) +
-  scale_y_continuous(limits=c(0,80)) +
+  geom_point(aes(x=statWeek, y=as.numeric(meanL), fill=as.factor(label), colour=as.factor(label)), 
+             shape=21, size=7, alpha=0.8, #colour="black", 
+             linewidth=1) +
+  #scale_y_continuous(limits=c(0,80)) +
   scale_fill_manual(values=c("#70b985", "#6ac7ff", "#7d023c")) +
   scale_colour_manual(values=c("#70b985", "#6ac7ff", "#7d023c")) +
   labs(y="Mean fork length \u00B1 SE (mm)", x="Stat week (month-week)") +
@@ -285,7 +288,7 @@ dunntest <- FSA::dunnTest(as.numeric(cond_k) ~ as.factor(statWeek), data=rst.nat
 
 
 
-## Length + Condition factor combo plot ---------------  
+## Length + Condition factor ~ statweek combo plot (Figure xx) ---------------  
 
 pdf(file = here::here("outputs", "figures", "fish traits", "RST Chinook by statweek - length AND condition.pdf"),   
     width = 11, # The width of the plot in inches
@@ -293,23 +296,26 @@ pdf(file = here::here("outputs", "figures", "fish traits", "RST Chinook by statw
 
 ggpubr::ggarrange(
   ggplot(data=rst.biodat.fish %>% 
-           mutate_at("length_mm", as.numeric) %>%
+           mutate_at("resolved_fork_length_mm", as.numeric) %>%
            filter(grepl("chinook", species, ignore.case=T), ad_clip=="N") %>%
-           mutate(statWeek = paste0(0, statWeek)) %>%
+           #mutate(statWeek = paste0(0, statWeek)) %>%
            group_by(year, statWeek) %>%
-           summarize(meanL = mean(length_mm, na.rm=T),
-                     seL = sd(length_mm, na.rm=T) / sqrt(length(length_mm)),
+           summarize(meanL = mean(resolved_fork_length_mm, na.rm=T),
+                     seL = sd(resolved_fork_length_mm, na.rm=T) / sqrt(length(resolved_fork_length_mm)),
                      n=n()) %>%
            group_by(year) %>%
            mutate(n=sum(n),
-                  label = paste0(year, " (n=", n, ")"))) +
+                  label = paste0(year, " (n = ", n, ")"))) +
     geom_errorbar(aes(x=statWeek, ymin=meanL-seL, ymax=meanL+seL, colour=as.factor(label)), width=0.1, size=1, alpha=0.8, show.legend=F) +
-    geom_point(aes(x=statWeek, y=as.numeric(meanL), fill=as.factor(label)), shape=21, size=7, alpha=0.8, colour="black", linewidth=1) +
-    geom_text(x=1, y=80, label="(A)", size=5) +
-    scale_y_continuous(limits=c(0,80)) +
+    geom_point(aes(x=statWeek, y=as.numeric(meanL), fill=as.factor(label), colour=as.factor(label)), 
+               shape=21, size=7, alpha=0.8, #colour="black", 
+               linewidth=1) +
+    geom_text(x=1, y=88, label="A", size=6) +
+    #scale_y_continuous(limits=c(0,80)) +
     scale_fill_manual(values=c("#70b985", "#6ac7ff", "#7d023c")) +
     scale_colour_manual(values=c("#70b985", "#6ac7ff", "#7d023c")) +
-    labs(y="Mean fork length (mm)", x="Stat week (month-week)", fill="Year (total sample size)") +
+    labs(y="Fork length (mm)", x="Stat week (month-week)", fill="Year (total sample size)",
+         colour="Year (total sample size)") +
     theme_bw() +
     theme(axis.text = element_text(colour="black", size=18),
           #axis.text.x = element_text(angle=45, hjust=1),
@@ -326,21 +332,24 @@ ggpubr::ggarrange(
   
   ggplot(data=rst.biodat.fish %>% 
            filter(grepl("chinook", species, ignore.case=T), ad_clip=="N") %>%
-           mutate(statWeek = paste0(0, statWeek)) %>%
+           #mutate(statWeek = paste0(0, statWeek)) %>%
            group_by(year, statWeek) %>%
            summarize(meanK = round(mean(cond_k, na.rm=T),1),
                      seK = sd(cond_k, na.rm=T) / sqrt(length(cond_k)),
                      n=n()) %>%
            group_by(year) %>%
            mutate(n=sum(n),
-                  label = paste0(year, " (n=", n, ")"))) +
+                  label = paste0(year, " (n = ", n, ")"))) +
     geom_errorbar(aes(x=statWeek, ymin=meanK-seK, ymax=meanK+seK, colour=as.factor(label)), width=0.1, size=1, alpha=0.8, show.legend=F) +
-    geom_point(aes(x=statWeek, y=as.numeric(meanK), fill=as.factor(label)), colour='black', shape=21, size=7, alpha=0.8) +
-    geom_text(x=1, y=1.7, label="(B)", size=5) +
-    scale_y_continuous(limits=c(0.5, 1.8)) +
+    geom_point(aes(x=statWeek, y=as.numeric(meanK), fill=as.factor(label), colour=as.factor(label)), 
+               #colour='black', 
+               shape=21, size=7, alpha=0.8) +
+    geom_text(x=1, y=2, label="B", size=6) +
+    #scale_y_continuous(limits=c(0.5, 1.8)) +
     scale_fill_manual(values=c("#70b985", "#6ac7ff", "#7d023c")) +
     scale_colour_manual(values=c("#70b985", "#6ac7ff", "#7d023c")) +
-    labs(y="Mean condition factor", x="Stat week (month-week)", fill="Year (total sample size)") +
+    labs(y="Fulton's condition factor", x="Stat week (month-week)", fill="Year (total sample size)",
+         colour="Year (total sample size)") +
     theme_bw() +
     theme(axis.text = element_text(colour="black", size=18),
           axis.text.x = element_text(angle=45, hjust=1),
