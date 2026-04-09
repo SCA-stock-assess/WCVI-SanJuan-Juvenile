@@ -70,14 +70,14 @@ COSUB_impVal <- eventMeta_totals_impValFull %>%
 
 
 # Save as PDF: 
-pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Imputation diagnostic plot - Coho subyearling.pdf"),   # The directory you want to save the file in
+pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Imputation diagnostic plot - Coho subyearling - 2024 only.pdf"),   # The directory you want to save the file in
     width = 16, # The width of the plot in inches
     height = 10) # The height of the plot in inches
 
 print(  
   ggplot() +
     geom_point(data=COSUB_impVal %>% 
-                 filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
+                 filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs", year==2024),
                aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), 
                colour="black", fill="black", alpha=1, stroke=1.2, size=2.5) +  #
     geom_point(data=COSUB_impVal %>% 
@@ -100,7 +100,7 @@ print(
           legend.title = element_text(face="bold", size=18),
           legend.text = element_text(size=16),
           strip.text = element_text(size=20, face="bold")) +
-    facet_wrap(~year, nrow=2, scales="free_y") +
+    #facet_wrap(~year, nrow=2, scales="free_y") +
     guides(color = guide_legend(override.aes = list(alpha = 1))#,
            #size = guide_legend(override.aes = element_blank())
     )
