@@ -418,7 +418,7 @@ eventMeta_totals_INFILLEDFINAL <- full_join(
   
   
 
-## Plot ------------------
+## Final infilled catch plot (Figure xx) ------------------
 pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST infilled - 2024 final.pdf"),   
     width = 16, # The width of the plot in inches
     height = 14) # The height of the plot in inches
@@ -819,8 +819,9 @@ efficiency.abundest <- cocn_abundance_smooth.predabund %>%
     # Assume fecundity 3000 eggs/female: 4,293,000 eggs
     # Egg-fry mortality 80%: 858,720
 
-cn.LH.abundest <- ((2642*0.4)*3500)*0.1
-co.LH.abundest <- ((3578*0.4)*3000)*0.2    #this is likely not appropriate as we'd need the yearling component
+cn.LH.abundest <- ((2642*0.4)*3957)*0.1
+surv <- 317067/(2642*0.4*3957)
+co.LH.abundest <- ((3578*0.4)*2800)*0.2    #this is likely not appropriate as we'd need the yearling component
 
 
 ### Coho Pooled Petersen estimate ----
