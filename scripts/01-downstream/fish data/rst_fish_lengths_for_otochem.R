@@ -86,7 +86,7 @@ cn_expanded <- left_join(setTotals %>%
 
 
 
-# Re-calculate % by size bin (expanded) ----------------- 
+# Re-calculate % by size bin (expanded) (TABLE 12) ----------------- 
 cn_expanded %>%
   select(date, expanded_n_under_50, expanded_n_overincl_50) %>%
   mutate(year = lubridate::year(date)) %>%

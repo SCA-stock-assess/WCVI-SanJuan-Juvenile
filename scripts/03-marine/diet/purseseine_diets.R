@@ -662,6 +662,7 @@ prs_meanTAXA_by_site <- prs.biodat.diet %>%
             long=mean(long))
 
 
+### Taxa by source (FIGURE 22) -----------
 pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified - averaged).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -816,12 +817,12 @@ leaflet() %>%
 
 
 
-### Taxa by SITE (plot) (Figure xx) ----------------
+### Taxa by SITE (plot) ----------------
 prs_meanTAXA_by_site$site_name_clean <- factor(prs_meanTAXA_by_site$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
-                                                                                              "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                              "Yap Rock", "Mill Bay", "Offshore B", "Thrasher",
                                                                                               ordered=T))
 prs.biodat.diet$site_name_clean <- factor(prs.biodat.diet$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
-                                                                                    "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                    "Yap Rock", "Mill Bay", "Offshore B", "Thrasher",
                                                                                     ordered=T))
 
 pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified and SITE).pdf"),   
@@ -841,6 +842,7 @@ ggplot() +
                group_by(site_name_clean) %>%
                summarize(n=n()),
              aes(x=site_name_clean, y=1.03, label=n), size=5) +
+  annotate(geom="text", x=0.75, y=1.1, label="A", fontface="bold", size=6) +
   scale_fill_manual(breaks=waiver(), 
                     values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
                              "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
@@ -866,3 +868,184 @@ ggplot() +
         strip.text = element_text(size=18))  
 
 dev.off()
+
+
+
+### Taxa by STATWEEK ----------------
+# Summarize data: 
+prs_meanTAXA_by_statWK <- prs.biodat.diet %>%
+  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
+         taxonomy_simple%notin%c("Non-food", "No sample", "Plastic")) %>%
+  mutate(tax_simp_plot = case_when(grepl("flies|beetles|insects|midges|bugs|wasps", taxonomy_simple, ignore.case=T) ~ 
+                                     "Insects",
+                                   grepl("arachnids|lice", taxonomy_simple, ignore.case=T) ~ "Other terrestrial arthropods",
+                                   TRUE ~ taxonomy_simple)) %>%
+  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
+  group_by(lethal_tag_no, tax_simp_plot) %>%
+  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
+            total_prey_ww = unique(total_ww_contents, na.rm=T),
+            lat=unique(lat_dd),
+            long=unique(long_dd),
+            statWeek = unique(statWeek))   %>%
+  # calculate the proportion of each prey source for each individual
+  group_by(lethal_tag_no) %>%
+  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
+  ungroup() %>%
+  # Fill in for missing categories and fill the missing values: 
+  complete(., lethal_tag_no, tax_simp_plot, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
+  group_by(lethal_tag_no) %>%
+  fill(c(statWeek, total_prey_ww, lat, long), .direction="updown") %>%
+  group_by(statWeek, tax_simp_plot) %>%
+  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T),
+            CI = qt(0.975, df=length(propn_prey_source)-1)*sd(propn_prey_source)/sqrt(length(propn_prey_source)),    #formula to get to 0.975:  1-(1-conf.level)/2
+            lat=mean(lat),
+            long=mean(long))
+
+
+#### Plot ----
+
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified and STATWEEK).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data = prs_meanTAXA_by_statWK %>%
+             mutate(tax_simp_plot = case_when(grepl("non-food", tax_simp_plot, ignore.case=T) ~ "Non-food",
+                                              TRUE ~ tax_simp_plot)),
+           aes(x=statWeek, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), 
+           stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
+  geom_label(data=prs.biodat.diet %>%
+               filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean)) %>%
+               group_by(lethal_tag_no, statWeek) %>%
+               summarize(n=n()) %>%
+               group_by(statWeek) %>%
+               summarize(n=n()),
+             aes(x=statWeek, y=1.03, label=n), size=5) +
+  annotate(geom="text", x=0.75, y=1.1, label="B", fontface="bold", size=6) +
+  scale_fill_manual(breaks=waiver(), 
+                    values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                             "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                             "#9fe375", "#f57407", "#1ba831", "#6b7280",
+                             "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                             "#cecfd3")) +
+  scale_colour_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280",
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                               "#cecfd3")) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+  labs(x="Stat week (month-week)", y="Mean prey proprtion in diet (g/g)", 
+       fill="Diet item", colour="Diet item") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(colour="black", size=15),
+        axis.title = element_text(face="bold", size=17),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+        plot.margin = unit(c(t=0.5, r=0.5, b=0.5, l=1),"cm"),
+        strip.text = element_text(size=18))  
+
+dev.off()
+
+
+
+### Combo plot (Site+statweek) (FIGURE 23)----- 
+prs_meanTAXA_by_site$site_name_clean <- factor(prs_meanTAXA_by_site$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
+                                                                                              "Yap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                              ordered=T))
+prs.biodat.diet$site_name_clean <- factor(prs.biodat.diet$site_name_clean, levels=c("Gordon R", "PRCD", "Offshore A", 
+                                                                                    "Yap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                    ordered=T))
+
+pdf(file = here::here("outputs", "figures", "diet", "Marine diets (by taxonomy simplified) - COMBO.pdf"),   
+    width = 12, # The width of the plot in inches
+    height = 16) # The height of the plot in inches
+
+ggpubr::ggarrange(
+  ggplot() +
+    geom_bar(data = prs_meanTAXA_by_site %>%
+               mutate(tax_simp_plot = case_when(grepl("non-food", tax_simp_plot, ignore.case=T) ~ "Non-food",
+                                                TRUE ~ tax_simp_plot)),
+             aes(x=site_name_clean, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), 
+             stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
+    geom_label(data=prs.biodat.diet %>%
+                 filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean)) %>%
+                 group_by(lethal_tag_no, site_name_clean) %>%
+                 summarize(n=n()) %>%
+                 group_by(site_name_clean) %>%
+                 summarize(n=n()),
+               aes(x=site_name_clean, y=1.03, label=n), size=5) +
+    annotate(geom="text", x=0.75, y=1.1, label="A", fontface="bold", size=7) +
+    scale_fill_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280",
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                               "#cecfd3")) +
+    scale_colour_manual(breaks=waiver(), 
+                        values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                                 "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                                 "#9fe375", "#f57407", "#1ba831", "#6b7280",
+                                 "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                                 "#cecfd3")) +
+    scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+    labs(x="Site name", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1),
+          axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=20),
+          legend.title = element_text(face="bold", size=19),
+          legend.text = element_text(size=17),
+          legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+          legend.key.spacing.y = unit(1, "mm"),
+          plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
+          strip.text = element_text(size=19)),
+  
+  
+  ggplot() +
+    geom_bar(data = prs_meanTAXA_by_statWK %>%
+               mutate(tax_simp_plot = case_when(grepl("non-food", tax_simp_plot, ignore.case=T) ~ "Non-food",
+                                                TRUE ~ tax_simp_plot)),
+             aes(x=statWeek, y=mean_prey_ww_propn, fill=tax_simp_plot, colour=tax_simp_plot), 
+             stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
+    geom_label(data=prs.biodat.diet %>%
+                 filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean)) %>%
+                 group_by(lethal_tag_no, statWeek) %>%
+                 summarize(n=n()) %>%
+                 group_by(statWeek) %>%
+                 summarize(n=n()),
+               aes(x=statWeek, y=1.03, label=n), size=5) +
+    annotate(geom="text", x=0.75, y=1.1, label="B", fontface="bold", size=7) +
+    scale_fill_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                               "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                               "#9fe375", "#f57407", "#1ba831", "#6b7280",
+                               "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                               "#cecfd3")) +
+    scale_colour_manual(breaks=waiver(), 
+                        values=c("#14c8aa", "#00bce4", "#9f204f", "#ff827b",
+                                 "#005cd0", "#abff00", "#ecbfc9", "#7fffd4",
+                                 "#9fe375", "#f57407", "#1ba831", "#6b7280",
+                                 "#e3faff", "#ffea3b", "#ff006f", "#f73921", "#ad00ff",
+                                 "#cecfd3")) +
+    scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+    labs(x="Stat week (month-week)", y="Mean prey proprtion in diet (g/g)", 
+         fill="Diet item", colour="Diet item") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1),
+          axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=20),
+          legend.title = element_text(face="bold", size=19),
+          legend.text = element_text(size=17),
+          legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+          legend.key.spacing.y = unit(1, "mm"),
+          plot.margin = unit(c(t=0.5, r=0.5, b=0.5, l=1),"cm"),
+          strip.text = element_text(size=19)), 
+  
+  common.legend = T, legend = "right", nrow=2)
+
+dev.off()
+
+

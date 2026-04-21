@@ -610,7 +610,7 @@ bs_meanTAXA_by_site <- bs.biodat.diet %>%
 
 
 
-### All taxa, coloured by source -------------
+### All taxa, coloured by source (FIGURE 17) -------------
 pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy simplified - no stage).pdf"),   
     width = 11, # The width of the plot in inches
     height = 8.5) # The height of the plot in inches
@@ -794,7 +794,7 @@ leaflet() %>%
 
 
 
-### Taxa by SITE (plot) (Figure xx) ----------------
+### Taxa by SITE (plot) ----------------
 
 pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy simplified and SITE).pdf"),   
     width = 11, # The width of the plot in inches
@@ -842,8 +842,185 @@ ggplot() +
 dev.off()
 
 
-# JB: We are doing individual mean proportions (individual prey weight/total stomach weight for each prey item averaged across individuals by month) 
-# and we are doing the relative fullness index (prey item/predator weight) for visual graphs. 
+
+### Taxa by STATWEEK (plot) ----------------
+
+bs_meanTAXA_by_statWk <- bs.biodat.diet %>%
+  filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, 
+         !is.na(site_name_clean), taxonomy_simple!="Non-food") %>%
+  # Add up prey source weights for each individual, and the total mass of all matter in the stomach
+  group_by(lethal_tag_no, taxonomy_simple) %>%
+  summarize(prey_source1_ww = sum(total_ww_g, na.rm=T),
+            total_prey_ww = unique(total_ww_contents, na.rm=T),
+            lat=unique(lat_dd),
+            long=unique(long_dd),
+            statWeek = unique(statWeek))   %>%
+  # calculate the proportion of each prey source for each individual
+  group_by(lethal_tag_no) %>%
+  mutate(propn_prey_source = prey_source1_ww/total_prey_ww) %>%
+  ungroup() %>%
+  # Fill in for missing categories and fill the missing values: 
+  complete(., lethal_tag_no, taxonomy_simple, fill=list(prey_source1_ww=0, propn_prey_source=0)) %>%
+  group_by(lethal_tag_no) %>%
+  fill(c(statWeek, total_prey_ww, lat, long), .direction="updown") %>%
+  # Calculate the average prey source for each year
+  group_by(statWeek, taxonomy_simple) %>%
+  summarize(mean_prey_ww_propn = mean(propn_prey_source, na.rm=T) #,
+            #lat=unique(lat),
+            #long=unique(long)
+            ) %>%
+  ungroup() %>%
+  mutate(taxonomy_simple = case_when(grepl("non-food", taxonomy_simple, ignore.case=T) ~ "Non-food",
+                                     TRUE ~ taxonomy_simple))
+
+
+
+#### Plot ----
+
+pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy simplified and STATWEEK).pdf"),   
+    width = 11, # The width of the plot in inches
+    height = 8.5) # The height of the plot in inches
+
+ggplot() +
+  geom_bar(data = bs_meanTAXA_by_statWk,
+           aes(x=statWeek, y=mean_prey_ww_propn, fill=taxonomy_simple, colour=taxonomy_simple), 
+           stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
+  geom_label(data=bs.biodat.diet %>%
+               filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
+                      taxonomy_simple!="Non-food") %>%
+               group_by(lethal_tag_no, statWeek) %>%
+               summarize(n=n()) %>%
+               group_by(statWeek) %>%
+               summarize(n=n()),
+             aes(x=statWeek, y=1.03, label=n), size=4.5) +
+  scale_fill_manual(breaks=waiver(), 
+                    values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
+                             "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
+                             "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
+                             "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
+  scale_colour_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
+                               "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
+                               "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
+                               "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
+  scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+  labs(x="Stat week (month-week)", y="Mean prey proprtion in diet (g/g)", 
+       fill="Diet item", colour="Diet item") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle=45, hjust=1),
+        axis.text = element_text(colour="black", size=15),
+        axis.title = element_text(face="bold", size=17),
+        legend.title = element_text(face="bold", size=17),
+        legend.text = element_text(size=15),
+        legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+        plot.margin = unit(c(t=0.5, r=0.5, b=0.5, l=1),"cm"),
+        strip.text = element_text(size=18)) 
+
+dev.off()
+
+
+### Combo plot (Site+statweek) (FIGURE 18) ----- 
+
+pdf(file = here::here("outputs", "figures", "diet", "Estuary diets (by taxonomy simplified) - COMBO.pdf"),   
+    width = 12, # The width of the plot in inches
+    height = 16) # The height of the plot in inches
+
+ggpubr::ggarrange(
+  ggplot() +
+    geom_bar(data = bs_meanTAXA_by_site %>%
+               mutate(arm = case_when(site_name_clean %in% c("BS03", "BS14", "BS03B", "BS17", "BS06", "BS07", "BS24") ~ "North arm",
+                                      TRUE ~ "South arm")),
+             aes(x=site_name_clean, y=mean_prey_ww_propn, fill=taxonomy_simple, colour=taxonomy_simple), 
+             stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
+    geom_label(data=bs.biodat.diet %>%
+                 filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
+                        taxonomy_simple!="Non-food") %>%
+                 group_by(lethal_tag_no, site_name_clean) %>%
+                 summarize(n=n()) %>%
+                 group_by(site_name_clean) %>%
+                 summarize(n=n()) %>%
+                 mutate(arm = case_when(site_name_clean %in% c("BS03", "BS14", "BS03B", "BS17", "BS06", "BS07", "BS24") ~ "North arm",
+                                        TRUE ~ "South arm")),
+               aes(x=site_name_clean, y=1.03, label=n), size=5) +
+    annotate(geom="text", x=0.75, y=1.1, label="", fontface="bold", size=7) +
+    scale_fill_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
+                               "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
+                               "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
+                               "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
+    scale_colour_manual(breaks=waiver(), 
+                        values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
+                                 "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
+                                 "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
+                                 "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
+    scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+    labs(x="Site name", y="Mean prey proprtion in diet (g/g)", fill="Diet item", colour="Diet item") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1),
+          axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=20),
+          legend.title = element_text(face="bold", size=19),
+          legend.text = element_text(size=17),
+          legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+          legend.key.spacing.y = unit(1, "mm"),
+          plot.margin = unit(c(t=0.5, r=0.5, b=0, l=1),"cm"),
+          strip.text = element_text(size=19))  +
+    facet_grid(~arm, scales="free"),
+  
+  
+  ggplot() +
+    geom_bar(data = bs_meanTAXA_by_statWk,
+             aes(x=statWeek, y=mean_prey_ww_propn, fill=taxonomy_simple, colour=taxonomy_simple), 
+             stat="identity", position="stack", alpha=0.7, linewidth=0.3) +
+    geom_label(data=bs.biodat.diet %>%
+                 filter(!is.na(taxonomy_simple), MT_status!="Empty", total_ww_contents>0, !is.na(site_name_clean), 
+                        taxonomy_simple!="Non-food") %>%
+                 group_by(lethal_tag_no, statWeek) %>%
+                 summarize(n=n()) %>%
+                 group_by(statWeek) %>%
+                 summarize(n=n()),
+               aes(x=statWeek, y=1.03, label=n), size=5) +
+    annotate(geom="text", x=0.75, y=1.1, label="B", fontface="bold", size=7) +
+    scale_fill_manual(breaks=waiver(), 
+                      values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
+                               "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
+                               "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
+                               "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
+    scale_colour_manual(breaks=waiver(), 
+                        values=c("#14c8aa", "#ff006f", "#00bce4", "#9f204f", 
+                                 "#c0b7f9", "#0000ff", "#ffd9ea", "#9fe375", 
+                                 "#1ba831", "#ffc880", "#6b7280",  "#fff700", 
+                                 "#f57407",  "#ad00ff", "#997950",  "#cecfd3")) +
+    scale_y_continuous(labels = scales::percent_format(), breaks=seq(0,1,by=0.1)) +
+    labs(x="Stat week (month-week)", y="Mean prey proprtion in diet (g/g)", 
+         fill="Diet item", colour="Diet item") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1),
+          axis.text = element_text(colour="black", size=17),
+          axis.title = element_text(face="bold", size=20),
+          legend.title = element_text(face="bold", size=19),
+          legend.text = element_text(size=17),
+          legend.background = element_rect(colour="white", fill=alpha("white", 0.7)),
+          legend.key.spacing.y = unit(1, "mm"),
+          plot.margin = unit(c(t=0.5, r=0.5, b=0.5, l=1),"cm"),
+          strip.text = element_text(size=19)),
+  
+  common.legend = T, legend = "right", nrow=2)
+
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

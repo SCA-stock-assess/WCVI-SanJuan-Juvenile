@@ -158,7 +158,7 @@ pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST ob
     width = 16, # The width of the plot in inches
     height = 14) # The height of the plot in inches
 
-## All species/years (plot) -------------------
+## All species/years (FIGURE 7) -------------------
 ggplot() +
   geom_bar(data=eventMeta_totals %>% 
              pivot_longer(cols=c(chinook_natural_obs:chinook_hatchery_obs), names_to = "species_life_stage", values_to = "count") %>%
@@ -418,7 +418,7 @@ eventMeta_totals_INFILLEDFINAL <- full_join(
   
   
 
-## Final infilled catch plot (Figure xx) ------------------
+## Final infilled catch plot (FIGURE 8) ------------------
 pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "RST infilled - 2024 final.pdf"),   
     width = 16, # The width of the plot in inches
     height = 14) # The height of the plot in inches
@@ -643,7 +643,7 @@ cocn_abundance <- left_join(cocn_catch,
   print()
 
 
-### Export to manually smooth discharge across release and recapture periods ----
+### Export to manually smooth discharge across release and recapture periods (APPENDIX TABLE 19 precursor) ----
 # This is too difficult to do in R as there are differentially lagged periods. As we don't know when exactly a fish entered the trap
 #   post-release, it cannot be necessarily attributed to one single day's discharge (i.e., one point in time). Instead, smooth (average)
 #   discharge across the release and recapture period to attribute an average discharge to each trap efficiency score
@@ -701,7 +701,7 @@ lmdf <- cocn_abundance_smooth %>%
 summary(lm(trap_efficiency_e ~ discharge_smoothed, data=lmdf))
 
 # Log-linear transformed:
-summary(lm(log(trap_efficiency_e) ~ discharge_smoothed, data=lmdf)) #** 
+summary(lm(log(trap_efficiency_e) ~ discharge_smoothed, data=lmdf)) #** best model
 summary(lm(trap_efficiency_e ~ log(discharge_smoothed), data=lmdf))
 summary(lm(log(trap_efficiency_e) ~ log(discharge_smoothed), data=lmdf))
 
@@ -740,7 +740,7 @@ cocn_abundance_smooth.pred <- cocn_abundance_smooth %>%
                                        TRUE ~ round(trap_efficiency_e, 4)))
 
 
-#### Plot ----
+#### Plot (FIGURE 5) ----
 cocn_abundance_smooth.pred$efficiency_type <- factor(cocn_abundance_smooth.pred$efficiency_type, levels=c("observed", "modelled"), 
                                                      ordered=T)
 
@@ -794,8 +794,12 @@ cocn_abundance_smooth.predabund <- cocn_abundance_smooth.pred %>%
          COdaily_abundance_est1 = round(cocount_Uco1/trap_efficiency_e,0)) %>%
   print()
 
+# export
+write.csv(cocn_abundance_smooth.predabund, here::here("outputs", "R_OUT - RST Chinook daily abundance estimates.csv"),
+          row.names=F)
 
-## Annual abundance estimates -------------
+
+## Annual abundance estimates (TABLE 9) -------------
 #### Based on trap efficiency ----
 efficiency.abundest <- cocn_abundance_smooth.predabund %>%
   group_by(year) %>%
@@ -843,7 +847,7 @@ coho.pp.abundest <- cocn_abundance_smooth.predabund %>%
 # C is the total number of marked and unmarked fish caught in second sample
 
 
-# ============= Export Table for Report ============= 
+# ============= Export Table for Report (TABLE 9) ============= 
 write.csv(x = data.frame(species = c(rep("chinook", 2), rep("coho_subY", 3)),
                          method = c("LH", "TE", "LH", "TE", "PP"),
                          estimate = c(cn.LH.abundest, efficiency.abundest[efficiency.abundest$year=="2024",]$CNest1,

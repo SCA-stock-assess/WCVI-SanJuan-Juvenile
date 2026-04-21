@@ -79,7 +79,7 @@ CPUE <- setTotals.Meta %>%
   print()
 
 
-### Plot (Figure xx) -----
+### Plot (FIGURE 19) -----
 
 CPUE$statWeek <- factor(CPUE$statWeek, levels=c("05-1", "05-2", "05-3", "05-4", "05-5", "06-1", "06-2", "06-3", "06-4", "07-1", "07-2", "07-3",
                                                 "07-4", "08-1", "08-2", "08-3", "08-4", "08-5", "09-1", "09-2", "09-3", "09-4", "10-1", "10-2",
@@ -172,7 +172,7 @@ CPUE_allspp <- setTotals.Meta %>%
   mutate(site_no = 1:10)
 
 
-## Calculate S-W indices --------------
+## Calculate S-W indices (TABLE 15) --------------
 # Set up data in matrix:
 CPUE_matrix <- data.matrix(CPUE_allspp %>%
                              select(-c(site_no)))
@@ -185,7 +185,7 @@ SW_scores <- data.frame(SW_div = vegan::diversity(x = CPUE_matrix, index="shanno
 CPUE_SWscores <- left_join(CPUE_allspp %>% 
                              select(site_name_clean, site_no),
                            SW_scores) %>%
-  mutate(edge_site = case_when(site_name_clean %in% c("PGM", "PRCD", "Mill Bay", "Thrasher", "Jap Rock", "Gordon R") ~ "edge",
+  mutate(edge_site = case_when(site_name_clean %in% c("PGM", "PRCD", "Mill Bay", "Thrasher", "Yap Rock", "Gordon R") ~ "edge",
                                TRUE ~ "mid"))
 
 

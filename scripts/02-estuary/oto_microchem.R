@@ -63,7 +63,7 @@ oto.microchem %>%
             sd_res = sd(estuary_days, na.rm=T))
 
 
-## Summary table (Table xx) --------------
+## Summary table (TABLE 13) --------------
 write.csv(
   x = oto.microchem %>%
     filter(stage=="adult") %>%
@@ -82,7 +82,7 @@ write.csv(
 
 
 
-## Estuary res stats (Section 3.2.1) ---------------  
+## Estuary res stats ---------------  
 adult.est <- oto.microchem %>%
   filter(stage=="adult")
 

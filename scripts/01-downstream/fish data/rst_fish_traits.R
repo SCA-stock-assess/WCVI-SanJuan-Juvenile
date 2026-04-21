@@ -32,7 +32,7 @@ rst.biodat.fish <- readxl::read_excel(path=list.files(path="//ENT.DFO-MPO.ca/DFO
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
-# Average body traits (all salmon) --------------- 
+# Average body traits (all salmon) (TABLE 11) --------------- 
 write.csv(
   x=rst.biodat.fish %>% 
     filter(grepl("chinook|chum|coho|pink|sockeye", species, ignore.case=T), !is.na(ad_clip), resolved_weight_source=="field") %>%
@@ -288,7 +288,7 @@ dunntest <- FSA::dunnTest(as.numeric(cond_k) ~ as.factor(statWeek), data=rst.nat
 
 
 
-## Length + Condition factor ~ statweek combo plot (Figure xx) ---------------  
+## Length + Condition factor ~ statweek combo plot (FIGURE 9) ---------------  
 
 pdf(file = here::here("outputs", "figures", "fish traits", "RST Chinook by statweek - length AND condition.pdf"),   
     width = 11, # The width of the plot in inches
@@ -369,7 +369,7 @@ dev.off()
 
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-# ============= COHO =============
+# ============= COHO (APPENDIX FIGURE 35) =============
 
 pdf(file = here::here("outputs", "figures", "fish traits", "RST Coho length density plot.pdf"),   
     width = 11, # The width of the plot in inches

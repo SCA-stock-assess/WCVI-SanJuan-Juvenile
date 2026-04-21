@@ -81,7 +81,7 @@ nm_meanTAXA_by_site <- nmmct.biodat.diet %>%
             long=mean(long))
 
 
-### Taxa by SITE - Plot (Figure xx) -------------------
+### Taxa by SITE - Plot (FIGURE 24) -------------------
 nm_meanTAXA_by_site$site_name_clean <- factor(nm_meanTAXA_by_site$site_name_clean, levels=c("Nanat", "Sarita", "Sproat Narrows", "Kirby", "Village Reef",
                                                                                             "Turtle Island", "Hand Island", "Lyall Point", ordered=T))
 

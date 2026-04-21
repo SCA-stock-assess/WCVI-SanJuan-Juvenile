@@ -13,8 +13,8 @@ source(here::here("scripts", "01-downstream", "abundance", "01-cpue-infilling-ab
 
 
 # =============== IMPUTE VALUES ===============
+# Create a bunch of different imputed time series using various methods"
 
-# ----- Create a bunch of different imputed time series using various methods ------------
 COSUB_impVal <- eventMeta_totals_impValFull %>%
   select(-c(chinook_natural_obs, chum_fry_obs, coho_yearling_obs:chinook_natural_obs_validation, coho_yearling_obs_validation:chum_fry_obs_validation)) %>%
   filter(year != 2023) %>%
@@ -36,40 +36,8 @@ COSUB_impVal <- eventMeta_totals_impValFull %>%
 
 
 
-# ----- VISUALIZE ------------
+## Plot imputations (APPENDIX FIGURE 37) ------------
 
-# plot_cohsub_imputation_validation <- 
-#   ggplot() +
-#   geom_point(data=COSUB_impVal %>% 
-#                filter(!is.na(value), estimate_type=="observed" & data_series=="coho_subyearling_obs"),
-#              aes(x=as.Date(doy, origin="2024-12-31"), y=value, size=validation_type, shape=validation_type), colour="black", fill="black", alpha=1, stroke=1) +  #
-#   geom_point(data=COSUB_impVal %>% 
-#                filter(!is.na(value), estimate_type=="infill"),
-#              aes(x=as.Date(doy, origin="2024-12-31"), y=value, fill=data_series), colour="transparent", shape=21, size=3, alpha=0.2) +
-#   geom_jitter(data=COSUB_impVal %>% 
-#                 filter(!is.na(value), validation_type=="validation" & data_series!="coho_subyearling_obs"),
-#               aes(x=as.Date(doy, origin="2024-12-31"), y=value, colour=data_series), size=3, stroke=1, alpha=0.7, shape=4, width=0.1) +
-#   scale_x_date(date_breaks="2 day", date_labels="%b %d") +
-#   scale_size_manual(breaks=waiver(), values=c(2, 3)) +
-#   scale_shape_manual(breaks=waiver(), values=c(16, 4)) +
-#   labs(x="", y="Subyearling Coho count", colour="Imputation method", fill="Imputation method", size="Data type", shape="Data type") +
-#   theme_bw() +
-#   theme(axis.text = element_text(colour="black"),
-#         axis.text.x = element_text(angle=45, hjust=1, size=10),
-#         axis.title = element_text(face="bold", size=13),
-#         panel.grid.major.x = element_line(colour="gray80", size=0.5),
-#         panel.grid.major.y = element_line(colour="gray80", size=0.5),
-#         panel.grid.minor.x = element_blank(),
-#         legend.title = element_text(face="bold", size=11),
-#         legend.text = element_text(size=10),
-#         strip.text = element_text(size=12, face="bold")) +
-#   facet_wrap(~year, nrow=2, scales="free_y") +
-#   guides(color = guide_legend(override.aes = list(alpha = 1)),
-#          size = guide_legend(override.aes = element_blank()))
-
-
-
-# Save as PDF: 
 pdf(file = here::here("outputs", "figures", "RST infill-CPUE-abundance", "Imputation diagnostic plot - Coho subyearling - 2024 only.pdf"),   # The directory you want to save the file in
     width = 16, # The width of the plot in inches
     height = 10) # The height of the plot in inches
@@ -118,9 +86,9 @@ dev.off()
 
 # =============== METRICS TO ASSESS IMPUTATION MODELS ===============
 
-# ----- Calculate overall magnitude of differences between estimates ------------
-# First used MAPE, but realized it is not stable at/near 0, so also included MAE and MASE. Tried SMAPE but returned Inf/NaN. 
-# Also tried MAE with and without the observed zero count to see if it changed the "top model" - it did not. These are called MAE_w0 (with zero) and MAE_no0 (without zero)
+# Calculate overall magnitude of differences between estimates:
+  # First used MAPE, but realized it is not stable at/near 0, so also included MAE and MASE. Tried SMAPE but returned Inf/NaN. 
+  # Also tried MAE with and without the observed zero count to see if it changed the "top model" - it did not. These are called MAE_w0 (with zero) and MAE_no0 (without zero)
 
 infill_evaluation_table.COSUB <- COSUB_impVal %>% 
   pivot_wider(names_from = data_series, values_from = value) %>%
@@ -176,7 +144,7 @@ infill_summary.COSUB <- full_join(infill_evaluation_table.COSUB %>%
 
 
 
-# =============== EXPORT ===============
+# =============== EXPORT (APPENDIX TABLE 18) ===============
 
 write.csv(infill_summary.COSUB, file=here::here("outputs", "R_OUT - imputation method metrics subyearling Coho.csv"), row.names=F)
 

@@ -89,7 +89,7 @@ all.FL <- all.biodat %>%
   print()
 
 
-## Length by month (Figure xx) ----------------- 
+## Length by month (FIGURE 26) ----------------- 
 all.FL$gear_simple <- factor(all.FL$gear_simple, levels=c("Freshwater", "San Juan estuary", "Early marine (Port San Jan)",
                                                           "Early marine (Barkley Sound)", ordered=T))
 
@@ -251,7 +251,7 @@ dev.off()
 
 
 
-## CF by month (Figure xx) ----------------- 
+## CF by month (FIGURE 26) ----------------- 
 
 all.K <- all.biodat %>% 
   filter(grepl("chinook", resolved_species, ignore.case=T), grepl("smolt|fry", life_stage, ignore.case=T),

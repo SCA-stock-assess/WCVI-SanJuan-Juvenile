@@ -87,7 +87,7 @@ bs.biodat.fish %>%
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
 
-# =============== AVG BODY TRAITS ===============
+# =============== AVG BODY TRAITS (TABLE 14) ===============
 # All Chinook
 
 write.csv(
@@ -150,7 +150,7 @@ bs.biodat.fish %>%
 
 
 
-### Plot (Figure xx) ------
+### Plot (FIGURE 15) ------
 bs.comp.site <- bs.biodat.fish %>%
   filter(resolved_species=="Chinook") %>%
   mutate(resolved_stock_origin_rollup2 = case_when(resolved_stock_origin_rollup %in% c("Natural San Juan River", "Natural (assumed) San Juan River") ~ "Natural San Juan",
@@ -255,7 +255,7 @@ cn.propn <- bs.biodat.fish %>%
   print()
 
 
-### Plot (Figure xx) -----
+### Plot (FIGURE 16) -----
 
 bs.comp.SW <- bs.biodat.fish %>%
   filter(resolved_species=="Chinook", !is.na(statWeek)) %>%

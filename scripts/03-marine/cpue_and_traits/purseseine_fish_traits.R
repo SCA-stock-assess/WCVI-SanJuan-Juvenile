@@ -101,7 +101,7 @@ prs.biodat.fish %>%
 # ======================================================== DATA SUMMARY ==========================================================
 
 # =============== AVG BODY TRAITS ===============
-## All salmon (Table xx) ---------------
+## All salmon (TABLE 16) ---------------
 write.csv(
   x=prs.biodat.fish %>% 
     filter(grepl("chinook|coho|chum|sockeye|pink", resolved_species, ignore.case=T)) %>%
@@ -130,7 +130,7 @@ write.csv(
   row.names=F)
 
 
-## By-catch (Appendix Table xx) ---------------
+## By-catch (APPENDIX TABLE 20) ---------------
 write.csv(
   x=prs.biodat.fish %>% 
     filter(!grepl("chinook|coho|chum|sockeye|pink|unknown", resolved_species, ignore.case=T), !is.na(resolved_species)) %>%
@@ -288,7 +288,7 @@ prs.biodat.fish %>%
 
 
 
-### Plot (Figure xx) ------
+### Plot (FIGURE 20) ------
 prs.comp.site <- prs.biodat.fish %>%
   filter(resolved_species=="Chinook", !grepl("GPS", site_name_clean),
          site_name_clean != "Numukamis Bay North") %>%
@@ -311,7 +311,7 @@ prs.comp.site$resolved_stock_origin_rollup2 <- factor(prs.comp.site$resolved_sto
 
 prs.comp.site$site_name_clean <- factor(prs.comp.site$site_name_clean, levels=c("Gordon R", "PGM", "PGM \"Mouth\"", "Nearshore",
                                                                                     "PRCD", "Offshore A", 
-                                                                                    "Jap Rock", "Mill Bay", "Offshore B", "Thrasher",
+                                                                                    "Yap Rock", "Mill Bay", "Offshore B", "Thrasher",
                                                                                     "Numukamis Bay North",
                                                                                     ordered=T))
 
@@ -404,7 +404,7 @@ cn.propn <- prs.biodat.fish %>%
   print()
 
 
-### Plot (Figure xx) -----
+### Plot (FIGURE 21) -----
 
 prs.comp.sw <- prs.biodat.fish %>%
   filter(resolved_species=="Chinook", !grepl("GPS", site_name_clean),

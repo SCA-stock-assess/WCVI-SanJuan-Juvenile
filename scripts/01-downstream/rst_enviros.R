@@ -98,7 +98,7 @@ rpms <- enviros %>%
   print()
 
 
-## RPMs and FLOW ----------------- 
+## RPMs and FLOW (APPENDIX FIGURE 33) ----------------- 
 
 pdf(file = here::here("outputs", "figures", "RST RPMs and flow.pdf"),   
     width = 11, # The width of the plot in inches
@@ -148,7 +148,7 @@ dev.off()
 
 # =============== WATER QUALITY ===============
 
-## Temp ----------------- 
+## Temp (APPENDIX FIGURE 34) ----------------- 
 cn.atu <- wcvi_hydromet %>%
   mutate(outmigration_year = case_when(date %in% as.Date(c(as.Date("2022-10-01"):as.Date("2023-06-30"))) ~ 2023,
                                        date %in% as.Date(c(as.Date("2023-10-01"):as.Date("2024-06-30"))) ~ 2024,

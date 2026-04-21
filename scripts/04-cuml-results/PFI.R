@@ -243,7 +243,7 @@ meanPFI_by_month_SJ <- all.biodat.diet %>%
 
 
 
-### Plot (Figure xx) -----------------
+### Plot (FIGURE 25) -----------------
 meanPFI_by_month_SJ$gear_simple <- factor(meanPFI_by_month_SJ$gear_simple, levels=c("Freshwater", "San Juan estuary", 
                                                                                       "Early marine (Port San Juan)",
                                                                                       "Early marine (Barkley Sound)"), ordered=T)
@@ -675,7 +675,7 @@ gear_hull <-
 
 
 
-### Plot (Figure xx) --------
+### Plot (FIGURE 27) --------
 data.scores$month <- factor(data.scores$month, levels=c("Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"), ordered=T)
 data.scores$gear_simple <- factor(data.scores$gear_simple, levels=c("Freshwater", "San Juan estuary", 
                                                                     "Early marine (Port San Juan)",
@@ -691,7 +691,8 @@ ggpubr::ggarrange(
                  aes(x=NMDS1, y=NMDS2, fill=hatchery_origin, group=hatchery_origin), 
                  alpha=0.20) +
     geom_point(data=data.scores, 
-               aes(x=NMDS1, y=NMDS2, colour=hatchery_origin, fill=hatchery_origin), size=3, shape=21, alpha=0.8, stroke=1.5) +
+               aes(x=NMDS1, y=NMDS2, colour=hatchery_origin, fill=hatchery_origin), 
+               size=3, shape=21, alpha=0.8, stroke=1.5) +
     annotate("text", x=-0.32, y=0.28, label="A", fontface="bold", size=7) +
     annotate("text", x=0.35, y=0.28, label = paste0("2D Stress: ", round(PFI.NMDS$stress, 2)), size=6) +
     # geom_point(data = origin_centroid, 
@@ -716,8 +717,12 @@ ggpubr::ggarrange(
     annotate("text", x=-0.32, y=0.28, label="B", fontface="bold", size=7) +
     annotate("text", x=0.32, y=0.28, label = paste0("2D Stress: ", round(PFI.NMDS$stress, 2)), size=6) +
     scale_y_continuous(expand = expansion(mult = c(0.1, 0.1))) +
-    scale_fill_discrete(labels = c("Freshwater", "San Juan \nestuary", "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
-    scale_colour_discrete(labels = c("Freshwater", "San Juan \nestuary", "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
+    # scale_fill_discrete(breaks=waiver(),
+    #                     labels = c("Freshwater", "San Juan \nestuary", 
+    #                                "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
+    # scale_colour_discrete(waiver(),
+    #                       labels = c("Freshwater", "San Juan \nestuary", 
+    #                                  "Early marine \n(Port San Juan)", "Early marine \n(Barkley Sound)")) +
     labs(x="NMDS1", y="NMDS2", fill="Migration stage", colour="Migration stage")  +
     theme_bw() +
     theme(axis.text = element_blank(),
@@ -773,7 +778,7 @@ vegan::adonis2(distances ~ meanPFI_by_month_SJ.wide$hatchery_origin, method="bra
 
 
 
-### Gear (habitat) ----
+### Migration stage ----
 set.seed(2)
 # Homogeneity of dispersion: 
 disp.habitat <- vegan::betadisper(distances, meanPFI_by_month_SJ.wide$gear_simple)

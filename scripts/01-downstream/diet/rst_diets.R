@@ -87,7 +87,7 @@ rst.biodat.diet %>%
 
 ## Fullness plot --------------
 
-### Fullness by YEAR (Figure xx) ----
+### Fullness by YEAR (FIGURE 10) ----
   # Formatted this way to mirror the Sarita plot for comparison 
 
 rst.fullness <- rst.biodat.diet %>%
