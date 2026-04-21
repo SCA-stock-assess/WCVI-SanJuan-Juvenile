@@ -67,7 +67,7 @@ b_ext = terra::ext(bathy_3005)
 # Convert raster to data frame. ggplot needs it as a data frame
 bathy_df = as.data.frame(bathy_3005, xy = TRUE) 
 
-# Define colour scheme for bathymetry. Recommendation from Andrea
+# Define colour scheme options for bathymetry. 
 bathy_cols = c("white", pals::brewer.blues(9))
 bathPal <- c("white", '#e7f7ff',"#d2f1ff","#90dcff","#3492ff", "#0028c4", "#02006f")
 pathpal2 <- c("white", "#e5e9f9", "#ccd4f3", "#b2beed", "#99a9e7", "#7f93e1", "#667edb", "#4c68d5", "#3252cf", "#193dc9", "#0028c4", "#0024b0", "#00209c", "#001875")
@@ -86,6 +86,8 @@ sites2 <- sites %>%
   group_by(gear, site_name_CLEAN) %>%
   summarize(lat=mean(lat_DD), long=mean(long_DD)) %>%
   filter(site_name_CLEAN %notin% c("FLBS01", "BS12", "BS18", "San Juan @ Fairy Lake"), !is.na(lat) & !is.na(long)) %>%
+  ungroup() %>%
+  add_row(gear="Four Mile Hatchery", site_name_CLEAN="Four Mile Hatchery", lat= 48.591605, long=-124.326159) %>%
   print()
 
 points_sf <- sf::st_as_sf(sites2, coords = c("long", "lat"), crs = 4326)
@@ -95,7 +97,7 @@ points_bc_albers <- sf::st_transform(points_sf, 3005)
 # ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
 
 
-# Study site map -----------------
+# Study site map (FIGURE 1) -----------------
 pdf(file = here::here("outputs", "figures", "Study area map.pdf"),   
     width = 16, # The width of the plot in inches
     height = 10) # The height of the plot in inches
@@ -123,7 +125,12 @@ ggplot() +
   #                        site_name_CLEAN %in% c("Mill Bay")), 
   #               aes(label=site_name_CLEAN), hjust=0, size=5, nudge_x=-120, nudge_y=-300, alpha=0.9) +
   
-  # -- North arm sites 
+  # -- Four Mile Hatchery label
+  geom_sf_label(data=points_bc_albers %>%
+                  filter(gear == "Four Mile Hatchery"),
+                aes(label=site_name_CLEAN), hjust=0, size=5, nudge_x=100, nudge_y=380, alpha=0.9) +
+  
+  # -- North arm site labels
   geom_sf_label(data=points_bc_albers %>%
                   filter(gear %in% c("PFN beach seine", "Mini purse seine"),
                          site_name_CLEAN %in% c("BS03")),
@@ -159,7 +166,7 @@ ggplot() +
                          site_name_CLEAN %in% c("BS06")), 
                 aes(label=site_name_CLEAN), hjust=0, size=5, nudge_x=-20, nudge_y=-270, alpha=0.9) +
   
-  # --- South arm
+  # --- South arm site labels
   geom_sf_label(data=points_bc_albers %>%
                   filter(gear %in% c("PFN beach seine", "Mini purse seine"),
                          site_name_CLEAN %in% c("BS08")),
@@ -185,7 +192,7 @@ ggplot() +
                          site_name_CLEAN %in% c("BS21")), 
                 aes(label=site_name_CLEAN), hjust=0, size=5, nudge_x=0, nudge_y=-250, alpha=0.9) +
 
-  # --- Purse seine
+  # --- Purse seine site labels
   geom_sf_label(data=points_bc_albers %>%
                  filter(gear %in% c("PFN beach seine", "Mini purse seine"),
                         site_name_CLEAN %in% c("Gordon R", "Nearshore")),
@@ -213,7 +220,7 @@ ggplot() +
   
   geom_sf_label(data=points_bc_albers %>%
                   filter(gear %in% c("PFN beach seine", "Mini purse seine"),
-                         site_name_CLEAN %in% c("Jap Rock")), 
+                         site_name_CLEAN %in% c("Yap Rock")), 
                 aes(label=site_name_CLEAN), hjust=1, size=5, nudge_x=50, nudge_y=300, alpha=0.9) +
   
   geom_sf_label(data=points_bc_albers %>%
@@ -226,15 +233,17 @@ ggplot() +
                          site_name_CLEAN %in% c("Mill Bay")), 
                 aes(label=site_name_CLEAN), hjust=0, size=5, nudge_x=-120, nudge_y=-300, alpha=0.9) +
   
-  scale_colour_manual(values=c("6' RST" = "#127901",
+  scale_colour_manual(values=c("6' RST" = "#0a4800",
+                               "Four Mile Hatchery" = "black",
                                "PFN beach seine" = "#9a0446",  #ccff00
                                "Mini purse seine" = "#ff9300"),
-                      labels=c("RST", "Purse seine", "Beach seine")) +
-  
-  scale_shape_manual(values=c("6' RST" = 15,
-                              "PFN beach seine" = 19,
-                              "Mini purse seine" = 17),
-                     labels=c("RST", "Purse seine", "Beach seine")) +
+                      labels=c("RST", "Four Mile Hatchery", "Beach seine", "Purse seine")) +
+
+scale_shape_manual(values=c("6' RST" = 15,
+                            "Four Mile Hatchery" = 4,
+                            "PFN beach seine" = 19,
+                            "Mini purse seine" = 17),
+                   labels=c("RST", "Four Mile Hatchery", "Beach seine", "Purse seine")) +
   
   labs(colour="Sampling method", fill="Sampling method", shape="Sampling method") +
   
@@ -263,7 +272,7 @@ dev.off()
 
 
 
-# Inset map -----------------
+# Inset map (FIGURE 1 inset) -----------------
 canada_map <- rnaturalearth::ne_states(country = "canada", returnclass = "sf")
 us_map <- rnaturalearth::ne_states(country = "united states of america", returnclass = "sf")
 
